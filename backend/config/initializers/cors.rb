@@ -1,21 +1,53 @@
 # Be sure to restart your server when you modify this file.
-
-# Avoid CORS issues when API is called from the frontend app.
-# Handle Cross-Origin Resource Sharing (CORS) in order to accept cross-origin Ajax requests.
-
+#
+# Avoid CORS issues when API is called from cross-origin JavaScript.
+# Handle Cross-Origin Resource Sharing (CORS) in order to accept cross-origin
+# Ajax requests.
+#
 # Read more: https://github.com/cyu/rack-cors
+#
+# CORS is scoped per-endpoint, not globally, because /ingest and /graphql
+# have very different trust boundaries:
+#   - /ingest is called by the bookmarklet running on an AO3 page, so it
+#     must accept the AO3 origin(s) - and only those.
+#   - /graphql is called by our own frontend, so it must accept our
+#     frontend origin(s) - and never AO3's, since that would let an
+#     AO3-origin script run arbitrary GraphQL against us.
+#
+# Active in every environment (including test and production), not just
+# development - AO3 itself needs to reach /ingest in production, and the
+# CORS request specs exercise this behavior in test.
 
-# Development-only: allow the Vite dev server to call the GraphQL API.
-# Production origins are intentionally left unset here - decide the deployed
-# frontend origin during Planning/Deployment rather than guessing it now.
-if Rails.env.development?
-  Rails.application.config.middleware.insert_before 0, Rack::Cors do
-    allow do
-      origins "http://localhost:5173"
+AO3_ORIGINS = [
+  "https://archiveofourown.org",
+  "https://www.archiveofourown.org"
+].freeze
 
-      resource "*",
-        headers: :any,
-        methods: %i[get post put patch delete options head]
-    end
+# Comma-separated list of allowed frontend origins for /graphql, e.g.
+# "https://stats.example.com,https://www.stats.example.com". Falls back to
+# the Vite dev server origin so local development works out of the box.
+# TODO(deployment): set FRONTEND_ORIGINS once the deployed frontend origin
+# is decided - the fallback below is a local-dev placeholder, not a
+# production-ready default.
+frontend_origins = ENV.fetch("FRONTEND_ORIGINS", "http://localhost:5173")
+  .split(",")
+  .map(&:strip)
+  .reject(&:blank?)
+
+Rails.application.config.middleware.insert_before 0, Rack::Cors do
+  allow do
+    origins(*AO3_ORIGINS)
+
+    resource "/ingest",
+      headers: :any,
+      methods: %i[post options]
+  end
+
+  allow do
+    origins(*frontend_origins)
+
+    resource "/graphql",
+      headers: :any,
+      methods: %i[post options]
   end
 end
