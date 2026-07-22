@@ -18,14 +18,22 @@ module Types
       ids.map { |id| context.schema.object_from_id(id, context) }
     end
 
-    # Add root-level fields here.
-    # They will be entry points for queries on your schema.
+    # statsForUser is the read path for the frontend dashboard: username +
+    # capability token in, that author's full stats history out. A wrong
+    # token or unknown username is a typed GraphQL error (not an HTTP
+    # failure or exception) so the frontend can render it inline.
+    field :stats_for_user, Types::StatsForUserType, null: true,
+      description: "An AO3 author's stats history, authorized by their capability token." do
+      argument :username, String, required: true
+      argument :token, String, required: true
+    end
 
-    # TODO: remove me
-    field :test_field, String, null: false,
-      description: "An example field added by the generator"
-    def test_field
-      "Hello World!"
+    def stats_for_user(username:, token:)
+      ao3_user = Ao3User.find_by(username: username)
+      raise GraphQL::ExecutionError, "No stats found for that username" unless ao3_user
+      raise GraphQL::ExecutionError, "Invalid token" unless ao3_user.read_token == token
+
+      StatsForUserResult.new(ao3_user)
     end
   end
 end
