@@ -23,7 +23,7 @@ require 'rspec/rails'
 # directory. Alternatively, in the individual `*_spec.rb` files, manually
 # require only the support files necessary.
 #
-# Rails.root.glob('spec/support/**/*.rb').sort_by(&:to_s).each { |f| require f }
+Rails.root.glob('spec/support/**/*.rb').sort_by(&:to_s).each { |f| require f }
 
 # Ensures that the test database schema matches the current schema file.
 # If there are pending migrations it will invoke `db:test:prepare` to
@@ -44,6 +44,10 @@ RSpec.configure do |config|
   # examples within a transaction, remove the following line or assign false
   # instead of true.
   config.use_transactional_fixtures = true
+
+  # Lets specs use travel_to/travel_back to control server-derived time
+  # (e.g. Snapshot#captured_on dedup behavior in SnapshotIngestService).
+  config.include ActiveSupport::Testing::TimeHelpers
 
   # You can uncomment this line to turn off ActiveRecord support entirely.
   # config.use_active_record = false
