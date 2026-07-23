@@ -52,6 +52,36 @@ if (/\$\$typeof/.test(source) || /react-dom/i.test(source)) {
   failures.push("appears to bundle React - the bookmarklet must be React-free.");
 }
 
+// Defense in depth for the VITE_API_ORIGIN-unset bug: vite.bookmarklet.config.ts
+// now throws at build time if VITE_API_ORIGIN is missing (see that file), but this
+// guards against that validation being bypassed, or a stale dist/bookmarklet.js from
+// an earlier broken build lingering around. `postIngest`'s apiOrigin argument isn't
+// textually adjacent to the "/ingest" literal once minified - it flows in as a
+// parameter through submit() -> postIngest() - so rather than pattern-matching the
+// bundle's shape, this checks it against the same VITE_API_ORIGIN this script's own
+// environment has (CI's frontend-lint-and-unit job runs this step right after `npm
+// run build`, in the same env - see .github/workflows/ci.yml): the configured origin
+// must actually appear in the bundle, not have been silently swapped for
+// undefined/void 0 (Vite's inlining of an unset import.meta.env.VITE_* reference).
+const configuredOrigin = process.env.VITE_API_ORIGIN;
+if (!configuredOrigin) {
+  failures.push(
+    "can't be verified against a real origin because VITE_API_ORIGIN is not set in this " +
+      "script's own environment - run it in the same environment used for `npm run build` " +
+      "(see .env.example and vite.bookmarklet.config.ts).",
+  );
+} else if (!/^https?:\/\/\S+$/.test(configuredOrigin)) {
+  failures.push(
+    `'s configured VITE_API_ORIGIN ("${configuredOrigin}") is not a valid http(s) origin.`,
+  );
+} else if (!source.includes(configuredOrigin)) {
+  failures.push(
+    `does not contain the configured VITE_API_ORIGIN ("${configuredOrigin}") anywhere in the ` +
+      "bundle - the /ingest POST target may have been baked in as undefined/void 0 instead " +
+      "of the real origin (see vite.bookmarklet.config.ts).",
+  );
+}
+
 // Loose sanity bound, not a strict contract: a plain-DOM script wired to
 // scrapeStats/buildIngestPayload/fetch/banners should be well under this:
 // a much larger file is a strong signal something heavy (React, an
