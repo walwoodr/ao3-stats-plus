@@ -68,6 +68,17 @@ npm run build           # production build
 The frontend expects the backend GraphQL API to be reachable at the URL in
 `VITE_GRAPHQL_URL` (defaults to `http://localhost:3000/graphql`).
 
+The bookmarklet (`bookmarklet.js`, built from `src/bookmarklet/*.ts` as a
+second Vite IIFE library target - see `vite.bookmarklet.config.ts` - and
+served from the frontend's own origin at `/bookmarklet.js`) POSTs captured
+stats to the Rails `/ingest` endpoint directly. Its target origin is baked
+in at build time from `VITE_API_ORIGIN` (defaults to `http://localhost:3000`
+in `.env.example`), separately from `VITE_GRAPHQL_URL`, since it talks to a
+REST endpoint rather than GraphQL. `npm run build` builds the SPA and then
+`bookmarklet.js` together (chained via `build:bookmarklet`); `npm run
+verify:bookmarklet-build` checks the build output's shape (self-contained
+IIFE, no React) and is run as its own CI step after the build.
+
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`) runs three jobs on push/PR to
