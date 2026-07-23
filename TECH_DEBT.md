@@ -41,3 +41,19 @@
   WebKit keyboard-navigation docs/issues. Needs Testing to decide whether to
   scope this assertion to non-WebKit projects or accept it as a documented
   WebKit gap.
+- [2026-07-23] (stage: Implementation) Manual verification of the
+  bookmarklet against live AO3 (plan item 14 in
+  `docs/plans/bookmarklet-entrypoint-and-hosting.md`) hit Chrome's **Local
+  Network Access (LNA)** restriction (rolling out in Chrome 141/142):
+  clicking the bookmarklet on `https://archiveofourown.org` while the
+  frontend runs locally at `http://localhost:5173` gets silently blocked -
+  a public HTTPS site can't load a script from `localhost` over plain HTTP,
+  and since the target isn't a secure context, Chrome blocks outright
+  rather than prompting (`prompt action: (null)` in the DevTools Issue).
+  Not an app bug: in production both frontend and backend will be real
+  public HTTPS origins, so LNA won't apply. Worked around for local manual
+  testing via an HTTPS tunnel (documented in README.md, "Testing the
+  bookmarklet against real AO3") rather than a code change. Leaving this
+  logged in case Deployment or Retrospective want to fold the tunnel step
+  into a documented pre-Deployment smoke-test procedure, or confirm
+  production origins are enough to make LNA moot.

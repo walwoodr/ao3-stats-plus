@@ -79,6 +79,32 @@ REST endpoint rather than GraphQL. `npm run build` builds the SPA and then
 verify:bookmarklet-build` checks the build output's shape (self-contained
 IIFE, no React) and is run as its own CI step after the build.
 
+### Testing the bookmarklet against real AO3
+
+Clicking the installed bookmarklet on the real `https://archiveofourown.org`
+while your frontend is running locally (`http://localhost:5173`) will be
+blocked by Chrome's **Local Network Access (LNA)** restriction (rolling out
+in Chrome 141/142): a public HTTPS site is not allowed to silently load a
+script from `localhost`/your local network over plain HTTP, and since the
+target isn't a secure context, Chrome blocks the request outright rather
+than offering a permission prompt. This is a browser security feature, not
+an app bug - see `TECH_DEBT.md`.
+
+To actually exercise the bookmarklet end-to-end against live AO3 before a
+real deployment exists, expose your local dev server through a public HTTPS
+tunnel so it's no longer treated as "local network":
+
+```sh
+ngrok http 5173
+```
+
+Then visit the `InstallPage` via the `https://*.ngrok.io` URL ngrok gives
+you (not `localhost`) so the generated bookmarklet's loader points at the
+tunnel origin instead of `localhost:5173`, and install/click it from there.
+You'll likely want to tunnel the backend (`:3000`) the same way and set
+`VITE_API_ORIGIN`/`VITE_GRAPHQL_URL` to its tunnel URL too, since the
+bookmarklet's `/ingest` POST is subject to the same restriction.
+
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`) runs three jobs on push/PR to
