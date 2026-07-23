@@ -26,7 +26,7 @@ RSpec.describe Ao3User, type: :model do
     it "enforces username uniqueness at the database level, not just in-memory" do
       described_class.create!(username: "dbdupe", read_token: "tok_3")
       dup = described_class.new(username: "dbdupe", read_token: "tok_4")
-      dup.save(validate: false)
+      expect { dup.save(validate: false) }.to raise_error(ActiveRecord::RecordNotUnique)
 
       expect(described_class.where(username: "dbdupe").count).to eq(1)
     end
