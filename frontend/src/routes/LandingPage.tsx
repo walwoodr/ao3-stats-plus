@@ -12,7 +12,7 @@ export function LandingPage() {
         to="/install"
         className="rounded-md bg-slate-900 px-6 py-3 font-medium text-white hover:bg-slate-700"
       >
-        Get started: install the bookmarklet
+        Get started
       </Link>
     </div>
   );

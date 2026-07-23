@@ -51,7 +51,11 @@ export function InstallPage() {
           <p className="text-sm text-slate-600">
             Can't drag? Copy this code and paste it as the URL of a new bookmark instead:
           </p>
-          <pre className="mt-2 overflow-x-auto rounded-md bg-slate-100 p-3 text-xs">
+          <pre
+            tabIndex={0}
+            aria-label="Bookmarklet code"
+            className="mt-2 overflow-x-auto rounded-md bg-slate-100 p-3 text-xs"
+          >
             <code>{bookmarkletSource}</code>
           </pre>
           <button

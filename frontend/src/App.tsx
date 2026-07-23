@@ -5,7 +5,14 @@ import { LandingPage } from "./routes/LandingPage";
 import { InstallPage } from "./routes/InstallPage";
 import { DashboardPage } from "./routes/DashboardPage";
 
-const queryClient = new QueryClient();
+// statsForUser errors (unknown username, mismatched token) are
+// authorization failures, not transient network blips - retrying them can
+// only ever fail the same way, so retries are disabled rather than leaving
+// the user in a loading state for the default backoff before landing on
+// the same error.
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+});
 
 function App() {
   return (

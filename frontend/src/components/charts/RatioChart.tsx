@@ -28,7 +28,7 @@ export function RatioChart({ title, points }: RatioChartProps) {
     <figure role="img" aria-label={title} className="w-full">
       <div aria-hidden="true">
         <ResponsiveContainer width="100%" height={240}>
-          <LineChart data={points}>
+          <LineChart data={points} accessibilityLayer={false}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="capturedOn" />
             <YAxis />

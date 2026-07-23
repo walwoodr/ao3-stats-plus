@@ -19,15 +19,56 @@ export function DashboardPage() {
   const clearToken = useTokenStore((state) => state.clearToken);
   const { data, error, isLoading } = useStatsForUser(username, token);
 
-  // A stored token that turns out to be wrong/expired shouldn't keep
-  // re-erroring on every future visit - clear it so a reload without a
-  // ?token= param falls back to the manual entry state instead of
-  // immediately refiring the same doomed query.
+  // Once a stored token turns out to be wrong/expired it's cleared from the
+  // store (in the effect below), so a reload without a ?token= param falls
+  // back to the manual-entry state instead of immediately refiring the same
+  // doomed query. mismatchMessage/lastSeenError are adjusted during render
+  // (React's documented pattern for state derived from a prop/value change,
+  // https://react.dev/learn/you-might-not-need-an-effect) rather than via
+  // setState inside the effect, so clearing the token doesn't also erase
+  // the error state's own precondition before it can be shown.
+  const [mismatchMessage, setMismatchMessage] = useState<string | null>(null);
+  const [lastSeenError, setLastSeenError] = useState<Error | null>(null);
+  // A token that arrived via the URL/stored state re-shows the entry form
+  // on error so the user can correct it. A token they *just* typed and
+  // submitted this session already got its one shot - re-showing the same
+  // form would just loop, so that case gets a plainer error instead (they
+  // can reload to start over, same as the stored-token path does).
+  const [submittedManually, setSubmittedManually] = useState(false);
+
+  if (error && error !== lastSeenError) {
+    setLastSeenError(error);
+    setMismatchMessage(error.message);
+  }
+
   useEffect(() => {
     if (error) clearToken(username);
   }, [error, username, clearToken]);
 
-  const handleManualToken = (enteredToken: string) => setToken(username, enteredToken);
+  const handleManualToken = (enteredToken: string) => {
+    setMismatchMessage(null);
+    setSubmittedManually(true);
+    setToken(username, enteredToken);
+  };
+
+  if (mismatchMessage) {
+    return (
+      <div className="mx-auto max-w-xl p-8">
+        <h1 className="text-2xl font-semibold text-slate-900">{username}&rsquo;s stats</h1>
+        <p className="mt-2 text-red-600">
+          That token doesn&rsquo;t match this username - it may be invalid, expired, or not
+          authorized.
+        </p>
+        {submittedManually ? (
+          <p className="mt-4 text-sm text-slate-600">Reload the page to try a different token.</p>
+        ) : (
+          <div className="mt-6">
+            <TokenEntryForm onSubmit={handleManualToken} error={mismatchMessage} />
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (!token) {
     return (
@@ -48,21 +89,6 @@ export function DashboardPage() {
     return (
       <div role="status" className="p-8 text-slate-600">
         Loading your stats...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="mx-auto max-w-xl p-8">
-        <h1 className="text-2xl font-semibold text-slate-900">{username}&rsquo;s stats</h1>
-        <p className="mt-2 text-red-600">
-          That token doesn&rsquo;t match this username - it may be invalid, expired, or not
-          authorized.
-        </p>
-        <div className="mt-6">
-          <TokenEntryForm onSubmit={handleManualToken} error={error.message} />
-        </div>
       </div>
     );
   }
@@ -139,15 +165,19 @@ function PerWorkTrends({ perWorkSeries }: { perWorkSeries: PerWorkSeries[] }) {
           className="w-fit rounded-md border border-slate-300 px-3 py-2 text-sm"
         >
           {perWorkSeries.map((work) => (
-            <option key={work.ao3WorkId} value={work.ao3WorkId}>
-              {work.title}
-            </option>
+            // label (not child text) sets the option's display/accessible
+            // name here so the work's title has exactly one visible,
+            // unhidden occurrence on the page - the heading below - rather
+            // than colliding with this collapsed (and therefore
+            // not-visible) <option>.
+            <option key={work.ao3WorkId} value={work.ao3WorkId} label={work.title} />
           ))}
         </select>
       </div>
 
       {selectedWork && (
         <div className="flex flex-col gap-8">
+          <h3 className="text-lg font-medium text-slate-800">{selectedWork.title}</h3>
           <TrendChart
             title={`${selectedWork.title} hits`}
             valueLabel="Hits"
