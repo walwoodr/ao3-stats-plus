@@ -52,6 +52,14 @@ jobs:
     defaults:
       run:
         working-directory: frontend
+    env:
+      # bookmarklet.js bakes this in at build time as its /ingest POST
+      # target (see vite.bookmarklet.config.ts, which now fails the build
+      # loudly if it's unset) and verify-bookmarklet-build.mjs checks the
+      # built artifact against it. A dummy value is fine here - CI never
+      # actually hits this origin - the point is exercising the same
+      # build/verify path a real deploy would use, not localhost's default.
+      VITE_API_ORIGIN: https://api.example.test
     steps:
       - uses: actions/checkout@v4
 
