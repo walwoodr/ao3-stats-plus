@@ -1,0 +1,171 @@
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { useTokenFromUrl } from "../store/useTokenFromUrl";
+import { useTokenStore } from "../store/useTokenStore";
+import { useStatsForUser, type PerWorkSeries } from "../queries/useStatsForUser";
+import { TokenEntryForm } from "../components/TokenEntryForm";
+import { TrendChart } from "../components/charts/TrendChart";
+import { RatioChart } from "../components/charts/RatioChart";
+
+// Composes the token handoff (useTokenFromUrl) with the stats read
+// (useStatsForUser) into the dashboard's state machine: no token -> manual
+// entry, loading -> announced skeleton, error (token mismatch/unknown user)
+// -> explanation + retry form, otherwise the aggregate trend/ratio charts
+// (plus a per-work section once there's per-work history).
+export function DashboardPage() {
+  const { username = "" } = useParams<{ username: string }>();
+  const token = useTokenFromUrl(username);
+  const setToken = useTokenStore((state) => state.setToken);
+  const clearToken = useTokenStore((state) => state.clearToken);
+  const { data, error, isLoading } = useStatsForUser(username, token);
+
+  // A stored token that turns out to be wrong/expired shouldn't keep
+  // re-erroring on every future visit - clear it so a reload without a
+  // ?token= param falls back to the manual entry state instead of
+  // immediately refiring the same doomed query.
+  useEffect(() => {
+    if (error) clearToken(username);
+  }, [error, username, clearToken]);
+
+  const handleManualToken = (enteredToken: string) => setToken(username, enteredToken);
+
+  if (!token) {
+    return (
+      <div className="mx-auto max-w-xl p-8">
+        <h1 className="text-2xl font-semibold text-slate-900">Connect your AO3 stats</h1>
+        <p className="mt-2 text-slate-600">
+          We couldn&rsquo;t find a saved token for this browser. Paste the one from your
+          bookmarklet&rsquo;s success message below to see your stats.
+        </p>
+        <div className="mt-6">
+          <TokenEntryForm onSubmit={handleManualToken} />
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div role="status" className="p-8 text-slate-600">
+        Loading your stats...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-xl p-8">
+        <h1 className="text-2xl font-semibold text-slate-900">{username}&rsquo;s stats</h1>
+        <p className="mt-2 text-red-600">
+          That token doesn&rsquo;t match this username - it may be invalid, expired, or not
+          authorized.
+        </p>
+        <div className="mt-6">
+          <TokenEntryForm onSubmit={handleManualToken} error={error.message} />
+        </div>
+      </div>
+    );
+  }
+
+  const aggregateSeries = data?.statsForUser.aggregateSeries ?? [];
+  const perWorkSeries = data?.statsForUser.perWorkSeries ?? [];
+
+  return (
+    <div className="mx-auto max-w-4xl p-8">
+      <h1 className="text-2xl font-semibold text-slate-900">{username}&rsquo;s stats</h1>
+
+      {aggregateSeries.length === 0 && (
+        <p className="mt-2 text-slate-600">
+          No snapshots yet - run the bookmarklet to capture one.
+        </p>
+      )}
+      {aggregateSeries.length === 1 && (
+        <p className="mt-2 text-slate-600">
+          You only have one snapshot so far - not enough history yet to show a real trend. Check
+          back after your next capture.
+        </p>
+      )}
+
+      {aggregateSeries.length > 0 && (
+        <div className="mt-6 flex flex-col gap-8">
+          <TrendChart
+            title="Total hits"
+            valueLabel="Hits"
+            points={aggregateSeries.map((point) => ({
+              capturedOn: point.capturedOn,
+              value: point.totalHits,
+            }))}
+          />
+          <TrendChart
+            title="Total kudos"
+            valueLabel="Kudos"
+            points={aggregateSeries.map((point) => ({
+              capturedOn: point.capturedOn,
+              value: point.totalKudos,
+            }))}
+          />
+          <RatioChart
+            title="Kudos-to-hits ratio"
+            points={aggregateSeries.map((point) => ({
+              capturedOn: point.capturedOn,
+              ratio: point.kudosToHitsRatio,
+            }))}
+          />
+        </div>
+      )}
+
+      {perWorkSeries.length > 0 && <PerWorkTrends perWorkSeries={perWorkSeries} />}
+    </div>
+  );
+}
+
+function PerWorkTrends({ perWorkSeries }: { perWorkSeries: PerWorkSeries[] }) {
+  const [selectedWorkId, setSelectedWorkId] = useState(perWorkSeries[0]?.ao3WorkId);
+  const selectedWork =
+    perWorkSeries.find((work) => work.ao3WorkId === selectedWorkId) ?? perWorkSeries[0];
+
+  return (
+    <div className="mt-10 flex flex-col gap-6">
+      <h2 className="text-xl font-semibold text-slate-900">Per-work trends</h2>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="per-work-select" className="text-sm font-medium text-slate-700">
+          Work
+        </label>
+        <select
+          id="per-work-select"
+          value={selectedWork?.ao3WorkId}
+          onChange={(event) => setSelectedWorkId(Number(event.target.value))}
+          className="w-fit rounded-md border border-slate-300 px-3 py-2 text-sm"
+        >
+          {perWorkSeries.map((work) => (
+            <option key={work.ao3WorkId} value={work.ao3WorkId}>
+              {work.title}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {selectedWork && (
+        <div className="flex flex-col gap-8">
+          <TrendChart
+            title={`${selectedWork.title} hits`}
+            valueLabel="Hits"
+            points={selectedWork.points.map((point) => ({
+              capturedOn: point.capturedOn,
+              value: point.hits,
+            }))}
+          />
+          <TrendChart
+            title={`${selectedWork.title} kudos`}
+            valueLabel="Kudos"
+            points={selectedWork.points.map((point) => ({
+              capturedOn: point.capturedOn,
+              value: point.kudos,
+            }))}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
