@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   renderFailureBanner,
+  renderInfoBanner,
   renderRetryBanner,
   renderSuccessBanner,
   renderUnauthorizedBanner,
@@ -104,6 +105,37 @@ describe("bookmarklet banners", () => {
       });
 
       expect(banner.getAttribute("role")).toBe("alert");
+    });
+  });
+
+  // renderInfoBanner fills the banner-naming gap the plan calls out: scrape
+  // failures (no-works / not-all-years / scrape-failed) are informational,
+  // pre-POST outcomes with no schemaVersion in play, so reusing
+  // renderFailureBanner (which always appends a "(schemaVersion N)" suffix)
+  // would be a misleading, semantically-wrong fit for them.
+  describe("renderInfoBanner (scrape-failure/informational messages)", () => {
+    it("renders the given message", () => {
+      const banner = renderInfoBanner(container, {
+        message: "You don't have any works yet, so there's nothing to capture.",
+      });
+
+      expect(banner.textContent).toContain("You don't have any works yet");
+    });
+
+    it("does not append a schemaVersion suffix", () => {
+      const banner = renderInfoBanner(container, {
+        message: "Please switch to the 'All Years' view before capturing your stats.",
+      });
+
+      expect(banner.textContent).not.toMatch(/schemaVersion/i);
+    });
+
+    it("uses an accessible role so screen readers announce it", () => {
+      const banner = renderInfoBanner(container, {
+        message: "Couldn't read your stats page - AO3's layout may have changed.",
+      });
+
+      expect(["status", "alert"]).toContain(banner.getAttribute("role"));
     });
   });
 
