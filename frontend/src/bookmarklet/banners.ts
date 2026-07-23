@@ -99,7 +99,10 @@ export function renderRetryBanner(container: HTMLElement, data: RetryBannerData)
   return banner;
 }
 
-export function renderUnauthorizedBanner(container: HTMLElement, data: UnauthorizedBannerData): HTMLElement {
+export function renderUnauthorizedBanner(
+  container: HTMLElement,
+  data: UnauthorizedBannerData,
+): HTMLElement {
   const banner = document.createElement("div");
   banner.setAttribute("role", "alert");
   banner.style.cssText = `${BANNER_STYLE}background:#fef2f2;border:1px solid #dc2626;`;

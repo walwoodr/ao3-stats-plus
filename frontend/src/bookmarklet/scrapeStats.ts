@@ -35,7 +35,8 @@ export interface ScrapedData {
 
 export type ScrapeFailureReason = "no-works" | "not-all-years" | "scrape-failed";
 
-export type ScrapeResult = { ok: true; data: ScrapedData } | { ok: false; reason: ScrapeFailureReason };
+export type ScrapeResult =
+  { ok: true; data: ScrapedData } | { ok: false; reason: ScrapeFailureReason };
 
 const USERNAME_PATTERN = /^\/users\/([^/]+)\/stats/;
 
@@ -87,7 +88,9 @@ function parseAggregate(statsRoot: Element): Omit<AggregateStats, "worksCount"> 
   const userSubscriptions = parseNumber(metaDl.querySelector("dd.user.subscriptions")?.textContent);
 
   if (
-    [wordCount, hits, kudos, comments, bookmarks, subscriptions, userSubscriptions].some((n) => n === null)
+    [wordCount, hits, kudos, comments, bookmarks, subscriptions, userSubscriptions].some(
+      (n) => n === null,
+    )
   ) {
     return null;
   }
@@ -107,7 +110,9 @@ function parseAggregate(statsRoot: Element): Omit<AggregateStats, "worksCount"> 
 // appear multiple times (once per fandom it's tagged with) - dedup by
 // ao3WorkId and union the fandom names onto a single entry.
 function parseWorks(statsRoot: Element): ScrapedWork[] | null {
-  const rows = Array.from(statsRoot.querySelectorAll("ul.statistics.index.group > li.fandom.listbox.group"));
+  const rows = Array.from(
+    statsRoot.querySelectorAll("ul.statistics.index.group > li.fandom.listbox.group"),
+  );
   const worksById = new Map<number, ScrapedWork>();
 
   for (const row of rows) {

@@ -17,7 +17,10 @@ export interface BuildIngestPayloadOptions {
   readToken?: string;
 }
 
-export function buildIngestPayload(data: ScrapedData, options: BuildIngestPayloadOptions): IngestPayload {
+export function buildIngestPayload(
+  data: ScrapedData,
+  options: BuildIngestPayloadOptions,
+): IngestPayload {
   return {
     schemaVersion: options.schemaVersion,
     username: data.username,
