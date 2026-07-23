@@ -14,6 +14,10 @@ export interface FailureBannerData {
   schemaVersion: number;
 }
 
+export interface InfoBannerData {
+  message: string;
+}
+
 export interface RetryBannerData {
   message: string;
   onRetry: () => void;
@@ -66,6 +70,20 @@ export function renderFailureBanner(container: HTMLElement, data: FailureBannerD
   banner.setAttribute("role", "alert");
   banner.style.cssText = `${BANNER_STYLE}background:#fef2f2;border:1px solid #dc2626;`;
   banner.textContent = `${data.message} (schemaVersion ${data.schemaVersion})`;
+
+  container.appendChild(banner);
+  return banner;
+}
+
+// Fills a banner-naming gap: scrape failures (no-works / not-all-years /
+// scrape-failed) are informational, pre-POST outcomes with no
+// schemaVersion in play, so reusing renderFailureBanner (which always
+// appends a "(schemaVersion N)" suffix) would be a misleading fit for them.
+export function renderInfoBanner(container: HTMLElement, data: InfoBannerData): HTMLElement {
+  const banner = document.createElement("div");
+  banner.setAttribute("role", "status");
+  banner.style.cssText = `${BANNER_STYLE}background:#eff6ff;border:1px solid #2563eb;`;
+  banner.textContent = data.message;
 
   container.appendChild(banner);
   return banner;
