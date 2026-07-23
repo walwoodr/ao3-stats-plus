@@ -100,14 +100,24 @@ real deployment exists, expose your local dev server through a public HTTPS
 tunnel so it's no longer treated as "local network":
 
 ```sh
-ngrok http 5173
+npx tunnelmole 5173
 ```
 
-Then visit the `InstallPage` via the `https://*.ngrok.io` URL ngrok gives
-you (not `localhost`) so the generated bookmarklet's loader points at the
-tunnel origin instead of `localhost:5173`, and install/click it from there.
-You'll likely want to tunnel the backend (`:3000`) the same way and set
-`VITE_API_ORIGIN`/`VITE_GRAPHQL_URL` to its tunnel URL too, since the
+(or `npm install -g tunnelmole` for a persistent `tmole` command - see
+[tunnelmole.com/docs](https://tunnelmole.com/docs/))
+
+Vite's dev server rejects requests whose `Host` header it doesn't
+recognize, so it will otherwise reply "Blocked request. This host is not
+allowed" once you load the site through the tunnel. Add the tunnel host to
+`server.allowedHosts` in `vite.config.ts` (a specific hostname, or `true` to
+allow any host while you're doing this kind of manual testing).
+
+Then visit the `InstallPage` via the `https://*.tunnelmole.net` URL
+tunnelmole gives you (not `localhost`) so the generated bookmarklet's
+loader points at the tunnel origin instead of `localhost:5173`, and
+install/click it from there. You'll likely want to tunnel the backend
+(`:3000`) the same way and set `VITE_API_ORIGIN`/`VITE_GRAPHQL_URL` to its
+tunnel URL too (in `.env.local`, not `.env.example` - see above), since the
 bookmarklet's `/ingest` POST is subject to the same restriction.
 
 ## CI
