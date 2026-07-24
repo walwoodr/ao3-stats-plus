@@ -95,30 +95,35 @@ target isn't a secure context, Chrome blocks the request outright rather
 than offering a permission prompt. This is a browser security feature, not
 an app bug - see `TECH_DEBT.md`.
 
-To actually exercise the bookmarklet end-to-end against live AO3 before a
-real deployment exists, expose your local dev server through a public HTTPS
-tunnel so it's no longer treated as "local network":
+**Use `vite preview`, not `vite dev`, for this.** `bookmarklet.js` is a
+build artifact (produced by `npm run build`, via `build:bookmarklet`) that
+only exists in `dist/`. The dev server (`npm run dev`, port 5173) serves the
+source tree directly and does not serve `dist/` at all, so tunneling it
+gets you a 404 for `/bookmarklet.js`. `npm run preview` (port 4173, after a
+build) serves the actual `dist/` output and is what needs tunneling:
 
-```sh
-npx tunnelmole 5173
-```
+1. Tunnel the backend first, so you have its public URL before building:
+   `npx tunnelmole 3000`.
+2. Set `VITE_API_ORIGIN` and `VITE_GRAPHQL_URL` in `.env.local` (not
+   `.env.example` - see above) to that backend tunnel URL, since the API
+   origin is baked into `bookmarklet.js` at build time.
+3. `npm run build`, then `npm run preview`.
+4. Tunnel the preview server: `npx tunnelmole 4173`.
 
-(or `npm install -g tunnelmole` for a persistent `tmole` command - see
-[tunnelmole.com/docs](https://tunnelmole.com/docs/))
+(`npx tunnelmole <port>`, or `npm install -g tunnelmole` for a persistent
+`tmole` command - see [tunnelmole.com/docs](https://tunnelmole.com/docs/))
 
-Vite's dev server rejects requests whose `Host` header it doesn't
-recognize, so it will otherwise reply "Blocked request. This host is not
-allowed" once you load the site through the tunnel. Add the tunnel host to
-`server.allowedHosts` in `vite.config.ts` (a specific hostname, or `true` to
-allow any host while you're doing this kind of manual testing).
+Vite rejects requests whose `Host` header it doesn't recognize (this
+applies to both `vite dev` and `vite preview`), so you'll otherwise hit
+"Blocked request. This host is not allowed" once you load the site through
+either tunnel. `vite.config.ts` already allows `.tunnelmole.net` via
+`server.allowedHosts`, which `preview` inherits unless overridden - no
+extra config needed for tunnelmole specifically, but a different tunnel
+provider's domain would need adding there.
 
-Then visit the `InstallPage` via the `https://*.tunnelmole.net` URL
-tunnelmole gives you (not `localhost`) so the generated bookmarklet's
-loader points at the tunnel origin instead of `localhost:5173`, and
-install/click it from there. You'll likely want to tunnel the backend
-(`:3000`) the same way and set `VITE_API_ORIGIN`/`VITE_GRAPHQL_URL` to its
-tunnel URL too (in `.env.local`, not `.env.example` - see above), since the
-bookmarklet's `/ingest` POST is subject to the same restriction.
+Then visit `InstallPage` via the `https://*.tunnelmole.net` URL from step 4
+(not `localhost`) so the generated bookmarklet's loader points at the
+tunnel origin instead of `localhost:4173`, and install/click it from there.
 
 ## CI
 
