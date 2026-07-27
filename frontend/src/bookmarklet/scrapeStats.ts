@@ -53,7 +53,9 @@ function scrapeStatsUnsafe(doc: Document, pathname: string): ScrapeResult {
   if (!usernameMatch) return { ok: false, reason: "scrape-failed" };
   const username = usernameMatch[1];
 
-  const statsRoot = doc.getElementById("stats");
+  // AO3 reuses #main as the generic per-page content container across the
+  // whole site; the stats-index class is what actually identifies this page.
+  const statsRoot = doc.querySelector("#main.stats-index");
   if (!statsRoot) return { ok: false, reason: "scrape-failed" };
 
   const currentYearLabel = statsRoot.querySelector(".year.actions .current")?.textContent?.trim();
@@ -116,7 +118,7 @@ function parseWorks(statsRoot: Element): ScrapedWork[] | null {
   const worksById = new Map<number, ScrapedWork>();
 
   for (const row of rows) {
-    const fandom = row.querySelector("h4")?.textContent?.trim();
+    const fandom = row.querySelector("h5.heading")?.textContent?.trim();
     const link = row.querySelector("dl > dt a");
     const href = link?.getAttribute("href") ?? "";
     const idMatch = href.match(/\/works\/(\d+)/);
@@ -126,7 +128,8 @@ function parseWorks(statsRoot: Element): ScrapedWork[] | null {
     const ao3WorkId = Number(idMatch[1]);
     const title = link.textContent?.trim() ?? "";
     const statsDl = row.querySelector("dl.stats");
-    const wordCount = parseNumber(row.querySelector("dl > dt span.words")?.textContent) ?? 0;
+    const wordCount =
+      parseWorkWordCount(row.querySelector("dl > dt span.words")?.textContent) ?? 0;
     const hits = parseNumber(statsDl?.querySelector("dd.hits")?.textContent) ?? 0;
     const kudos = parseNumber(statsDl?.querySelector("dd.kudos")?.textContent) ?? 0;
     const comments = parseNumber(statsDl?.querySelector("dd.comments")?.textContent) ?? 0;
@@ -161,4 +164,13 @@ function parseNumber(text: string | null | undefined): number | null {
 
   const value = Number(cleaned);
   return Number.isNaN(value) ? null : value;
+}
+
+// A work's word count renders as "(11,885 words)" rather than the aggregate
+// dd.words' bare comma-delimited number, so it needs the parens/unit text
+// stripped in addition to the commas parseNumber already handles.
+function parseWorkWordCount(text: string | null | undefined): number | null {
+  if (text == null) return null;
+  const digitsOnly = text.replace(/[^\d]/g, "");
+  return parseNumber(digitsOnly);
 }

@@ -62,6 +62,12 @@ describe("scrapeStats", () => {
       const workB = result.data.works.find((w) => w.ao3WorkId === 222);
       expect(workB?.subscriptions).toBe(0);
     });
+
+    it("parses a per-work word count out of AO3's parenthesized '(N words)' format", () => {
+      if (!result.ok) throw new Error("expected ok result");
+      const workB = result.data.works.find((w) => w.ao3WorkId === 222);
+      expect(workB?.wordCount).toBe(45_000);
+    });
   });
 
   describe("a multi-fandom work", () => {
