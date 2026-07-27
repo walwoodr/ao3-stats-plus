@@ -13,7 +13,7 @@ yet implemented; see `TECH_DEBT.md` and the open question below.
 
 - **Backend**: Ruby on Rails (API-only mode) + GraphQL, PostgreSQL, RSpec, RuboCop.
 - **Frontend**: React + TypeScript, Vite, React Router, Zustand, TanStack Query
-  + graphql-request, Tailwind CSS, Storybook, Vitest, Playwright, ESLint + Prettier.
+  - graphql-request, Tailwind CSS, Storybook, Vitest, Playwright, ESLint + Prettier.
 
 See `/Users/walwoodr/.claude/TECH_STACK.md` (or your own project-level
 `TECH_STACK.md` if one is later added) for the full, authoritative stack spec.
@@ -103,27 +103,43 @@ gets you a 404 for `/bookmarklet.js`. `npm run preview` (port 4173, after a
 build) serves the actual `dist/` output and is what needs tunneling:
 
 1. Tunnel the backend first, so you have its public URL before building:
-   `npx tunnelmole 3000`.
+   `npx tunnelmole 3000` (or the Cloudflare command below).
 2. Set `VITE_API_ORIGIN` and `VITE_GRAPHQL_URL` in `.env.local` (not
    `.env.example` - see above) to that backend tunnel URL, since the API
    origin is baked into `bookmarklet.js` at build time.
 3. `npm run build`, then `npm run preview`.
-4. Tunnel the preview server: `npx tunnelmole 4173`.
+4. Tunnel the preview server the same way.
 
-(`npx tunnelmole <port>`, or `npm install -g tunnelmole` for a persistent
-`tmole` command - see [tunnelmole.com/docs](https://tunnelmole.com/docs/))
+**Tunnelmole:** `npx tunnelmole <port>` (or `npm install -g tunnelmole` for
+a persistent `tmole` command - see
+[tunnelmole.com/docs](https://tunnelmole.com/docs/)).
+
+**Cloudflare Tunnel (`cloudflared`), if tunnelmole's domain gets blocked by
+your DNS resolver/network** (this happens - some resolvers blocklist
+dynamic tunnel domains as a phishing precaution):
+
+```sh
+brew install cloudflared
+cloudflared tunnel --url http://localhost:3000   # backend
+cloudflared tunnel --url http://localhost:4173   # preview, after building
+```
+
+Each prints a random `https://*.trycloudflare.com` URL for that port. No
+account/login needed for this quick-tunnel mode - see
+[developers.cloudflare.com/cloudflare-one/.../quick-tunnels](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/).
 
 Vite rejects requests whose `Host` header it doesn't recognize (this
 applies to both `vite dev` and `vite preview`), so you'll otherwise hit
 "Blocked request. This host is not allowed" once you load the site through
-either tunnel. `vite.config.ts` already allows `.tunnelmole.net` via
-`server.allowedHosts`, which `preview` inherits unless overridden - no
-extra config needed for tunnelmole specifically, but a different tunnel
-provider's domain would need adding there.
+either tunnel. `vite.config.ts` already allows both `.tunnelmole.net` and
+`.trycloudflare.com` via `server.allowedHosts`, which `preview` inherits
+unless overridden - no extra config needed for either provider, but a
+different one's domain would need adding there.
 
-Then visit `InstallPage` via the `https://*.tunnelmole.net` URL from step 4
-(not `localhost`) so the generated bookmarklet's loader points at the
-tunnel origin instead of `localhost:4173`, and install/click it from there.
+Then visit `InstallPage` via whichever tunnel URL fronts your preview
+server (not `localhost`) so the generated bookmarklet's loader points at
+the tunnel origin instead of `localhost:4173`, and install/click it from
+there.
 
 ## CI
 

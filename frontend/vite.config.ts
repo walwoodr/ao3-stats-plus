@@ -15,12 +15,13 @@ const dirname =
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    // Allow tunnelmole's rotating random subdomains through Vite's Host
-    // header check (also applies to `vite preview`, which inherits this
-    // unless overridden), so the server is reachable via a public tunnel
-    // for manual bookmarklet testing against live AO3 - see README.md,
-    // "Testing the bookmarklet against real AO3".
-    allowedHosts: [".tunnelmole.net"],
+    // Allow tunneling providers' rotating random subdomains through Vite's
+    // Host header check (also applies to `vite preview`, which inherits
+    // this unless overridden), so the server is reachable via a public
+    // tunnel for manual bookmarklet testing against live AO3 - see
+    // README.md, "Testing the bookmarklet against real AO3". Both are
+    // listed since either may be blocked on a given network/DNS resolver.
+    allowedHosts: [".tunnelmole.net", ".trycloudflare.com"],
   },
   test: {
     projects: [
