@@ -136,6 +136,12 @@ either tunnel. `vite.config.ts` already allows both `.tunnelmole.net` and
 unless overridden - no extra config needed for either provider, but a
 different one's domain would need adding there.
 
+Rails has the same protection on the backend (`ActionDispatch::HostAuthorization`):
+tunneling `:3000` will 403 with a "Blocked hosts" error until the tunnel's
+host is allowed. `backend/config/environments/development.rb` already allows
+`.trycloudflare.com` via `config.hosts`; a different tunnel provider's domain
+would need adding there the same way.
+
 Then visit `InstallPage` via whichever tunnel URL fronts your preview
 server (not `localhost`) so the generated bookmarklet's loader points at
 the tunnel origin instead of `localhost:4173`, and install/click it from
