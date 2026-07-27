@@ -128,8 +128,7 @@ function parseWorks(statsRoot: Element): ScrapedWork[] | null {
     const ao3WorkId = Number(idMatch[1]);
     const title = link.textContent?.trim() ?? "";
     const statsDl = row.querySelector("dl.stats");
-    const wordCount =
-      parseWorkWordCount(row.querySelector("dl > dt span.words")?.textContent) ?? 0;
+    const wordCount = parseWorkWordCount(row.querySelector("dl > dt span.words")?.textContent) ?? 0;
     const hits = parseNumber(statsDl?.querySelector("dd.hits")?.textContent) ?? 0;
     const kudos = parseNumber(statsDl?.querySelector("dd.kudos")?.textContent) ?? 0;
     const comments = parseNumber(statsDl?.querySelector("dd.comments")?.textContent) ?? 0;
