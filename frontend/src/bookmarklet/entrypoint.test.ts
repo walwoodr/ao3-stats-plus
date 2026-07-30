@@ -47,6 +47,7 @@ const AO3_PATHNAME = "/users/someauthor/stats";
 
 const scrapedData: ScrapedData = {
   username: "someauthor",
+  earliestPostYear: null,
   aggregate: {
     hits: 1234,
     kudos: 100,

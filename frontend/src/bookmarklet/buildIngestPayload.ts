@@ -8,6 +8,7 @@ export interface IngestPayload {
   schemaVersion: number;
   username: string;
   readToken: string | null;
+  earliestPostYear: ScrapedData["earliestPostYear"];
   aggregate: ScrapedData["aggregate"];
   works: ScrapedData["works"];
 }
@@ -25,6 +26,7 @@ export function buildIngestPayload(
     schemaVersion: options.schemaVersion,
     username: data.username,
     readToken: options.readToken ?? null,
+    earliestPostYear: data.earliestPostYear,
     aggregate: data.aggregate,
     works: data.works,
   };

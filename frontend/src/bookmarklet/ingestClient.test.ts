@@ -11,6 +11,7 @@ import { postIngest } from "./ingestClient";
 // (InvalidPayload) -> invalid, network failure or 5xx -> networkError.
 const scrapedData: ScrapedData = {
   username: "someauthor",
+  earliestPostYear: null,
   aggregate: {
     hits: 1234,
     kudos: 100,
