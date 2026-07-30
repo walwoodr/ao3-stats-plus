@@ -74,10 +74,10 @@ export function DashboardPage() {
   if (mismatchMessage) {
     return (
       <div className="mx-auto max-w-xl p-8">
-        <h1 className="text-2xl font-semibold text-slate-900">{username}&rsquo;s stats</h1>
-        <p className="mt-2 text-red-600">{mismatchMessage}</p>
+        <h1 className="font-display text-2xl font-semibold text-ink">{username}&rsquo;s stats</h1>
+        <p className="mt-2 text-destructive">{mismatchMessage}</p>
         {submittedManually ? (
-          <p className="mt-4 text-sm text-slate-600">Reload the page to try a different token.</p>
+          <p className="mt-4 text-sm text-ink-soft">Reload the page to try a different token.</p>
         ) : (
           <div className="mt-6">
             <TokenEntryForm onSubmit={handleManualToken} error={mismatchMessage} />
@@ -90,8 +90,8 @@ export function DashboardPage() {
   if (!token) {
     return (
       <div className="mx-auto max-w-xl p-8">
-        <h1 className="text-2xl font-semibold text-slate-900">Connect your AO3 stats</h1>
-        <p className="mt-2 text-slate-600">
+        <h1 className="font-display text-2xl font-semibold text-ink">Connect your AO3 stats</h1>
+        <p className="mt-2 text-ink-soft">
           We couldn&rsquo;t find a saved token for this browser. Paste the one from your
           bookmarklet&rsquo;s success message below to see your stats.
         </p>
@@ -104,7 +104,7 @@ export function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div role="status" className="p-8 text-slate-600">
+      <div role="status" className="p-8 text-ink-soft">
         Loading your stats...
       </div>
     );
@@ -130,15 +130,13 @@ export function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-4xl p-8">
-      <h1 className="text-2xl font-semibold text-slate-900">{username}&rsquo;s stats</h1>
+      <h1 className="font-display text-2xl font-semibold text-ink">{username}&rsquo;s stats</h1>
 
       {aggregateSeries.length === 0 && (
-        <p className="mt-2 text-slate-600">
-          No snapshots yet - run the bookmarklet to capture one.
-        </p>
+        <p className="mt-2 text-ink-soft">No snapshots yet - run the bookmarklet to capture one.</p>
       )}
       {notEnoughHistory && (
-        <p className="mt-2 text-slate-600">
+        <p className="mt-2 text-ink-soft">
           You only have one snapshot so far - not enough history yet to show a real trend. Check
           back after your next capture.
         </p>
@@ -190,17 +188,17 @@ function PerWorkTrends({ perWorkSeries }: { perWorkSeries: PerWorkSeries[] }) {
 
   return (
     <div className="mt-10 flex flex-col gap-6">
-      <h2 className="text-xl font-semibold text-slate-900">Per-work trends</h2>
+      <h2 className="font-display text-xl font-semibold text-ink">Per-work trends</h2>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="per-work-select" className="text-sm font-medium text-slate-700">
+        <label htmlFor="per-work-select" className="text-sm font-medium text-ink">
           Work
         </label>
         <select
           id="per-work-select"
           value={selectedWork?.ao3WorkId}
           onChange={(event) => setSelectedWorkId(Number(event.target.value))}
-          className="w-fit rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="w-fit rounded-md border border-ink/20 bg-card px-3 py-2 text-sm text-ink outline-none transition-colors duration-200 focus:border-accent focus:ring-[3px] focus:ring-accent/15"
         >
           {perWorkSeries.map((work) => (
             // label (not child text) sets the option's display/accessible
@@ -215,7 +213,7 @@ function PerWorkTrends({ perWorkSeries }: { perWorkSeries: PerWorkSeries[] }) {
 
       {selectedWork && (
         <div className="flex flex-col gap-8">
-          <h3 className="text-lg font-medium text-slate-800">{selectedWork.title}</h3>
+          <h3 className="font-display text-lg font-medium text-ink">{selectedWork.title}</h3>
           <TrendChart
             title={`${selectedWork.title} hits`}
             valueLabel="Hits"
