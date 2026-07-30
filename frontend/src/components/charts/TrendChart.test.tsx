@@ -63,4 +63,122 @@ describe("TrendChart", () => {
       expect(marker).toHaveAttribute("aria-label");
     });
   });
+
+  // leadIn is the optional synthetic "before you had any stats, you were at
+  // zero" baseline point, connected to the first real snapshot with a
+  // dashed line. It must be invisible when omitted, and when present it
+  // must be clearly labeled as an ESTIMATE (not presented as if it were a
+  // real captured date) everywhere the real points are accessible.
+  describe("with a leadIn synthetic baseline point", () => {
+    const LEAD_IN = { capturedOn: "2014-01-01", value: 0 };
+
+    it("adds no synthetic marker or table row when leadIn is omitted", () => {
+      render(<TrendChart title="Total hits" valueLabel="Hits" points={SPARSE_POINTS} />);
+
+      expect(screen.getAllByTestId(/trend-point-marker-/)).toHaveLength(SPARSE_POINTS.length);
+      const table = screen.getByRole("table", { name: /total hits/i });
+      expect(within(table).queryByText(/estimated baseline/i)).not.toBeInTheDocument();
+    });
+
+    it("produces identical output whether leadIn is omitted or explicitly undefined", () => {
+      // Reuses one render tree (via rerender) rather than two separate
+      // render() calls, so useId's per-root counter can't introduce an
+      // incidental id mismatch unrelated to the leadIn prop itself.
+      const { container, rerender } = render(
+        <TrendChart title="Total hits" valueLabel="Hits" points={SPARSE_POINTS} />,
+      );
+      const omittedHtml = container.innerHTML;
+
+      rerender(
+        <TrendChart
+          title="Total hits"
+          valueLabel="Hits"
+          points={SPARSE_POINTS}
+          leadIn={undefined}
+        />,
+      );
+
+      expect(container.innerHTML).toBe(omittedHtml);
+    });
+
+    it("adds exactly one synthetic marker when leadIn is provided", () => {
+      render(
+        <TrendChart title="Total hits" valueLabel="Hits" points={SPARSE_POINTS} leadIn={LEAD_IN} />,
+      );
+
+      expect(screen.getAllByTestId(/trend-point-marker-/)).toHaveLength(SPARSE_POINTS.length + 1);
+    });
+
+    it("adds exactly one synthetic row to the accessible table", () => {
+      render(
+        <TrendChart title="Total hits" valueLabel="Hits" points={SPARSE_POINTS} leadIn={LEAD_IN} />,
+      );
+
+      const table = screen.getByRole("table", { name: /total hits/i });
+      // header row + one row per real point + one synthetic row
+      expect(within(table).getAllByRole("row")).toHaveLength(SPARSE_POINTS.length + 2);
+    });
+
+    it("labels the synthetic row as an estimated baseline rather than a bare capture date", () => {
+      render(
+        <TrendChart title="Total hits" valueLabel="Hits" points={SPARSE_POINTS} leadIn={LEAD_IN} />,
+      );
+
+      const table = screen.getByRole("table", { name: /total hits/i });
+      const rows = within(table).getAllByRole("row");
+      // first data row (after the header) is the synthetic baseline
+      const syntheticRow = rows[1];
+
+      expect(syntheticRow.textContent).toMatch(/before/i);
+      expect(syntheticRow.textContent).toMatch(/2014/);
+      expect(syntheticRow.textContent).toMatch(/estimated baseline/i);
+      expect(within(syntheticRow).getByText("0")).toBeInTheDocument();
+      // the raw ISO date must not leak through as if it were a real snapshot
+      expect(within(table).queryByText("2014-01-01")).not.toBeInTheDocument();
+    });
+
+    it("orders the synthetic row before the first real point", () => {
+      render(
+        <TrendChart title="Total hits" valueLabel="Hits" points={SPARSE_POINTS} leadIn={LEAD_IN} />,
+      );
+
+      const table = screen.getByRole("table", { name: /total hits/i });
+      const rows = within(table).getAllByRole("row");
+
+      expect(rows[1].textContent).toMatch(/before/i);
+      expect(rows[2].textContent).toMatch(SPARSE_POINTS[0].capturedOn);
+    });
+
+    it("gives the synthetic marker an aria-label that identifies it as an estimate", () => {
+      render(
+        <TrendChart title="Total hits" valueLabel="Hits" points={SPARSE_POINTS} leadIn={LEAD_IN} />,
+      );
+
+      const markers = screen.getAllByTestId(/trend-point-marker-/);
+      const syntheticMarker = markers[0];
+      const label = syntheticMarker.getAttribute("aria-label") ?? "";
+
+      expect(label).toMatch(/before/i);
+      expect(label).toMatch(/2014/);
+      expect(label).toMatch(/estimated baseline/i);
+      expect(label).toMatch(/0/);
+      expect(label).toMatch(/Hits/);
+    });
+
+    it("still renders correctly for a single real point plus a leadIn (a drawable two-point trend)", () => {
+      render(
+        <TrendChart
+          title="Total hits"
+          valueLabel="Hits"
+          points={[SPARSE_POINTS[0]]}
+          leadIn={LEAD_IN}
+        />,
+      );
+
+      expect(screen.getAllByTestId(/trend-point-marker-/)).toHaveLength(2);
+      const table = screen.getByRole("table", { name: /total hits/i });
+      // header + synthetic + one real point
+      expect(within(table).getAllByRole("row")).toHaveLength(3);
+    });
+  });
 });
