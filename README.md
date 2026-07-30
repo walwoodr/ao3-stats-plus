@@ -109,6 +109,14 @@ build) serves the actual `dist/` output and is what needs tunneling:
    origin is baked into `bookmarklet.js` at build time.
 3. `npm run build`, then `npm run preview`.
 4. Tunnel the preview server the same way.
+5. **Set `FRONTEND_ORIGINS` on the backend to the frontend's tunnel URL**,
+   e.g. `FRONTEND_ORIGINS=https://<frontend-tunnel-url> bin/rails server`
+   (restart the server after setting it - see the comment at the top of
+   `cors.rb`). `/graphql` CORS (`backend/config/initializers/cors.rb`)
+   defaults to allowing only `http://localhost:5173`; without this, the
+   dashboard's GraphQL requests get rejected by CORS before they ever reach
+   the app, and the resulting plain network error is easy to mistake for an
+   invalid/expired token rather than a CORS misconfiguration.
 
 **Tunnelmole:** `npx tunnelmole <port>` (or `npm install -g tunnelmole` for
 a persistent `tmole` command - see
