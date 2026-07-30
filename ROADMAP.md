@@ -27,3 +27,16 @@ feature scope, agreed as out of scope for v1 on purpose.
   scraping the work's bookmarks page, not just the stats page; more scraping
   surface than anything in v1)
 - User subscriptions over time (account-level; see subscriptions note above)
+
+## v2 candidates (confirmed 2026-07-30, deferred from the earliest-post-year
+baseline feature on purpose)
+
+- Per-work creation-date scraping and per-work zero-basis baselines: the
+  account-level "earliest post year" synthetic zero-point (added for the
+  aggregate hits/kudos trend charts) deliberately does NOT extend to
+  per-work trend charts, since a specific work's own trend should start
+  from when that work was actually posted, not the author's earliest
+  posting year overall. This needs a new scraping step (the bookmarklet
+  would need to capture each work's creation/posted date, not currently
+  collected) plus per-work data-model/ingest changes before per-work charts
+  can get their own accurate zero-basis starting point.
