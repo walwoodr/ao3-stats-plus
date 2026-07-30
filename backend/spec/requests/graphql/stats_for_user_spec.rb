@@ -185,5 +185,36 @@ RSpec.describe "statsForUser query", type: :request do
       expect(allowed_header).to eq("http://localhost:5173")
       expect(rejected_header).to be_nil
     end
+
+    # The local-dev default FRONTEND_ORIGINS includes a "*.trycloudflare.com"
+    # wildcard (see config/initializers/cors.rb) so a fresh Cloudflare Quick
+    # Tunnel - whose subdomain is randomly generated on every restart - works
+    # without hand-editing FRONTEND_ORIGINS each time.
+    it "allows any single-level trycloudflare.com subdomain via the wildcard default" do
+      process :options, "/graphql", headers: {
+        "Origin" => "https://vote-nest-costume-phase.trycloudflare.com",
+        "Access-Control-Request-Method" => "POST"
+      }
+
+      expect(response.headers["Access-Control-Allow-Origin"])
+        .to eq("https://vote-nest-costume-phase.trycloudflare.com")
+    end
+
+    it "does not let the trycloudflare.com wildcard match a bare or lookalike origin" do
+      process :options, "/graphql", headers: {
+        "Origin" => "https://trycloudflare.com",
+        "Access-Control-Request-Method" => "POST"
+      }
+      bare_domain_header = response.headers["Access-Control-Allow-Origin"]
+
+      process :options, "/graphql", headers: {
+        "Origin" => "https://trycloudflare.com.evil.example.com",
+        "Access-Control-Request-Method" => "POST"
+      }
+      lookalike_header = response.headers["Access-Control-Allow-Origin"]
+
+      expect(bare_domain_header).to be_nil
+      expect(lookalike_header).to be_nil
+    end
   end
 end

@@ -24,15 +24,35 @@ AO3_ORIGINS = [
 ].freeze
 
 # Comma-separated list of allowed frontend origins for /graphql, e.g.
-# "https://stats.example.com,https://www.stats.example.com". Falls back to
-# the Vite dev server origin so local development works out of the box.
-# TODO(deployment): set FRONTEND_ORIGINS once the deployed frontend origin
-# is decided - the fallback below is a local-dev placeholder, not a
-# production-ready default.
-frontend_origins = ENV.fetch("FRONTEND_ORIGINS", "http://localhost:5173")
+# "https://stats.example.com,https://www.stats.example.com". A "*" segment
+# in an origin is treated as a single-level subdomain wildcard rather than a
+# literal character - e.g. "https://*.trycloudflare.com" matches any
+# Cloudflare Quick Tunnel origin, since those subdomains are randomly
+# generated on every tunnel restart (see vite.config.ts's matching
+# allowedHosts wildcard and README.md's "Testing the bookmarklet against
+# real AO3"). Falls back to the Vite dev server origin plus that same
+# wildcard, so local tunnel testing works without setting FRONTEND_ORIGINS
+# by hand every time the tunnel restarts.
+# TODO(deployment): set FRONTEND_ORIGINS explicitly once the deployed
+# frontend origin is decided - the fallback below is a local-dev
+# placeholder (an open subdomain wildcard), not a production-ready default.
+DEFAULT_FRONTEND_ORIGINS = "http://localhost:5173,https://*.trycloudflare.com".freeze
+
+# Turns a single "*" wildcard segment into a Regexp rack-cors can match
+# against (see Rack::Cors::Resources#origins, which accepts Regexp
+# alongside literal strings); origins without a "*" pass through unchanged.
+frontend_origin_matcher = lambda do |origin|
+  next origin unless origin.include?("*")
+
+  pattern = Regexp.escape(origin).gsub('\*', "[^.]+")
+  Regexp.new("\\A#{pattern}\\z")
+end
+
+frontend_origins = ENV.fetch("FRONTEND_ORIGINS", DEFAULT_FRONTEND_ORIGINS)
   .split(",")
   .map(&:strip)
   .reject(&:blank?)
+  .map(&frontend_origin_matcher)
 
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
