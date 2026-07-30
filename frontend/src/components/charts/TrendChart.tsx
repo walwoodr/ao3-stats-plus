@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useChartColors } from "../../lib/useChartColors";
 
 export interface TrendPoint {
   capturedOn: string;
@@ -52,6 +53,12 @@ function leadInLabel(leadIn: TrendChartLeadIn): string {
 export function TrendChart({ title, description, valueLabel, points, leadIn }: TrendChartProps) {
   const headingId = useId();
   const descriptionId = useId();
+  // Recharts renders to SVG with literal fill/stroke color props, not CSS
+  // custom properties resolved at paint time, so the chart's own colors are
+  // resolved here (reactively, following prefers-color-scheme) rather than
+  // via the Tailwind classes the surrounding chrome uses - see
+  // src/lib/useChartColors.ts and MASTER.md's Chart Guidance section.
+  const colors = useChartColors();
 
   // The dashed "lead" series only carries a value on the synthetic row and
   // the first real row (so it draws exactly one segment connecting them);
@@ -73,13 +80,13 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
       role="img"
       aria-labelledby={headingId}
       aria-describedby={description ? descriptionId : undefined}
-      className="w-full"
+      className="w-full rounded-lg border border-ink/12 bg-card p-6 transition-colors duration-200 hover:border-ink/24"
     >
-      <h3 id={headingId} className="text-base font-semibold text-slate-900">
+      <h3 id={headingId} className="font-display text-base font-semibold text-ink">
         {title}
       </h3>
       {description && (
-        <p id={descriptionId} className="mt-1 text-sm text-slate-600">
+        <p id={descriptionId} className="mt-1 text-sm text-ink-soft">
           {description}
         </p>
       )}
@@ -87,11 +94,31 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
       <div aria-hidden="true">
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={chartData} accessibilityLayer={false}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="capturedOn" />
-            <YAxis />
-            <Tooltip />
-            <Line type="monotone" dataKey="value" name={valueLabel} dot={false} connectNulls={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={colors.inkSoft} strokeOpacity={0.2} />
+            <XAxis
+              dataKey="capturedOn"
+              tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
+            />
+            <YAxis tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }} />
+            <Tooltip
+              contentStyle={{
+                fontFamily: "var(--font-mono)",
+                backgroundColor: colors.card,
+                border: `1px solid ${colors.inkSoft}`,
+                borderRadius: 6,
+              }}
+              labelStyle={{ color: colors.inkSoft }}
+              itemStyle={{ color: colors.ink }}
+            />
+            <Line
+              type="monotone"
+              dataKey="value"
+              name={valueLabel}
+              dot={false}
+              connectNulls={false}
+              stroke={colors.ink}
+              strokeWidth={2}
+            />
             {leadIn && (
               <Line
                 type="monotone"
@@ -100,6 +127,8 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
                 dot={false}
                 connectNulls
                 strokeDasharray="4 4"
+                stroke={colors.inkSoft}
+                strokeWidth={1.5}
               />
             )}
           </LineChart>
@@ -110,7 +139,8 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
             <span
               data-testid="trend-point-marker-lead"
               aria-label={`${leadInLabel(leadIn)}: ${leadIn.value} ${valueLabel}`}
-              className="inline-block h-2 w-2 rotate-45 bg-slate-400"
+              className="inline-block h-[9px] w-[9px] rounded-full"
+              style={{ backgroundColor: colors.accent }}
             />
           )}
           {points.map((point, index) => (
@@ -118,7 +148,8 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
               key={point.capturedOn}
               data-testid={`trend-point-marker-${index}`}
               aria-label={`${point.capturedOn}: ${point.value} ${valueLabel}`}
-              className="inline-block h-2 w-2 rounded-full bg-slate-700"
+              className="inline-block h-2 w-2 rounded-full"
+              style={{ backgroundColor: colors.ink }}
             />
           ))}
         </div>

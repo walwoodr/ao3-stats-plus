@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useChartColors } from "../../lib/useChartColors";
 
 export interface RatioPoint {
   capturedOn: string;
@@ -53,6 +54,10 @@ function leadInLabel(leadIn: RatioChartLeadIn): string {
 export function RatioChart({ title, description, points, leadIn }: RatioChartProps) {
   const headingId = useId();
   const descriptionId = useId();
+  // See TrendChart's identical comment: Recharts needs literal color
+  // values, not CSS custom properties, so these are resolved reactively via
+  // useChartColors rather than left to the surrounding Tailwind classes.
+  const colors = useChartColors();
 
   const chartData: RatioChartRow[] = leadIn
     ? [
@@ -70,13 +75,13 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
       role="img"
       aria-labelledby={headingId}
       aria-describedby={description ? descriptionId : undefined}
-      className="w-full"
+      className="w-full rounded-lg border border-ink/12 bg-card p-6 transition-colors duration-200 hover:border-ink/24"
     >
-      <h3 id={headingId} className="text-base font-semibold text-slate-900">
+      <h3 id={headingId} className="font-display text-base font-semibold text-ink">
         {title}
       </h3>
       {description && (
-        <p id={descriptionId} className="mt-1 text-sm text-slate-600">
+        <p id={descriptionId} className="mt-1 text-sm text-ink-soft">
           {description}
         </p>
       )}
@@ -84,16 +89,30 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
       <div aria-hidden="true">
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={chartData} accessibilityLayer={false}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="capturedOn" />
-            <YAxis />
-            <Tooltip />
+            <CartesianGrid strokeDasharray="3 3" stroke={colors.inkSoft} strokeOpacity={0.2} />
+            <XAxis
+              dataKey="capturedOn"
+              tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
+            />
+            <YAxis tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }} />
+            <Tooltip
+              contentStyle={{
+                fontFamily: "var(--font-mono)",
+                backgroundColor: colors.card,
+                border: `1px solid ${colors.inkSoft}`,
+                borderRadius: 6,
+              }}
+              labelStyle={{ color: colors.inkSoft }}
+              itemStyle={{ color: colors.ink }}
+            />
             <Line
               type="monotone"
               dataKey="ratio"
               name="Kudos-to-hits ratio"
               dot={false}
               connectNulls={false}
+              stroke={colors.ink}
+              strokeWidth={2}
             />
             {leadIn && (
               <Line
@@ -103,6 +122,8 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
                 dot={false}
                 connectNulls
                 strokeDasharray="4 4"
+                stroke={colors.inkSoft}
+                strokeWidth={1.5}
               />
             )}
           </LineChart>
@@ -113,7 +134,8 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
             <span
               data-testid="ratio-point-marker-lead"
               aria-label={`${leadInLabel(leadIn)}: ${leadIn.ratio} kudos-to-hits ratio`}
-              className="inline-block h-2 w-2 rotate-45 bg-slate-400"
+              className="inline-block h-[9px] w-[9px] rounded-full"
+              style={{ backgroundColor: colors.accent }}
             />
           )}
           {points.map((point, index) => (
@@ -121,7 +143,8 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
               key={point.capturedOn}
               data-testid={`ratio-point-marker-${index}`}
               aria-label={`${point.capturedOn}: ${point.ratio} kudos-to-hits ratio`}
-              className="inline-block h-2 w-2 rounded-full bg-slate-700"
+              className="inline-block h-2 w-2 rounded-full"
+              style={{ backgroundColor: colors.ink }}
             />
           ))}
         </div>
