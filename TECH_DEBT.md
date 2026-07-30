@@ -80,6 +80,33 @@
   browser-specific `javascript:` URI drag restriction). Deferred: the
   copy/paste fallback already works and is keyboard-accessible; revisit if
   drag-install turns out to be commonly expected.
+- [2026-07-30] (stage: Implementation) Two pre-existing Playwright a11y
+  failures found while verifying the MASTER.md design-token re-skin
+  (confirmed via `git stash` against the pre-re-skin code, both fail
+  identically there with the old `slate`/`red` classes visible in the axe/
+  error output, so neither was introduced by the re-skin): (1)
+  `tests/accessibility.spec.ts` "the populated dashboard has no detectable
+  a11y violations" - axe's `heading-order` rule flags `DashboardPage`
+  jumping from `h1` straight to `TrendChart`/`RatioChart`'s `h3` with no
+  intervening `h2` for the aggregate-charts section (the `PerWorkTrends`
+  section below it does have an `h2`). (2) "the token-mismatch error state
+  has no detectable a11y violations" - `page.getByText(/doesn't
+  match.../i)` hits a Playwright strict-mode violation because the same
+  message renders twice (the page-level `<p>` plus `TokenEntryForm`'s
+  `role="alert"` echo of the same `error` prop). Both are structural/content
+  issues, not styling - out of scope for a re-skin task (no behavior/
+  structure changes), left as-is per instructions. Needs Maintenance or a
+  future Planning pass to either promote the aggregate-charts heading to
+  `h2` (or restructure the heading hierarchy) and de-duplicate/scope the
+  mismatch-message assertion.
+- [2026-07-30] (stage: Implementation) `frontend/src/bookmarklet/banners.ts`'s
+  color mapping onto MASTER.md's 7-token palette consolidates the previous
+  4-color severity scheme (success/failure/info/retry) into 3 roles
+  (growth/destructive/accent) since the palette has no dedicated "warning"
+  role - the `retryBanner` (network/POST failure, offers a Retry button) now
+  shares `--color-destructive` with hard failures instead of its own amber.
+  Distinguished only by copy/button now, not color. Revisit if a future
+  design pass wants a dedicated warning/retry role.
 - [2026-07-30] (stage: Maintenance) The bookmarklet's capability token
   (`read_token`, `SecureRandom`-generated) is an opaque, hard-to-transcribe
   string. Users who lose the "View your dashboard" link and have to
