@@ -132,6 +132,42 @@ RSpec.describe "statsForUser query", type: :request do
     end
   end
 
+  # earliestPostYear is the synthetic zero-point baseline fact - a
+  # dedicated query (rather than reusing the shared `query` above) so a
+  # missing field doesn't turn the whole shared query invalid and cascade
+  # failures into every other test in this file.
+  describe "earliestPostYear" do
+    let(:earliest_post_year_query) { <<~GRAPHQL }
+      query StatsForUser($username: String!, $token: String!) {
+        statsForUser(username: $username, token: $token) {
+          earliestPostYear
+        }
+      }
+    GRAPHQL
+
+    def graphql_post_earliest_post_year(variables:)
+      post "/graphql",
+        params: { query: earliest_post_year_query, variables: variables }.to_json,
+        headers: { "Content-Type" => "application/json", "Origin" => "http://localhost:5173" }
+    end
+
+    it "returns the stored earliest_post_year for a user who has one set" do
+      ao3_user.update!(earliest_post_year: 2014)
+
+      graphql_post_earliest_post_year(variables: { username: "chartuser", token: "valid_token" })
+
+      expect(response.parsed_body["errors"]).to be_blank
+      expect(response.parsed_body.dig("data", "statsForUser", "earliestPostYear")).to eq(2014)
+    end
+
+    it "returns null when the user has no earliest_post_year set" do
+      graphql_post_earliest_post_year(variables: { username: "chartuser", token: "valid_token" })
+
+      expect(response.parsed_body["errors"]).to be_blank
+      expect(response.parsed_body.dig("data", "statsForUser", "earliestPostYear")).to be_nil
+    end
+  end
+
   describe "CORS" do
     it "allows the app's own frontend origin but rejects AO3's on the same check" do
       process :options, "/graphql", headers: {
