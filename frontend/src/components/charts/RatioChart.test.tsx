@@ -51,4 +51,115 @@ describe("RatioChart", () => {
       expect(marker).toHaveAttribute("aria-label");
     });
   });
+
+  // leadIn mirrors TrendChart's mechanism, but CRITICAL per explicit user
+  // decision: the synthetic ratio is a FIXED baseline of exactly 1
+  // (1-kudos-per-1-hit), never 0 and never derived from real hits/kudos
+  // (there are none yet at that point). These tests exist specifically to
+  // catch a copy-paste bug that reuses TrendChart's zero-baseline
+  // convention here.
+  describe("with a leadIn synthetic baseline point", () => {
+    const LEAD_IN = { capturedOn: "2014-01-01", ratio: 1 };
+
+    it("adds no synthetic marker or table row when leadIn is omitted", () => {
+      render(<RatioChart title="Kudos-to-hits ratio" points={SPARSE_RATIO_POINTS} />);
+
+      expect(screen.getAllByTestId(/ratio-point-marker-/)).toHaveLength(
+        SPARSE_RATIO_POINTS.length,
+      );
+      const table = screen.getByRole("table", { name: /kudos-to-hits ratio/i });
+      expect(within(table).queryByText(/estimated baseline/i)).not.toBeInTheDocument();
+    });
+
+    it("produces identical output whether leadIn is omitted or explicitly undefined", () => {
+      const { container, rerender } = render(
+        <RatioChart title="Kudos-to-hits ratio" points={SPARSE_RATIO_POINTS} />,
+      );
+      const omittedHtml = container.innerHTML;
+
+      rerender(
+        <RatioChart
+          title="Kudos-to-hits ratio"
+          points={SPARSE_RATIO_POINTS}
+          leadIn={undefined}
+        />,
+      );
+
+      expect(container.innerHTML).toBe(omittedHtml);
+    });
+
+    it("adds exactly one synthetic marker when leadIn is provided", () => {
+      render(
+        <RatioChart title="Kudos-to-hits ratio" points={SPARSE_RATIO_POINTS} leadIn={LEAD_IN} />,
+      );
+
+      expect(screen.getAllByTestId(/ratio-point-marker-/)).toHaveLength(
+        SPARSE_RATIO_POINTS.length + 1,
+      );
+    });
+
+    it("adds exactly one synthetic row to the accessible table", () => {
+      render(
+        <RatioChart title="Kudos-to-hits ratio" points={SPARSE_RATIO_POINTS} leadIn={LEAD_IN} />,
+      );
+
+      const table = screen.getByRole("table", { name: /kudos-to-hits ratio/i });
+      expect(within(table).getAllByRole("row")).toHaveLength(SPARSE_RATIO_POINTS.length + 2);
+    });
+
+    it("renders the synthetic ratio as exactly 1, never 0 and never derived", () => {
+      render(
+        <RatioChart title="Kudos-to-hits ratio" points={SPARSE_RATIO_POINTS} leadIn={LEAD_IN} />,
+      );
+
+      const table = screen.getByRole("table", { name: /kudos-to-hits ratio/i });
+      const rows = within(table).getAllByRole("row");
+      const syntheticRow = rows[1];
+
+      expect(within(syntheticRow).getByText("1")).toBeInTheDocument();
+      expect(within(syntheticRow).queryByText("0")).not.toBeInTheDocument();
+    });
+
+    it("labels the synthetic row as an estimated baseline rather than a bare capture date", () => {
+      render(
+        <RatioChart title="Kudos-to-hits ratio" points={SPARSE_RATIO_POINTS} leadIn={LEAD_IN} />,
+      );
+
+      const table = screen.getByRole("table", { name: /kudos-to-hits ratio/i });
+      const rows = within(table).getAllByRole("row");
+      const syntheticRow = rows[1];
+
+      expect(syntheticRow.textContent).toMatch(/before/i);
+      expect(syntheticRow.textContent).toMatch(/2014/);
+      expect(syntheticRow.textContent).toMatch(/estimated baseline/i);
+      expect(within(table).queryByText("2014-01-01")).not.toBeInTheDocument();
+    });
+
+    it("orders the synthetic row before the first real point", () => {
+      render(
+        <RatioChart title="Kudos-to-hits ratio" points={SPARSE_RATIO_POINTS} leadIn={LEAD_IN} />,
+      );
+
+      const table = screen.getByRole("table", { name: /kudos-to-hits ratio/i });
+      const rows = within(table).getAllByRole("row");
+
+      expect(rows[1].textContent).toMatch(/before/i);
+      expect(rows[2].textContent).toMatch(SPARSE_RATIO_POINTS[0].capturedOn);
+    });
+
+    it("gives the synthetic marker an aria-label that identifies it as an estimate with ratio 1", () => {
+      render(
+        <RatioChart title="Kudos-to-hits ratio" points={SPARSE_RATIO_POINTS} leadIn={LEAD_IN} />,
+      );
+
+      const markers = screen.getAllByTestId(/ratio-point-marker-/);
+      const label = markers[0].getAttribute("aria-label") ?? "";
+
+      expect(label).toMatch(/before/i);
+      expect(label).toMatch(/2014/);
+      expect(label).toMatch(/estimated baseline/i);
+      expect(label).toMatch(/\b1\b/);
+      expect(label).toMatch(/kudos-to-hits ratio/i);
+    });
+  });
 });
