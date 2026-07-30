@@ -120,4 +120,64 @@ describe("scrapeStats", () => {
       expect(result).toEqual({ ok: false, reason: "scrape-failed" });
     });
   });
+
+  // earliestPostYear is a synthetic "zero-point" fact captured on a user's
+  // first-ever ingest: the minimum parseable year out of the stats page's
+  // own `ol.year.actions li a` year links. It's top-level on ScrapedData
+  // (not nested in aggregate) and must never turn a successful scrape into
+  // a failure - a scrape with no parseable year links still succeeds with
+  // earliestPostYear: null.
+  describe("earliestPostYear (synthetic zero-point baseline)", () => {
+    it("takes the minimum parseable year across multiple year links", () => {
+      const doc = loadFixture("multi-year-history.html");
+      const result = scrapeStats(doc, STATS_PATHNAME);
+
+      if (!result.ok) throw new Error("expected ok result");
+      expect(result.data.earliestPostYear).toBe(2014);
+    });
+
+    it("does not treat the 'All Years' span as a year link", () => {
+      // all-years-happy-path.html has exactly one individual year anchor
+      // (2026); "All Years" is a <span>, not an <a>, so it must not affect
+      // the computed minimum (e.g. by being parsed as NaN and short-
+      // circuiting, or by leaking through as a non-numeric "year").
+      const doc = loadFixture("all-years-happy-path.html");
+      const result = scrapeStats(doc, STATS_PATHNAME);
+
+      if (!result.ok) throw new Error("expected ok result");
+      expect(result.data.earliestPostYear).toBe(2026);
+    });
+
+    it("is null when there are no individual year links, without failing the scrape", () => {
+      const doc = loadFixture("no-year-links.html");
+      const result = scrapeStats(doc, STATS_PATHNAME);
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error("expected ok result");
+      expect(result.data.earliestPostYear).toBeNull();
+    });
+
+    it("is a top-level field on ScrapedData, not nested inside aggregate", () => {
+      const doc = loadFixture("multi-year-history.html");
+      const result = scrapeStats(doc, STATS_PATHNAME);
+
+      if (!result.ok) throw new Error("expected ok result");
+      expect(result.data).toHaveProperty("earliestPostYear");
+      expect(result.data.aggregate).not.toHaveProperty("earliestPostYear");
+    });
+
+    // Regression: the pre-existing not-all-years guard (lines ~59-61 of
+    // scrapeStats.ts) must still fire before any earliestPostYear parsing
+    // runs. wrong-year-selected.html has "All Years" rendered as an <a>
+    // (it's not the current selection there) and "2026" as the current
+    // <span> - a naive implementation that parsed year links before
+    // checking the guard, or that ran regardless of the guard's result,
+    // could misbehave on this fixture's inverted markup.
+    it("still aborts with not-all-years before any earliestPostYear parsing", () => {
+      const doc = loadFixture("wrong-year-selected.html");
+      const result = scrapeStats(doc, STATS_PATHNAME);
+
+      expect(result).toEqual({ ok: false, reason: "not-all-years" });
+    });
+  });
 });
