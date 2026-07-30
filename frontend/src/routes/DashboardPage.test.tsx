@@ -1,9 +1,28 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { ClientError } from "graphql-request";
+import { GraphQLError } from "graphql";
 import { DashboardPage } from "./DashboardPage";
 import { useTokenFromUrl } from "../store/useTokenFromUrl";
 import { useStatsForUser } from "../queries/useStatsForUser";
+
+// graphql-request throws ClientError for a real GraphQL-level rejection from
+// the server (e.g. a backend-confirmed bad token), as opposed to a plain
+// fetch/network failure (e.g. CORS) which has no `.response`. See
+// DashboardPage's error-message branching, which relies on this shape
+// distinction to avoid mislabeling a CORS/network failure as "bad token".
+function makeClientError(message: string): ClientError {
+  return new ClientError(
+    {
+      status: 401,
+      headers: new Headers(),
+      body: JSON.stringify({ errors: [{ message }] }),
+      errors: [new GraphQLError(message)],
+    },
+    { query: "query StatsForUser" },
+  );
+}
 
 // DashboardPage composes DashboardHeader/EmptyState/AggregateTrends/
 // PerWorkTrends/ErrorBanner around useTokenFromUrl + useStatsForUser. Both
@@ -64,15 +83,37 @@ describe("DashboardPage", () => {
     });
   });
 
-  describe("when the token is invalid/mismatched", () => {
+  describe("when the token is invalid/mismatched (backend-confirmed ClientError)", () => {
     it("explains the mismatch and keeps the entry form available", () => {
       vi.mocked(useTokenFromUrl).mockReturnValue("tok_wrong");
-      mockStats({ error: new Error("token mismatch") });
+      mockStats({ error: makeClientError("token mismatch") });
 
       renderDashboard();
 
-      expect(screen.getByText(/doesn't match|invalid token|not authorized/i)).toBeInTheDocument();
+      expect(
+        screen.getAllByText(/doesn't match|invalid token|not authorized/i).length,
+      ).toBeGreaterThan(0);
       expect(screen.getByLabelText(/read token/i)).toBeInTheDocument();
+    });
+  });
+
+  // Regression test: a plain network/CORS failure (e.g. a TypeError with no
+  // `.response`, exactly what fetch throws for a CORS rejection) was
+  // previously rendered with the same "doesn't match this username" copy as
+  // a real backend-confirmed bad token, which sent a user with a perfectly
+  // valid token chasing the wrong problem (see the FRONTEND_ORIGINS/CORS
+  // incident documented in README.md).
+  describe("when the stats query fails with a plain network/CORS error (no .response)", () => {
+    it("explains it may be a connectivity/config issue rather than blaming the token", () => {
+      vi.mocked(useTokenFromUrl).mockReturnValue("tok_valid");
+      mockStats({ error: new TypeError("Failed to fetch") });
+
+      renderDashboard();
+
+      expect(
+        screen.getAllByText(/couldn't reach the server|network or configuration/i).length,
+      ).toBeGreaterThan(0);
+      expect(screen.queryByText(/doesn't match this username/i)).not.toBeInTheDocument();
     });
   });
 

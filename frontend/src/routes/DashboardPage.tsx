@@ -1,11 +1,31 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { ClientError } from "graphql-request";
 import { useTokenFromUrl } from "../store/useTokenFromUrl";
 import { useTokenStore } from "../store/useTokenStore";
 import { useStatsForUser, type PerWorkSeries } from "../queries/useStatsForUser";
 import { TokenEntryForm } from "../components/TokenEntryForm";
 import { TrendChart } from "../components/charts/TrendChart";
 import { RatioChart } from "../components/charts/RatioChart";
+
+// graphql-request throws a ClientError (with a `.response` carrying the
+// GraphQL `errors` array) for a real, backend-confirmed rejection - e.g. an
+// invalid/expired token the server actually evaluated and rejected. A plain
+// fetch/network failure (a generic TypeError with no `.response` - what a
+// CORS rejection or connectivity problem surfaces as) means the request
+// never got a real answer from the server at all, so it says nothing about
+// whether the token itself is valid. Conflating the two previously showed
+// "your token is wrong" for CORS/network failures, sending users chasing
+// the wrong problem (see README.md's FRONTEND_ORIGINS/CORS note).
+const TOKEN_MISMATCH_MESSAGE =
+  "That token doesn't match this username - it may be invalid, expired, or not authorized.";
+const NETWORK_ERROR_MESSAGE =
+  "Couldn't reach the server - this may be a network or configuration issue, not necessarily " +
+  "your token.";
+
+function messageForStatsError(error: Error): string {
+  return error instanceof ClientError ? TOKEN_MISMATCH_MESSAGE : NETWORK_ERROR_MESSAGE;
+}
 
 // Composes the token handoff (useTokenFromUrl) with the stats read
 // (useStatsForUser) into the dashboard's state machine: no token -> manual
@@ -38,7 +58,7 @@ export function DashboardPage() {
 
   if (error && error !== lastSeenError) {
     setLastSeenError(error);
-    setMismatchMessage(error.message);
+    setMismatchMessage(messageForStatsError(error));
   }
 
   useEffect(() => {
@@ -55,10 +75,7 @@ export function DashboardPage() {
     return (
       <div className="mx-auto max-w-xl p-8">
         <h1 className="text-2xl font-semibold text-slate-900">{username}&rsquo;s stats</h1>
-        <p className="mt-2 text-red-600">
-          That token doesn&rsquo;t match this username - it may be invalid, expired, or not
-          authorized.
-        </p>
+        <p className="mt-2 text-red-600">{mismatchMessage}</p>
         {submittedManually ? (
           <p className="mt-4 text-sm text-slate-600">Reload the page to try a different token.</p>
         ) : (
