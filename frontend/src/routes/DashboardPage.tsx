@@ -112,6 +112,21 @@ export function DashboardPage() {
 
   const aggregateSeries = data?.statsForUser.aggregateSeries ?? [];
   const perWorkSeries = data?.statsForUser.perWorkSeries ?? [];
+  const earliestPostYear = data?.statsForUser.earliestPostYear ?? null;
+
+  // The synthetic "before you had any stats, you were at zero" baseline
+  // point, built only when earliestPostYear is present AND actually sorts
+  // before the first real snapshot - a future/same-year value (e.g. from a
+  // borderline first-ingest race) would otherwise draw a nonsensical
+  // backwards or overlapping lead-in segment.
+  const firstCapturedOn = aggregateSeries[0]?.capturedOn;
+  const leadInDate = earliestPostYear !== null ? `${earliestPostYear}-01-01` : null;
+  const hasLeadIn = leadInDate !== null && !!firstCapturedOn && leadInDate < firstCapturedOn;
+  const hitsLeadIn = hasLeadIn ? { capturedOn: leadInDate as string, value: 0 } : undefined;
+  const kudosLeadIn = hasLeadIn ? { capturedOn: leadInDate as string, value: 0 } : undefined;
+  const ratioLeadIn = hasLeadIn ? { capturedOn: leadInDate as string, ratio: 1 } : undefined;
+
+  const notEnoughHistory = !hasLeadIn && aggregateSeries.length === 1;
 
   return (
     <div className="mx-auto max-w-4xl p-8">
@@ -122,7 +137,7 @@ export function DashboardPage() {
           No snapshots yet - run the bookmarklet to capture one.
         </p>
       )}
-      {aggregateSeries.length === 1 && (
+      {notEnoughHistory && (
         <p className="mt-2 text-slate-600">
           You only have one snapshot so far - not enough history yet to show a real trend. Check
           back after your next capture.
@@ -139,6 +154,7 @@ export function DashboardPage() {
               capturedOn: point.capturedOn,
               value: point.totalHits,
             }))}
+            leadIn={hitsLeadIn}
           />
           <TrendChart
             title="Total kudos"
@@ -148,6 +164,7 @@ export function DashboardPage() {
               capturedOn: point.capturedOn,
               value: point.totalKudos,
             }))}
+            leadIn={kudosLeadIn}
           />
           <RatioChart
             title="Kudos-to-hits ratio"
@@ -156,6 +173,7 @@ export function DashboardPage() {
               capturedOn: point.capturedOn,
               ratio: point.kudosToHitsRatio,
             }))}
+            leadIn={ratioLeadIn}
           />
         </div>
       )}

@@ -128,6 +128,7 @@ describe("DashboardPage", () => {
               { capturedOn: "2026-01-01", totalHits: 10, totalKudos: 1, kudosToHitsRatio: 0.1 },
             ],
             perWorkSeries: [],
+            earliestPostYear: null,
           },
         },
       });
@@ -151,6 +152,7 @@ describe("DashboardPage", () => {
               { capturedOn: "2026-01-08", totalHits: 20, totalKudos: 3, kudosToHitsRatio: 0.15 },
             ],
             perWorkSeries: [],
+            earliestPostYear: null,
           },
         },
       });
