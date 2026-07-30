@@ -7,6 +7,7 @@ import type { ScrapedData } from "./scrapeStats";
 // sides of this stage's tests agree on the wire shape.
 const SAMPLE_DATA: ScrapedData = {
   username: "someauthor",
+  earliestPostYear: 2013,
   aggregate: {
     hits: 1_000,
     kudos: 100,
@@ -30,6 +31,11 @@ const SAMPLE_DATA: ScrapedData = {
       wordCount: 30_000,
     },
   ],
+};
+
+const SAMPLE_DATA_NO_EARLIEST_YEAR: ScrapedData = {
+  ...SAMPLE_DATA,
+  earliestPostYear: null,
 };
 
 describe("buildIngestPayload", () => {
@@ -78,5 +84,32 @@ describe("buildIngestPayload", () => {
   it("produces a body that survives a JSON.stringify/parse round trip", () => {
     const payload = buildIngestPayload(SAMPLE_DATA, { schemaVersion: 1, readToken: "tok_abc" });
     expect(JSON.parse(JSON.stringify(payload))).toEqual(payload);
+  });
+
+  // earliestPostYear is the synthetic zero-point baseline fact captured by
+  // scrapeStats on a user's first-ever ingest - it must pass straight
+  // through onto the wire payload, including the explicit-null case (no
+  // year links found), rather than being dropped or defaulted.
+  describe("earliestPostYear passthrough", () => {
+    it("passes earliestPostYear through as a top-level payload field", () => {
+      const payload = buildIngestPayload(SAMPLE_DATA, { schemaVersion: 1 });
+      expect(payload.earliestPostYear).toBe(2013);
+    });
+
+    it("passes an explicit null through when scrapeStats found no year links", () => {
+      const payload = buildIngestPayload(SAMPLE_DATA_NO_EARLIEST_YEAR, { schemaVersion: 1 });
+      expect(payload).toHaveProperty("earliestPostYear");
+      expect(payload.earliestPostYear).toBeNull();
+    });
+
+    it("keeps earliestPostYear alongside, not inside, the aggregate object", () => {
+      const payload = buildIngestPayload(SAMPLE_DATA, { schemaVersion: 1 });
+      expect(payload.aggregate).not.toHaveProperty("earliestPostYear");
+    });
+
+    it("survives a JSON.stringify/parse round trip including the null case", () => {
+      const payload = buildIngestPayload(SAMPLE_DATA_NO_EARLIEST_YEAR, { schemaVersion: 1 });
+      expect(JSON.parse(JSON.stringify(payload)).earliestPostYear).toBeNull();
+    });
   });
 });
