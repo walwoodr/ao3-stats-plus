@@ -83,12 +83,23 @@ night*, not a different product.
 // toggle) is the correct choice here, not the `class` strategy: darkMode: 'media'
 ```
 
-**Contrast:** light-mode pairs (ink-on-paper, accent-on-paper) are comfortably high-contrast by
-inspection (very dark ink on very light paper); dark-mode pairs were chosen as lightened tints
-specifically to stay legible on the dark background, but exact ratios have not been run through
-a contrast-checker tool yet — **verify all four pairs (ink/paper, ink-soft/paper, accent/paper,
-growth/paper) in both modes against WCAG AA 4.5:1 before implementation**, and adjust the tint
-lightness if any pair falls short. Don't treat the hex values above as final until that's done.
+**Contrast — verified** (WCAG relative-luminance formula, computed directly, not estimated by
+inspection):
+
+| Pair | Light | Dark |
+|------|-------|------|
+| ink / paper | 14.35:1 | 14.97:1 |
+| ink / card | 15.28:1 | 13.35:1 |
+| ink-soft / paper | 4.73:1 ⚠ thin margin | 7.52:1 |
+| accent / paper | 7.53:1 | 6.83:1 |
+| growth / paper | 4.52:1 ⚠ thin margin | 8.25:1 |
+| destructive / paper | 4.54:1 ⚠ thin margin | 6.18:1 |
+
+All twelve pairs clear WCAG AA (4.5:1) for normal text — this system's actual bar (see
+Pre-Delivery Checklist). Three light-mode pairs (ink-soft, growth, destructive on paper) pass
+by less than 0.3, which is enough margin for hex values exactly as specified but leaves very
+little room for drift if these colors get adjusted later — re-verify if any of the three change.
+No hex value needed to change to hit the bar as originally chosen.
 
 ### Typography
 
@@ -208,13 +219,11 @@ transforms, in both modes.
 ### The signature element: the lead-in marker
 
 The synthetic "earliest post year" baseline point (added to the trend/ratio charts) is this
-product's one deliberate visual risk. In light mode it's a small solid dot in `--color-accent`
-— a quiet echo of AO3's own kudos mark, at the one point on the chart that represents "before
-anyone had read this yet." In dark mode, add a soft radial glow behind that same dot (~16px,
-`--color-accent` at low opacity, fading to transparent) — **this glow is not something the user
-asked for explicitly; it's my addition, carried over from Direction B's "lamplight" vibe as a
-small dark-mode-only touch. Flag it for a yes/no before implementation** rather than assuming
-it's wanted just because it fit the brief.
+product's one deliberate visual risk: a small solid dot in `--color-accent` — a quiet echo of
+AO3's own kudos mark, at the one point on the chart that represents "before anyone had read
+this yet." Identical treatment in both modes, no dark-mode-only embellishment — a soft glow
+was proposed for dark mode (carried over from Direction B's "lamplight" vibe) and explicitly
+rejected; the marker stays plain in both modes.
 
 ```css
 .chart-leadin-dot {
@@ -227,10 +236,6 @@ it's wanted just because it fit the brief.
   stroke: var(--color-ink-soft);
   stroke-dasharray: 4 4;
   stroke-width: 1.5px;
-}
-/* Dark-mode-only addition — confirm before building */
-@media (prefers-color-scheme: dark) {
-  .chart-leadin-dot { box-shadow: 0 0 16px 4px color-mix(in srgb, var(--color-accent) 45%, transparent); }
 }
 ```
 
@@ -284,8 +289,9 @@ extend, not a rewrite.)
 - [ ] No emojis used as icons
 - [ ] `cursor-pointer` on all clickable elements
 - [ ] Hover states are color/border transitions only (150–300ms), never layout-shifting
-- [ ] **Text contrast ≥4.5:1 verified with an actual contrast-checker tool for all four
-      light-mode pairs AND all four dark-mode pairs — not yet done, see Color Palette note**
+- [x] Text contrast ≥4.5:1 verified by computing actual WCAG ratios for all twelve pairs — see
+      Color Palette table. All pass; three light-mode pairs pass with a thin margin (<0.3) —
+      re-verify if `ink-soft`, `growth`, or `destructive` change.
 - [ ] Focus states use the `--color-accent` ring, visible on every interactive element, in
       both modes
 - [ ] `prefers-reduced-motion` respected (should be automatic — see anti-patterns)
@@ -295,8 +301,6 @@ extend, not a rewrite.)
       do not regress this when applying new visual tokens)
 - [ ] Dark mode tested independently, not assumed from light-mode values (Recharts color note
       above — confirm the chart itself actually re-themes, not just surrounding chrome)
-- [ ] Dark-mode lead-in glow (see Component Specs) confirmed wanted, not just implemented
-      because it was in the token spec
 
 ---
 
@@ -319,7 +323,7 @@ explicit instruction to prefer C wherever the combination left something ambiguo
 | What hue family should the dark background actually be — B's amber-brown charcoal, or something else? | Darkened C's own ink color (`#2B2230`) into a background, not B's `#1C1815` | The user asked for B's *vibe* (warm, not cold-blue-black) — not B's literal hex value. C's own ink was already a warm, dark, plum-neutral color once you look at it as a background candidate rather than text; using it keeps the whole system in one hue family. |
 | What should the dark-mode accent be — B's amber, or a dark-adapted wine? | A lightened tint of C's wine, not B's amber | Direction B's amber accent wasn't asked for — only its background vibe was. Preference-to-C means the accent identity (wine, echoing AO3's own red) carries into dark mode too, just retuned for contrast. |
 | What typography should dark mode use — B's Lora, or C's Outfit/Work Sans? | C's Outfit/Work Sans, unchanged, in both modes | Typography from B was never part of the ask (only "color theme from C" and background "vibe" from B) — no reason to introduce a second type system. |
-| Should the dark-mode marker get B's glow effect? | Added as an explicit, flagged, not-yet-confirmed addition | This is a genuine judgment call beyond what was asked — noted rather than silently included, per the Pre-Delivery Checklist item above. |
+| Should the dark-mode marker get B's glow effect? | Proposed, then explicitly rejected by the user | This was flagged as a judgment call beyond what was asked rather than silently included — correctly so, since the answer was no. The marker is identical in both modes. |
 
 **Not carried forward from the rejected directions:** Reading Room Ledger's stamp-square
 marker and Source Serif 4 display face; After Hours's Lora serif, amber accent hue, and warm
