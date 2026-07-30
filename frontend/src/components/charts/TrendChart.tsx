@@ -32,6 +32,8 @@ interface TrendChartRow {
   capturedOn: string;
   value: number | null;
   lead: number | null;
+  xValue: number;
+  isLeadIn: boolean;
 }
 
 // leadIn's year-only label ("Before 2014 (estimated baseline)") - never the
@@ -64,16 +66,51 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
   // the first real row (so it draws exactly one segment connecting them);
   // the solid "value" series never carries the synthetic row's value, so it
   // never draws a solid segment where the dashed one belongs.
+  //
+  // X positions are explicit integers rather than left to Recharts' string-
+  // categorical axis: real points sit at 1, 2, 3, ... (always one unit
+  // apart, regardless of real calendar distance - the deliberate "not to
+  // real-time scale" behavior from Task 1's plan) and the lead-in sits at 0,
+  // i.e. exactly one unit before the first real point - the same distance
+  // as between any two consecutive real points.
   const chartData: TrendChartRow[] = leadIn
     ? [
-        { capturedOn: leadIn.capturedOn, value: null, lead: leadIn.value },
+        {
+          capturedOn: leadIn.capturedOn,
+          value: null,
+          lead: leadIn.value,
+          xValue: 0,
+          isLeadIn: true,
+        },
         ...points.map((point, index) => ({
           capturedOn: point.capturedOn,
           value: point.value,
           lead: index === 0 ? point.value : null,
+          xValue: index + 1,
+          isLeadIn: false,
         })),
       ]
-    : points.map((point) => ({ capturedOn: point.capturedOn, value: point.value, lead: null }));
+    : points.map((point, index) => ({
+        capturedOn: point.capturedOn,
+        value: point.value,
+        lead: null,
+        xValue: index,
+        isLeadIn: false,
+      }));
+
+  // The lead-in's axis tick is deliberately coarser (year-only) than a real
+  // point's - it's an estimated baseline, not an actual capture date, so
+  // showing a fabricated "January 1st" would overstate its precision.
+  const formatTick = (xValue: number): string => {
+    const row = chartData.find((r) => r.xValue === xValue);
+    if (!row) return "";
+    return row.isLeadIn ? row.capturedOn.slice(0, 4) : row.capturedOn;
+  };
+  const formatTooltipLabel = (xValue: number): string => {
+    const row = chartData.find((r) => r.xValue === xValue);
+    if (!row) return "";
+    return row.isLeadIn && leadIn ? leadInLabel(leadIn) : row.capturedOn;
+  };
 
   return (
     <figure
@@ -96,11 +133,16 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
           <LineChart data={chartData} accessibilityLayer={false}>
             <CartesianGrid strokeDasharray="3 3" stroke={colors.inkSoft} strokeOpacity={0.2} />
             <XAxis
-              dataKey="capturedOn"
+              dataKey="xValue"
+              type="number"
+              domain={[chartData[0].xValue, chartData[chartData.length - 1].xValue]}
+              ticks={chartData.map((row) => row.xValue)}
+              tickFormatter={formatTick}
               tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
             />
             <YAxis tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }} />
             <Tooltip
+              labelFormatter={formatTooltipLabel}
               contentStyle={{
                 fontFamily: "var(--font-mono)",
                 backgroundColor: colors.card,
@@ -111,10 +153,11 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
               itemStyle={{ color: colors.ink }}
             />
             <Line
-              type="monotone"
+              type="linear"
               dataKey="value"
               name={valueLabel}
               connectNulls={false}
+              isAnimationActive={false}
               stroke={colors.ink}
               strokeWidth={2}
               dot={(dotProps: {
@@ -137,10 +180,11 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
             />
             {leadIn && (
               <Line
-                type="monotone"
+                type="linear"
                 dataKey="lead"
                 name={`${valueLabel} (estimated baseline)`}
                 connectNulls
+                isAnimationActive={false}
                 strokeDasharray="4 4"
                 stroke={colors.inkSoft}
                 strokeWidth={1.5}
@@ -155,7 +199,7 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
                   // close the dashed segment) - only draw a dot for the
                   // synthetic row itself, the "value" line's dot already
                   // covers the first real point, in ink rather than accent.
-                  if (payload?.capturedOn !== leadIn.capturedOn || cx == null || cy == null) {
+                  if (!payload?.isLeadIn || cx == null || cy == null) {
                     return <g key={`lead-dot-${index}`} />;
                   }
                   return (

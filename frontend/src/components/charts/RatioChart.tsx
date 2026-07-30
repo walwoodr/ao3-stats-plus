@@ -35,6 +35,8 @@ interface RatioChartRow {
   capturedOn: string;
   ratio: number | null;
   lead: number | null;
+  xValue: number;
+  isLeadIn: boolean;
 }
 
 // leadIn's year-only label - never the raw ISO capturedOn - so the
@@ -59,16 +61,47 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
   // useChartColors rather than left to the surrounding Tailwind classes.
   const colors = useChartColors();
 
+  // X positions are explicit integers rather than left to Recharts' string-
+  // categorical axis: real points sit at 1, 2, 3, ... (always one unit
+  // apart, regardless of real calendar distance) and the lead-in sits at 0 -
+  // exactly one unit before the first real point, the same distance as
+  // between any two consecutive real points. See TrendChart's identical
+  // comment for the full rationale.
   const chartData: RatioChartRow[] = leadIn
     ? [
-        { capturedOn: leadIn.capturedOn, ratio: null, lead: leadIn.ratio },
+        {
+          capturedOn: leadIn.capturedOn,
+          ratio: null,
+          lead: leadIn.ratio,
+          xValue: 0,
+          isLeadIn: true,
+        },
         ...points.map((point, index) => ({
           capturedOn: point.capturedOn,
           ratio: point.ratio,
           lead: index === 0 ? point.ratio : null,
+          xValue: index + 1,
+          isLeadIn: false,
         })),
       ]
-    : points.map((point) => ({ capturedOn: point.capturedOn, ratio: point.ratio, lead: null }));
+    : points.map((point, index) => ({
+        capturedOn: point.capturedOn,
+        ratio: point.ratio,
+        lead: null,
+        xValue: index,
+        isLeadIn: false,
+      }));
+
+  const formatTick = (xValue: number): string => {
+    const row = chartData.find((r) => r.xValue === xValue);
+    if (!row) return "";
+    return row.isLeadIn ? row.capturedOn.slice(0, 4) : row.capturedOn;
+  };
+  const formatTooltipLabel = (xValue: number): string => {
+    const row = chartData.find((r) => r.xValue === xValue);
+    if (!row) return "";
+    return row.isLeadIn && leadIn ? leadInLabel(leadIn) : row.capturedOn;
+  };
 
   return (
     <figure
@@ -91,11 +124,16 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
           <LineChart data={chartData} accessibilityLayer={false}>
             <CartesianGrid strokeDasharray="3 3" stroke={colors.inkSoft} strokeOpacity={0.2} />
             <XAxis
-              dataKey="capturedOn"
+              dataKey="xValue"
+              type="number"
+              domain={[chartData[0].xValue, chartData[chartData.length - 1].xValue]}
+              ticks={chartData.map((row) => row.xValue)}
+              tickFormatter={formatTick}
               tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
             />
             <YAxis tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }} />
             <Tooltip
+              labelFormatter={formatTooltipLabel}
               contentStyle={{
                 fontFamily: "var(--font-mono)",
                 backgroundColor: colors.card,
@@ -106,10 +144,11 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
               itemStyle={{ color: colors.ink }}
             />
             <Line
-              type="monotone"
+              type="linear"
               dataKey="ratio"
               name="Kudos-to-hits ratio"
               connectNulls={false}
+              isAnimationActive={false}
               stroke={colors.ink}
               strokeWidth={2}
               dot={(dotProps: {
@@ -132,10 +171,11 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
             />
             {leadIn && (
               <Line
-                type="monotone"
+                type="linear"
                 dataKey="lead"
                 name="Kudos-to-hits ratio (estimated baseline)"
                 connectNulls
+                isAnimationActive={false}
                 strokeDasharray="4 4"
                 stroke={colors.inkSoft}
                 strokeWidth={1.5}
@@ -150,7 +190,7 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
                   // close the dashed segment) - only draw a dot for the
                   // synthetic row itself, the "ratio" line's dot already
                   // covers the first real point, in ink rather than accent.
-                  if (payload?.capturedOn !== leadIn.capturedOn || cx == null || cy == null) {
+                  if (!payload?.isLeadIn || cx == null || cy == null) {
                     return <g key={`lead-dot-${index}`} />;
                   }
                   return (

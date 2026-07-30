@@ -47,3 +47,18 @@ export const SinglePointWithLeadIn: Story = {
     leadIn: { capturedOn: "2019-01-01", ratio: 1 },
   },
 };
+
+// Mirrors TrendChart's RegularHistoryWithLeadIn - exercises the 3+ point
+// case, where the lead-in sits the same categorical distance from the first
+// real point as the first real point sits from the second.
+export const RegularHistoryWithLeadIn: Story = {
+  args: {
+    title: "Kudos-to-hits ratio",
+    points: [
+      { capturedOn: "2026-01-01", ratio: 0.08 },
+      { capturedOn: "2026-01-08", ratio: 0.1 },
+      { capturedOn: "2026-01-15", ratio: 0.12 },
+    ],
+    leadIn: { capturedOn: "2019-01-01", ratio: 1 },
+  },
+};
