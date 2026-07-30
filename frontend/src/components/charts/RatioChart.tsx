@@ -109,21 +109,54 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
               type="monotone"
               dataKey="ratio"
               name="Kudos-to-hits ratio"
-              dot={false}
               connectNulls={false}
               stroke={colors.ink}
               strokeWidth={2}
+              dot={(dotProps: {
+                cx?: number;
+                cy?: number;
+                payload?: RatioChartRow;
+                index?: number;
+              }) => {
+                const { cx, cy, payload, index } = dotProps;
+                // Null on the synthetic leadIn row for this series - skip it so
+                // only real points get a dot here (the leadIn's own dot is drawn
+                // by the "lead" line below, in accent, not ink).
+                if (payload?.ratio == null || cx == null || cy == null) {
+                  return <g key={`ratio-dot-${index}`} />;
+                }
+                return (
+                  <circle key={`ratio-dot-${index}`} cx={cx} cy={cy} r={3.5} fill={colors.ink} />
+                );
+              }}
             />
             {leadIn && (
               <Line
                 type="monotone"
                 dataKey="lead"
                 name="Kudos-to-hits ratio (estimated baseline)"
-                dot={false}
                 connectNulls
                 strokeDasharray="4 4"
                 stroke={colors.inkSoft}
                 strokeWidth={1.5}
+                dot={(dotProps: {
+                  cx?: number;
+                  cy?: number;
+                  payload?: RatioChartRow;
+                  index?: number;
+                }) => {
+                  const { cx, cy, payload, index } = dotProps;
+                  // This series also carries the first real point's value (to
+                  // close the dashed segment) - only draw a dot for the
+                  // synthetic row itself, the "ratio" line's dot already
+                  // covers the first real point, in ink rather than accent.
+                  if (payload?.capturedOn !== leadIn.capturedOn || cx == null || cy == null) {
+                    return <g key={`lead-dot-${index}`} />;
+                  }
+                  return (
+                    <circle key={`lead-dot-${index}`} cx={cx} cy={cy} r={4} fill={colors.accent} />
+                  );
+                }}
               />
             )}
           </LineChart>
