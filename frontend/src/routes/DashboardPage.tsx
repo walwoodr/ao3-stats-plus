@@ -133,6 +133,7 @@ export function DashboardPage() {
         <div className="mt-6 flex flex-col gap-8">
           <TrendChart
             title="Total hits"
+            description="Total hits across all your works, combined, at each snapshot you've captured."
             valueLabel="Hits"
             points={aggregateSeries.map((point) => ({
               capturedOn: point.capturedOn,
@@ -141,6 +142,7 @@ export function DashboardPage() {
           />
           <TrendChart
             title="Total kudos"
+            description="Total kudos across all your works, combined, at each snapshot you've captured."
             valueLabel="Kudos"
             points={aggregateSeries.map((point) => ({
               capturedOn: point.capturedOn,
@@ -149,6 +151,7 @@ export function DashboardPage() {
           />
           <RatioChart
             title="Kudos-to-hits ratio"
+            description="What share of your hits turn into kudos, over time - a rough measure of reader engagement rather than raw traffic."
             points={aggregateSeries.map((point) => ({
               capturedOn: point.capturedOn,
               ratio: point.kudosToHitsRatio,

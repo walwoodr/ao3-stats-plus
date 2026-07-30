@@ -1,3 +1,4 @@
+import { useId } from "react";
 import {
   CartesianGrid,
   Line,
@@ -15,6 +16,7 @@ export interface RatioPoint {
 
 export interface RatioChartProps {
   title: string;
+  description?: string;
   points: RatioPoint[];
 }
 
@@ -23,9 +25,28 @@ export interface RatioChartProps {
 // computed as 0) - this component just has to render that zero explicitly
 // rather than treating it as missing data, plus the same irregular-gap/
 // single-point/accessible-table/non-color-only guarantees as TrendChart.
-export function RatioChart({ title, points }: RatioChartProps) {
+// The title/description are visible text, not just aria attributes, so a
+// sighted dashboard user can tell what the chart represents at a glance.
+export function RatioChart({ title, description, points }: RatioChartProps) {
+  const headingId = useId();
+  const descriptionId = useId();
+
   return (
-    <figure role="img" aria-label={title} className="w-full">
+    <figure
+      role="img"
+      aria-labelledby={headingId}
+      aria-describedby={description ? descriptionId : undefined}
+      className="w-full"
+    >
+      <h3 id={headingId} className="text-base font-semibold text-slate-900">
+        {title}
+      </h3>
+      {description && (
+        <p id={descriptionId} className="mt-1 text-sm text-slate-600">
+          {description}
+        </p>
+      )}
+
       <div aria-hidden="true">
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={points} accessibilityLayer={false}>
