@@ -57,3 +57,35 @@
   logged in case Deployment or Retrospective want to fold the tunnel step
   into a documented pre-Deployment smoke-test procedure, or confirm
   production origins are enough to make LNA moot.
+- [2026-07-23] (stage: Review) `entrypoint.ts` interpolates the scraped
+  `username` into the dashboard URL (`${frontendOrigin}/u/${username}?token=`)
+  and into the localStorage key without `encodeURIComponent`. AO3's username
+  charset is restricted enough that this is low-risk today, but encoding it
+  would be more robust against any URL-special character and is cheap.
+  Deferred: not a live defect, no failing case with real AO3 usernames.
+- [2026-07-23] (stage: Review) The pre-POST scrape-failure banner
+  (`renderInfoBanner`) uses `role="status"` (polite live region) and does not
+  move focus. It is the *only* feedback when a capture can't proceed (no
+  works / not All Years / scrape failed), yet is less assertive than the
+  post-POST failure/unauthorized banners (`role="alert"`). Plan section 6
+  only mandates focus-move on success, so this is within plan, but a screen
+  reader user who triggers the bookmarklet on the wrong view may get a weak
+  or missed announcement. Deferred: matches the confirmed plan; revisit if
+  the cross-origin a11y smoke test (plan section 6) surfaces it.
+- [2026-07-30] (stage: Maintenance) `InstallPage`'s draggable bookmarklet
+  link doesn't reliably drag-install into the bookmarks bar in at least one
+  browser tested manually - users have to fall back to the "Show code" /
+  Copy button flow instead. Not yet root-caused (candidates: the `onClick`
+  `preventDefault()` interfering with native drag semantics, or a
+  browser-specific `javascript:` URI drag restriction). Deferred: the
+  copy/paste fallback already works and is keyboard-accessible; revisit if
+  drag-install turns out to be commonly expected.
+- [2026-07-30] (stage: Maintenance) The bookmarklet's capability token
+  (`read_token`, `SecureRandom`-generated) is an opaque, hard-to-transcribe
+  string. Users who lose the "View your dashboard" link and have to
+  manually retype the token (`TokenEntryForm`) find it unwieldy. Deferred
+  product decision: consider generating a short, memorable word/two-word
+  phrase instead (e.g. a small wordlist-based generator) - needs Planning
+  to weigh memorability against the token's job as a capability secret
+  (shorter/more guessable phrases are weaker if this is meant to gate
+  write access, not just convenience).
