@@ -79,4 +79,19 @@ describe("useStatsForUser", () => {
       token: "tok_valid",
     });
   });
+
+  // earliestPostYear is the synthetic zero-point baseline fact the
+  // dashboard needs to build a leadIn - the query document has to actually
+  // request it from the backend, or DashboardPage would have nothing to
+  // synthesize a leadIn from no matter what it does with the response.
+  it("requests earliestPostYear in the query document sent to the server", () => {
+    vi.mocked(graphqlClient.request).mockResolvedValue({
+      statsForUser: { aggregateSeries: [], earliestPostYear: null },
+    });
+
+    renderWithClient("someauthor", "tok_valid");
+
+    const [query] = vi.mocked(graphqlClient.request).mock.calls[0];
+    expect(query).toMatch(/earliestPostYear/);
+  });
 });
