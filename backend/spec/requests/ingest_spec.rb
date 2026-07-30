@@ -92,6 +92,30 @@ RSpec.describe "POST /ingest", type: :request do
     end
   end
 
+  context "with earliestPostYear in the payload" do
+    it "accepts and persists it when present and valid" do
+      post_ingest(valid_ingest_payload(username: "ingestyear", earliest_post_year: 2015))
+
+      expect(response).to have_http_status(:created)
+      expect(Ao3User.find_by(username: "ingestyear").earliest_post_year).to eq(2015)
+    end
+
+    it "accepts the ingest and leaves it unset when absent" do
+      post_ingest(valid_ingest_payload(username: "ingestnoyear"))
+
+      expect(response).to have_http_status(:created)
+      expect(Ao3User.find_by(username: "ingestnoyear").earliest_post_year).to be_nil
+    end
+
+    it "accepts the ingest and ignores it when malformed, without rejecting the real ingest" do
+      payload = valid_ingest_payload(username: "ingestbadyear").tap { |p| p["earliestPostYear"] = "banana" }
+      post_ingest(payload)
+
+      expect(response).to have_http_status(:created)
+      expect(Ao3User.find_by(username: "ingestbadyear").earliest_post_year).to be_nil
+    end
+  end
+
   describe "CORS" do
     it "allows a preflight request from archiveofourown.org" do
       process :options, "/ingest", headers: {
