@@ -8,6 +8,7 @@ class SnapshotIngestService
   class UnsupportedSchemaVersion < StandardError; end
 
   CURRENT_SCHEMA_VERSION = 1
+  EARLIEST_POST_YEAR_RANGE = 1990..Date.current.year
 
   Result = Struct.new(:ao3_user, :snapshot, :read_token, :deduped, keyword_init: true) do
     def deduped?
@@ -29,8 +30,10 @@ class SnapshotIngestService
       if existing_snapshot
         Result.new(ao3_user: ao3_user, snapshot: existing_snapshot, read_token: ao3_user.read_token, deduped: true)
       else
+        is_first_ingest = ao3_user.snapshots.none?
         snapshot = build_snapshot!(ao3_user)
         upsert_works!(ao3_user, snapshot)
+        persist_earliest_post_year!(ao3_user) if is_first_ingest
         Result.new(ao3_user: ao3_user, snapshot: snapshot, read_token: ao3_user.read_token, deduped: false)
       end
     end
@@ -92,6 +95,14 @@ class SnapshotIngestService
       total_word_count: aggregate["wordCount"],
       works_count: aggregate["worksCount"],
     )
+  end
+
+  def persist_earliest_post_year!(ao3_user)
+    year = payload["earliestPostYear"]
+    return unless year.is_a?(Integer)
+    return unless EARLIEST_POST_YEAR_RANGE.cover?(year)
+
+    ao3_user.update!(earliest_post_year: year)
   end
 
   def upsert_works!(ao3_user, snapshot)
