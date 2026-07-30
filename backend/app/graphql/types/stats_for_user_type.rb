@@ -8,5 +8,6 @@ module Types
     field :kudos_to_hits_ratio, Float, null: false
     field :aggregate_series, [ Types::AggregateSeriesPointType ], null: false
     field :per_work_series, [ Types::PerWorkSeriesType ], null: false
+    field :earliest_post_year, Integer, null: true
   end
 end

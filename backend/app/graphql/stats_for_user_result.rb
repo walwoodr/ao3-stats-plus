@@ -21,6 +21,10 @@ class StatsForUserResult
     ao3_user.works.order(:ao3_work_id)
   end
 
+  def earliest_post_year
+    ao3_user.earliest_post_year
+  end
+
   private
 
   attr_reader :ao3_user
