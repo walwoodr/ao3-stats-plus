@@ -31,6 +31,7 @@ export interface ScrapedData {
   username: string;
   aggregate: AggregateStats;
   works: ScrapedWork[];
+  earliestPostYear: number | null;
 }
 
 export type ScrapeFailureReason = "no-works" | "not-all-years" | "scrape-failed";
@@ -71,10 +72,30 @@ function scrapeStatsUnsafe(doc: Document, pathname: string): ScrapeResult {
   if (works === null) return { ok: false, reason: "scrape-failed" };
   if (works.length === 0) return { ok: false, reason: "no-works" };
 
+  const earliestPostYear = parseEarliestPostYear(statsRoot);
+
   return {
     ok: true,
-    data: { username, aggregate: { ...aggregate, worksCount: works.length }, works },
+    data: {
+      username,
+      aggregate: { ...aggregate, worksCount: works.length },
+      works,
+      earliestPostYear,
+    },
   };
+}
+
+// The synthetic zero-point baseline year: the minimum parseable year across
+// the stats page's own year-selector links (never the "All Years" span
+// itself, which isn't an anchor). Non-fatal by design - a missing/empty
+// year list still yields a successful scrape with a null year.
+function parseEarliestPostYear(statsRoot: Element): number | null {
+  const yearLinks = Array.from(statsRoot.querySelectorAll("ol.year.actions li a"));
+  const years = yearLinks
+    .map((link) => parseNumber(link.textContent))
+    .filter((year): year is number => year !== null);
+
+  return years.length === 0 ? null : Math.min(...years);
 }
 
 function parseAggregate(statsRoot: Element): Omit<AggregateStats, "worksCount"> | null {
