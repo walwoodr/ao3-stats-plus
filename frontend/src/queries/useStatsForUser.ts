@@ -30,6 +30,7 @@ export interface StatsForUserData {
     kudosToHitsRatio: number;
     aggregateSeries: AggregateSeriesPoint[];
     perWorkSeries: PerWorkSeries[];
+    earliestPostYear: number | null;
   };
 }
 
@@ -37,6 +38,7 @@ const STATS_FOR_USER_QUERY = gql`
   query StatsForUser($username: String!, $token: String!) {
     statsForUser(username: $username, token: $token) {
       kudosToHitsRatio
+      earliestPostYear
       aggregateSeries {
         capturedOn
         totalHits
