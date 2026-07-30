@@ -21,8 +21,10 @@ export function InstallPage() {
 
   return (
     <div className="mx-auto max-w-2xl p-8">
-      <h1 className="text-2xl font-semibold text-slate-900">Install the AO3 Stats+ bookmarklet</h1>
-      <p className="mt-4 text-slate-700">
+      <h1 className="font-display text-2xl font-semibold text-ink">
+        Install the AO3 Stats+ bookmarklet
+      </h1>
+      <p className="mt-4 text-ink-soft">
         Drag the button below to your browser's bookmarks bar. Whenever you're on your AO3 stats
         page, click it to capture a snapshot of your stats.
       </p>
@@ -31,7 +33,7 @@ export function InstallPage() {
         type="button"
         aria-expanded={showCode}
         onClick={() => setShowCode((prev) => !prev)}
-        className="mt-6 rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+        className="mt-6 cursor-pointer rounded-md border border-ink-soft px-4 py-2 text-sm font-semibold text-ink outline-none transition-colors duration-200 hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         Show code
       </button>
@@ -40,7 +42,7 @@ export function InstallPage() {
         <a
           href={bookmarkletSource}
           onClick={(event) => event.preventDefault()}
-          className="inline-block rounded-md bg-slate-900 px-4 py-2 font-medium text-white"
+          className="inline-block cursor-pointer rounded-md bg-ink px-4 py-2 font-sans font-semibold text-paper outline-none transition-colors duration-200 hover:bg-ink-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           AO3 Stats+
         </a>
@@ -48,20 +50,20 @@ export function InstallPage() {
 
       {showCode && (
         <div className="mt-6">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-ink-soft">
             Can't drag? Copy this code and paste it as the URL of a new bookmark instead:
           </p>
           <pre
             tabIndex={0}
             aria-label="Bookmarklet code"
-            className="mt-2 overflow-x-auto rounded-md bg-slate-100 p-3 text-xs"
+            className="mt-2 overflow-x-auto rounded-md border border-ink/12 bg-card p-3 font-mono text-xs text-ink outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <code>{bookmarkletSource}</code>
           </pre>
           <button
             type="button"
             onClick={handleCopy}
-            className="mt-2 rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50"
+            className="mt-2 cursor-pointer rounded-md border border-ink-soft px-3 py-1 text-sm font-semibold text-ink outline-none transition-colors duration-200 hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             Copy
           </button>

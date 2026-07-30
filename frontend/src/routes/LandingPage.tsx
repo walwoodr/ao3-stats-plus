@@ -3,14 +3,14 @@ import { Link } from "react-router-dom";
 export function LandingPage() {
   return (
     <div className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-6 p-8 text-center">
-      <h1 className="text-4xl font-semibold text-slate-900">ao3-stats-plus</h1>
-      <p className="text-lg text-slate-600">
+      <h1 className="font-display text-4xl font-semibold text-ink">ao3-stats-plus</h1>
+      <p className="text-lg text-ink-soft">
         Track how your AO3 fic stats - hits, kudos, comments, bookmarks, subscriptions - change over
         time, straight from your own stats page.
       </p>
       <Link
         to="/install"
-        className="rounded-md bg-slate-900 px-6 py-3 font-medium text-white hover:bg-slate-700"
+        className="rounded-md bg-ink px-6 py-3 font-sans font-semibold text-paper outline-none transition-colors duration-200 hover:bg-ink-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         Get started
       </Link>
