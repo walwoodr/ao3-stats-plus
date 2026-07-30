@@ -1,1 +1,59 @@
+/* This @import must precede `@import "tailwindcss"` (not just be adjacent
+   to it in source): the Tailwind plugin inlines its own expanded content
+   (base styles, theme layer, etc.) in place of that import, and CSS
+   requires every @import to precede all other rules but bare @layer
+   statements - putting the font import second would then land it after
+   Tailwind's expanded content, which is invalid and got flagged by the
+   build's CSS optimizer. */
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Work+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
 @import "tailwindcss";
+
+/*
+ * Design tokens, per design-system/ao3-stats-plus/MASTER.md. Light values
+ * are the @theme defaults - Tailwind v4 emits these as real `:root` custom
+ * properties (not just build-time constants), which is what lets the
+ * `@media (prefers-color-scheme: dark)` block below override the same
+ * property names at runtime: that block is unlayered CSS, so it always
+ * wins over the layered `@theme` output regardless of source order. This
+ * is Tailwind's "media" (system-following) dark-mode strategy, not the
+ * "class" toggle strategy - no manual switch anywhere in this app.
+ */
+@theme {
+  --color-paper: #faf7f8;
+  --color-card: #ffffff;
+  --color-ink: #2b2230;
+  --color-ink-soft: #7a6b72;
+  --color-accent: #9f1239;
+  --color-growth: #4d7c5f;
+  --color-destructive: #dc2626;
+
+  --font-display: "Outfit", sans-serif;
+  --font-sans: "Work Sans", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-paper: #201a1e;
+    --color-card: #2b232a;
+    --color-ink: #f5eef1;
+    --color-ink-soft: #b7a8af;
+    --color-accent: #e8879e;
+    --color-growth: #8fbfa0;
+    --color-destructive: #f87171;
+  }
+}
+
+:root {
+  /* Flat/bordered surfaces, never drop shadows - see MASTER.md's
+     Shadows/elevation + Anti-Patterns sections. color-mix keeps these in
+     sync with --color-ink automatically across both modes, since they're
+     defined once rather than duplicated per color-scheme. */
+  --surface-border: 1px solid color-mix(in srgb, var(--color-ink) 12%, transparent);
+  --surface-border-hover: 1px solid color-mix(in srgb, var(--color-ink) 24%, transparent);
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+}
