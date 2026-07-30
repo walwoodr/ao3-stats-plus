@@ -54,4 +54,25 @@ RSpec.describe Ao3User, type: :model do
       expect(ao3_user).to respond_to(:works)
     end
   end
+
+  # earliest_post_year is a nullable, supplementary fact (the synthetic
+  # zero-point baseline year, captured on a user's first-ever ingest) - it
+  # must never be required for the record to be valid.
+  describe "earliest_post_year" do
+    it "is valid without an earliest_post_year set" do
+      ao3_user.earliest_post_year = nil
+      expect(ao3_user).to be_valid
+    end
+
+    it "is valid with an earliest_post_year set" do
+      ao3_user.earliest_post_year = 2014
+      expect(ao3_user).to be_valid
+    end
+
+    it "persists the value across a reload" do
+      ao3_user.earliest_post_year = 2014
+      ao3_user.save!
+      expect(ao3_user.reload.earliest_post_year).to eq(2014)
+    end
+  end
 end
