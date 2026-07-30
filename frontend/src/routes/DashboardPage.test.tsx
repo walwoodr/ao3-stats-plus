@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ClientError } from "graphql-request";
 import { GraphQLError } from "graphql";
@@ -159,6 +159,164 @@ describe("DashboardPage", () => {
 
       expect(screen.getByRole("img", { name: /total hits/i })).toBeInTheDocument();
       expect(screen.getByRole("img", { name: /kudos.to.hits ratio/i })).toBeInTheDocument();
+    });
+  });
+
+  // earliestPostYear (a synthetic "before you had any stats, you were at
+  // zero" zero-point fact from the user's first ingest) drives a leadIn
+  // synthesized as { capturedOn: "<year>-01-01", value: 0 } for the hits/
+  // kudos charts and { capturedOn: "<year>-01-01", ratio: 1 } for the
+  // ratio chart - account-level charts only, never per-work, and only when
+  // the synthetic date would actually sort before the first real snapshot.
+  describe("with earliestPostYear present and valid", () => {
+    const TWO_POINT_SERIES = [
+      { capturedOn: "2026-01-01", totalHits: 10, totalKudos: 1, kudosToHitsRatio: 0.1 },
+      { capturedOn: "2026-01-08", totalHits: 20, totalKudos: 3, kudosToHitsRatio: 0.15 },
+    ];
+
+    function mockWithEarliestPostYear(overrides: {
+      earliestPostYear: number | null;
+      aggregateSeries: typeof TWO_POINT_SERIES;
+      perWorkSeries?: Array<{
+        ao3WorkId: number;
+        title: string;
+        fandoms: string;
+        points: { capturedOn: string; hits: number; kudos: number }[];
+      }>;
+    }) {
+      vi.mocked(useTokenFromUrl).mockReturnValue("tok_valid");
+      mockStats({
+        data: {
+          statsForUser: {
+            kudosToHitsRatio: 0.12,
+            aggregateSeries: overrides.aggregateSeries,
+            perWorkSeries: overrides.perWorkSeries ?? [],
+            earliestPostYear: overrides.earliestPostYear,
+          },
+        },
+      });
+    }
+
+    it("builds a 0/0/1 leadIn and passes it to all three account-level charts", () => {
+      mockWithEarliestPostYear({ earliestPostYear: 2020, aggregateSeries: TWO_POINT_SERIES });
+
+      renderDashboard();
+
+      const hitsFigure = screen.getByRole("img", { name: /total hits/i });
+      const kudosFigure = screen.getByRole("img", { name: /total kudos/i });
+      const ratioFigure = screen.getByRole("img", { name: /kudos.to.hits ratio/i });
+
+      // real points + one synthetic leadIn marker on each account chart
+      expect(within(hitsFigure).getAllByTestId(/trend-point-marker-/)).toHaveLength(
+        TWO_POINT_SERIES.length + 1,
+      );
+      expect(within(kudosFigure).getAllByTestId(/trend-point-marker-/)).toHaveLength(
+        TWO_POINT_SERIES.length + 1,
+      );
+      expect(within(ratioFigure).getAllByTestId(/ratio-point-marker-/)).toHaveLength(
+        TWO_POINT_SERIES.length + 1,
+      );
+
+      const hitsLabel = within(hitsFigure).getAllByTestId(/trend-point-marker-/)[0]
+        .getAttribute("aria-label");
+      const kudosLabel = within(kudosFigure).getAllByTestId(/trend-point-marker-/)[0]
+        .getAttribute("aria-label");
+      const ratioLabel = within(ratioFigure).getAllByTestId(/ratio-point-marker-/)[0]
+        .getAttribute("aria-label");
+
+      expect(hitsLabel).toMatch(/before/i);
+      expect(hitsLabel).toMatch(/\b0\b/);
+      expect(kudosLabel).toMatch(/before/i);
+      expect(kudosLabel).toMatch(/\b0\b/);
+      expect(ratioLabel).toMatch(/before/i);
+      expect(ratioLabel).toMatch(/\b1\b/);
+    });
+
+    it("does not pass a leadIn to per-work charts", () => {
+      mockWithEarliestPostYear({
+        earliestPostYear: 2020,
+        aggregateSeries: TWO_POINT_SERIES,
+        perWorkSeries: [
+          {
+            ao3WorkId: 111,
+            title: "Work A",
+            fandoms: "Fandom One",
+            points: [
+              { capturedOn: "2026-01-01", hits: 5, kudos: 1 },
+              { capturedOn: "2026-01-08", hits: 8, kudos: 2 },
+            ],
+          },
+        ],
+      });
+
+      renderDashboard();
+
+      const perWorkHitsFigure = screen.getByRole("img", { name: /work a hits/i });
+      expect(within(perWorkHitsFigure).getAllByTestId(/trend-point-marker-/)).toHaveLength(2);
+      expect(
+        within(perWorkHitsFigure).queryByText(/estimated baseline/i),
+      ).not.toBeInTheDocument();
+    });
+
+    it("renders the charts (not the 'not enough history' message) for a single real snapshot with a valid leadIn", () => {
+      mockWithEarliestPostYear({
+        earliestPostYear: 2020,
+        aggregateSeries: [TWO_POINT_SERIES[0]],
+      });
+
+      renderDashboard();
+
+      expect(screen.queryByText(/only have one|not enough history yet/i)).not.toBeInTheDocument();
+      const hitsFigure = screen.getByRole("img", { name: /total hits/i });
+      // one synthetic + one real point is a drawable two-point trend
+      expect(within(hitsFigure).getAllByTestId(/trend-point-marker-/)).toHaveLength(2);
+    });
+  });
+
+  describe("with earliestPostYear null or invalid", () => {
+    it("still shows the 'not enough history' message for a single snapshot when earliestPostYear is null", () => {
+      vi.mocked(useTokenFromUrl).mockReturnValue("tok_valid");
+      mockStats({
+        data: {
+          statsForUser: {
+            kudosToHitsRatio: 0.1,
+            aggregateSeries: [
+              { capturedOn: "2026-01-01", totalHits: 10, totalKudos: 1, kudosToHitsRatio: 0.1 },
+            ],
+            perWorkSeries: [],
+            earliestPostYear: null,
+          },
+        },
+      });
+
+      renderDashboard();
+
+      expect(screen.getByText(/only have one|not enough history yet/i)).toBeInTheDocument();
+    });
+
+    it("suppresses the leadIn when the synthetic date wouldn't sort before the first real snapshot", () => {
+      vi.mocked(useTokenFromUrl).mockReturnValue("tok_valid");
+      mockStats({
+        data: {
+          statsForUser: {
+            kudosToHitsRatio: 0.1,
+            aggregateSeries: [
+              { capturedOn: "2025-06-01", totalHits: 10, totalKudos: 1, kudosToHitsRatio: 0.1 },
+            ],
+            perWorkSeries: [],
+            // 2026-01-01 does not sort before 2025-06-01, so no leadIn
+            // should be built even though earliestPostYear is present.
+            earliestPostYear: 2026,
+          },
+        },
+      });
+
+      renderDashboard();
+
+      expect(screen.getByText(/only have one|not enough history yet/i)).toBeInTheDocument();
+      const hitsFigure = screen.getByRole("img", { name: /total hits/i });
+      expect(within(hitsFigure).getAllByTestId(/trend-point-marker-/)).toHaveLength(1);
+      expect(within(hitsFigure).queryByText(/estimated baseline/i)).not.toBeInTheDocument();
     });
   });
 });
