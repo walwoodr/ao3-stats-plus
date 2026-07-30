@@ -181,6 +181,84 @@ RSpec.describe SnapshotIngestService do
     end
   end
 
+  # earliest_post_year is a supplementary, non-fatal fact captured
+  # alongside a snapshot: the synthetic zero-point baseline year. It is
+  # only ever set on a user's first-ever ingest (never overwritten later),
+  # never touched by the same-day dedup path, and a malformed/out-of-range
+  # value must never cause the real ingest to fail.
+  describe "#call earliest_post_year handling" do
+    it "persists earliest_post_year from the payload on a brand-new user's first ingest" do
+      result = described_class.new(
+        payload: valid_ingest_payload(username: "firstyear", earliest_post_year: 2014),
+      ).call
+
+      expect(result.ao3_user.reload.earliest_post_year).to eq(2014)
+    end
+
+    it "leaves earliest_post_year nil when the payload omits it" do
+      result = described_class.new(payload: valid_ingest_payload(username: "noyear")).call
+
+      expect(result.ao3_user.reload.earliest_post_year).to be_nil
+    end
+
+    it "does not overwrite an already-set earliest_post_year on a later ingest, even with a different value" do
+      first = described_class.new(
+        payload: valid_ingest_payload(username: "returningyear", earliest_post_year: 2014),
+      ).call
+      token = first.read_token
+
+      travel_to(1.day.from_now) do
+        described_class.new(
+          payload: valid_ingest_payload(
+            username: "returningyear", read_token: token, earliest_post_year: 1999,
+          ),
+        ).call
+      end
+
+      expect(first.ao3_user.reload.earliest_post_year).to eq(2014)
+    end
+
+    it "never touches earliest_post_year on the same-day dedup path" do
+      first = described_class.new(
+        payload: valid_ingest_payload(username: "dedupyear", earliest_post_year: 2014),
+      ).call
+      token = first.read_token
+
+      second = described_class.new(
+        payload: valid_ingest_payload(
+          username: "dedupyear", read_token: token, earliest_post_year: 2020,
+        ),
+      ).call
+
+      expect(second.deduped?).to be(true)
+      expect(first.ao3_user.reload.earliest_post_year).to eq(2014)
+    end
+
+    it "silently ignores an out-of-range (too old) earliest_post_year rather than raising" do
+      payload = valid_ingest_payload(username: "tooold", earliest_post_year: 1800)
+
+      result = nil
+      expect { result = described_class.new(payload: payload).call }.not_to raise_error
+      expect(result.ao3_user.reload.earliest_post_year).to be_nil
+    end
+
+    it "silently ignores an out-of-range (future) earliest_post_year rather than raising" do
+      payload = valid_ingest_payload(username: "toofuture", earliest_post_year: Date.current.year + 5)
+
+      result = nil
+      expect { result = described_class.new(payload: payload).call }.not_to raise_error
+      expect(result.ao3_user.reload.earliest_post_year).to be_nil
+    end
+
+    it "silently ignores a non-integer earliest_post_year rather than raising" do
+      payload = valid_ingest_payload(username: "notanumber").tap { |p| p["earliestPostYear"] = "banana" }
+
+      result = nil
+      expect { result = described_class.new(payload: payload).call }.not_to raise_error
+      expect(result.ao3_user.reload.earliest_post_year).to be_nil
+    end
+  end
+
   describe "transactional integrity" do
     it "rolls back the snapshot if a work_stats insert fails partway through" do
       bad_works = [

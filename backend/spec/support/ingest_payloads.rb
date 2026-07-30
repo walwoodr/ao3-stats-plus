@@ -8,11 +8,12 @@
 module IngestPayloads
   CURRENT_SCHEMA_VERSION = 1
 
-  def valid_ingest_payload(username: "someauthor", read_token: nil, works: nil)
+  def valid_ingest_payload(username: "someauthor", read_token: nil, works: nil, earliest_post_year: nil)
     {
       "schemaVersion" => CURRENT_SCHEMA_VERSION,
       "username" => username,
       "readToken" => read_token,
+      "earliestPostYear" => earliest_post_year,
       "aggregate" => {
         "hits" => 1_000,
         "kudos" => 100,
