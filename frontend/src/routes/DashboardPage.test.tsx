@@ -217,11 +217,14 @@ describe("DashboardPage", () => {
         TWO_POINT_SERIES.length + 1,
       );
 
-      const hitsLabel = within(hitsFigure).getAllByTestId(/trend-point-marker-/)[0]
+      const hitsLabel = within(hitsFigure)
+        .getAllByTestId(/trend-point-marker-/)[0]
         .getAttribute("aria-label");
-      const kudosLabel = within(kudosFigure).getAllByTestId(/trend-point-marker-/)[0]
+      const kudosLabel = within(kudosFigure)
+        .getAllByTestId(/trend-point-marker-/)[0]
         .getAttribute("aria-label");
-      const ratioLabel = within(ratioFigure).getAllByTestId(/ratio-point-marker-/)[0]
+      const ratioLabel = within(ratioFigure)
+        .getAllByTestId(/ratio-point-marker-/)[0]
         .getAttribute("aria-label");
 
       expect(hitsLabel).toMatch(/before/i);
@@ -253,9 +256,7 @@ describe("DashboardPage", () => {
 
       const perWorkHitsFigure = screen.getByRole("img", { name: /work a hits/i });
       expect(within(perWorkHitsFigure).getAllByTestId(/trend-point-marker-/)).toHaveLength(2);
-      expect(
-        within(perWorkHitsFigure).queryByText(/estimated baseline/i),
-      ).not.toBeInTheDocument();
+      expect(within(perWorkHitsFigure).queryByText(/estimated baseline/i)).not.toBeInTheDocument();
     });
 
     it("renders the charts (not the 'not enough history' message) for a single real snapshot with a valid leadIn", () => {

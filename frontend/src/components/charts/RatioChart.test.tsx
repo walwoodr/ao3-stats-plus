@@ -64,9 +64,7 @@ describe("RatioChart", () => {
     it("adds no synthetic marker or table row when leadIn is omitted", () => {
       render(<RatioChart title="Kudos-to-hits ratio" points={SPARSE_RATIO_POINTS} />);
 
-      expect(screen.getAllByTestId(/ratio-point-marker-/)).toHaveLength(
-        SPARSE_RATIO_POINTS.length,
-      );
+      expect(screen.getAllByTestId(/ratio-point-marker-/)).toHaveLength(SPARSE_RATIO_POINTS.length);
       const table = screen.getByRole("table", { name: /kudos-to-hits ratio/i });
       expect(within(table).queryByText(/estimated baseline/i)).not.toBeInTheDocument();
     });
@@ -78,11 +76,7 @@ describe("RatioChart", () => {
       const omittedHtml = container.innerHTML;
 
       rerender(
-        <RatioChart
-          title="Kudos-to-hits ratio"
-          points={SPARSE_RATIO_POINTS}
-          leadIn={undefined}
-        />,
+        <RatioChart title="Kudos-to-hits ratio" points={SPARSE_RATIO_POINTS} leadIn={undefined} />,
       );
 
       expect(container.innerHTML).toBe(omittedHtml);
