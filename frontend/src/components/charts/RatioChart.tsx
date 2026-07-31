@@ -15,10 +15,11 @@ export interface RatioPoint {
   ratio: number;
 }
 
-// The caller (DashboardPage) is responsible for always passing ratio: 1 -
-// this is the fixed 1-kudos-per-1-hit synthetic baseline, never 0 and never
-// derived from real hits/kudos. RatioChart itself just renders whatever
-// ratio it's given, same as TrendChart does for its leadIn value.
+// The caller (DashboardPage) is responsible for always passing ratio: 0 -
+// this is the fixed "no kudos yet" synthetic baseline, matching TrendChart's
+// hits/kudos leadIn convention of starting from zero, never derived from
+// real hits/kudos. RatioChart itself just renders whatever ratio it's
+// given, same as TrendChart does for its leadIn value.
 export interface RatioChartLeadIn {
   capturedOn: string;
   ratio: number;

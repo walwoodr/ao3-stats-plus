@@ -124,7 +124,7 @@ export function DashboardPage() {
   const hasLeadIn = leadInDate !== null && !!firstCapturedOn && leadInDate < firstCapturedOn;
   const hitsLeadIn = hasLeadIn ? { capturedOn: leadInDate as string, value: 0 } : undefined;
   const kudosLeadIn = hasLeadIn ? { capturedOn: leadInDate as string, value: 0 } : undefined;
-  const ratioLeadIn = hasLeadIn ? { capturedOn: leadInDate as string, ratio: 1 } : undefined;
+  const ratioLeadIn = hasLeadIn ? { capturedOn: leadInDate as string, ratio: 0 } : undefined;
 
   const notEnoughHistory = !hasLeadIn && aggregateSeries.length === 1;
 

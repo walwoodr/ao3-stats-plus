@@ -167,7 +167,7 @@ describe("DashboardPage", () => {
   // earliestPostYear (a synthetic "before you had any stats, you were at
   // zero" zero-point fact from the user's first ingest) drives a leadIn
   // synthesized as { capturedOn: "<year>-01-01", value: 0 } for the hits/
-  // kudos charts and { capturedOn: "<year>-01-01", ratio: 1 } for the
+  // kudos charts and { capturedOn: "<year>-01-01", ratio: 0 } for the
   // ratio chart - account-level charts only, never per-work, and only when
   // the synthetic date would actually sort before the first real snapshot.
   describe("with earliestPostYear present and valid", () => {
@@ -199,7 +199,7 @@ describe("DashboardPage", () => {
       });
     }
 
-    it("builds a 0/0/1 leadIn and passes it to all three account-level charts", () => {
+    it("builds a 0/0/0 leadIn and passes it to all three account-level charts", () => {
       mockWithEarliestPostYear({ earliestPostYear: 2020, aggregateSeries: TWO_POINT_SERIES });
 
       renderDashboard();
@@ -234,7 +234,7 @@ describe("DashboardPage", () => {
       expect(kudosLabel).toMatch(/before/i);
       expect(kudosLabel).toMatch(/\b0\b/);
       expect(ratioLabel).toMatch(/before/i);
-      expect(ratioLabel).toMatch(/\b1\b/);
+      expect(ratioLabel).toMatch(/\b0\b/);
     });
 
     it("does not pass a leadIn to per-work charts", () => {

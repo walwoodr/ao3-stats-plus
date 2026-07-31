@@ -39,12 +39,12 @@ export const SinglePointHistory: Story = {
 };
 
 // Mirrors TrendChart's SinglePointWithLeadIn - the most common real-world
-// shape for a first-time capture, exercising the fixed ratio: 1 baseline.
+// shape for a first-time capture, exercising the fixed ratio: 0 baseline.
 export const SinglePointWithLeadIn: Story = {
   args: {
     title: "Kudos-to-hits ratio",
     points: [{ capturedOn: "2026-07-30", ratio: 0.15 }],
-    leadIn: { capturedOn: "2019-01-01", ratio: 1 },
+    leadIn: { capturedOn: "2019-01-01", ratio: 0 },
   },
 };
 
@@ -59,6 +59,6 @@ export const RegularHistoryWithLeadIn: Story = {
       { capturedOn: "2026-01-08", ratio: 0.1 },
       { capturedOn: "2026-01-15", ratio: 0.12 },
     ],
-    leadIn: { capturedOn: "2019-01-01", ratio: 1 },
+    leadIn: { capturedOn: "2019-01-01", ratio: 0 },
   },
 };

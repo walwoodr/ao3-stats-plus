@@ -52,14 +52,12 @@ describe("RatioChart", () => {
     });
   });
 
-  // leadIn mirrors TrendChart's mechanism, but CRITICAL per explicit user
-  // decision: the synthetic ratio is a FIXED baseline of exactly 1
-  // (1-kudos-per-1-hit), never 0 and never derived from real hits/kudos
-  // (there are none yet at that point). These tests exist specifically to
-  // catch a copy-paste bug that reuses TrendChart's zero-baseline
-  // convention here.
+  // leadIn mirrors TrendChart's mechanism: the synthetic ratio is a FIXED
+  // baseline of exactly 0, matching TrendChart's hits/kudos zero-baseline
+  // convention, never derived from real hits/kudos (there are none yet at
+  // that point). These tests guard the synthetic value against drift.
   describe("with a leadIn synthetic baseline point", () => {
-    const LEAD_IN = { capturedOn: "2014-01-01", ratio: 1 };
+    const LEAD_IN = { capturedOn: "2014-01-01", ratio: 0 };
 
     it("adds no synthetic marker or table row when leadIn is omitted", () => {
       render(<RatioChart title="Kudos-to-hits ratio" points={SPARSE_RATIO_POINTS} />);
@@ -101,7 +99,7 @@ describe("RatioChart", () => {
       expect(within(table).getAllByRole("row")).toHaveLength(SPARSE_RATIO_POINTS.length + 2);
     });
 
-    it("renders the synthetic ratio as exactly 1, never 0 and never derived", () => {
+    it("renders the synthetic ratio as exactly 0, never derived", () => {
       render(
         <RatioChart title="Kudos-to-hits ratio" points={SPARSE_RATIO_POINTS} leadIn={LEAD_IN} />,
       );
@@ -110,8 +108,7 @@ describe("RatioChart", () => {
       const rows = within(table).getAllByRole("row");
       const syntheticRow = rows[1];
 
-      expect(within(syntheticRow).getByText("1")).toBeInTheDocument();
-      expect(within(syntheticRow).queryByText("0")).not.toBeInTheDocument();
+      expect(within(syntheticRow).getByText("0")).toBeInTheDocument();
     });
 
     it("labels the synthetic row as an estimated baseline rather than a bare capture date", () => {
@@ -141,7 +138,7 @@ describe("RatioChart", () => {
       expect(rows[2].textContent).toMatch(SPARSE_RATIO_POINTS[0].capturedOn);
     });
 
-    it("gives the synthetic marker an aria-label that identifies it as an estimate with ratio 1", () => {
+    it("gives the synthetic marker an aria-label that identifies it as an estimate with ratio 0", () => {
       render(
         <RatioChart title="Kudos-to-hits ratio" points={SPARSE_RATIO_POINTS} leadIn={LEAD_IN} />,
       );
@@ -152,7 +149,7 @@ describe("RatioChart", () => {
       expect(label).toMatch(/before/i);
       expect(label).toMatch(/2014/);
       expect(label).toMatch(/estimated baseline/i);
-      expect(label).toMatch(/\b1\b/);
+      expect(label).toMatch(/\b0\b/);
       expect(label).toMatch(/kudos-to-hits ratio/i);
     });
   });
