@@ -55,10 +55,16 @@ describe("InstallPage", () => {
     render(<InstallPage />);
 
     await user.click(screen.getByRole("button", { name: /show.*code|copy.*code/i }));
+    // The rendered <code> block (already asserted to contain the bookmarklet
+    // source in the previous test) is the source of truth for what should
+    // land on the clipboard - reading it here rather than reconstructing the
+    // expected string keeps this test from drifting out of sync with
+    // InstallPage's own buildBookmarkletSource().
+    const codeBlock = screen.getByText(/javascript:/i);
     const copyButton = screen.getByRole("button", { name: /copy/i });
     await user.click(copyButton);
 
-    expect(writeText).toHaveBeenCalled();
+    expect(writeText).toHaveBeenCalledWith(codeBlock.textContent);
   });
 
   it("explains that dragging the link to the bookmarks bar installs it", () => {

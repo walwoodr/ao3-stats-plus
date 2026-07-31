@@ -117,13 +117,6 @@
   existing conflation, low probability for a personal tool; revisit by
   discriminating a genuine auth/token rejection (e.g. an error code/path in
   the GraphQL `errors` payload) from a generic server error before clearing.
-- [2026-07-31] (stage: Review) `InstallPage.test.tsx`'s clipboard test
-  ("lets a keyboard user copy the fallback code...") asserts only
-  `expect(writeText).toHaveBeenCalled()`, not the argument. It proves the
-  copy handler is wired, but would also pass if the wrong text were copied.
-  Cheap to strengthen to `toHaveBeenCalledWith(bookmarkletSource)` so it
-  actually locks in that the bookmarklet source (not some other string) is
-  what lands on the clipboard.
 - [2026-07-31] (stage: Maintenance) No documented/convenient way to point
   local frontend dev at the real deployed backend
   (`https://ao3-stats-plus-api.onrender.com`, now live on Render) instead
