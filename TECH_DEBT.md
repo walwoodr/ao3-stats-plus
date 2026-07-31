@@ -110,12 +110,6 @@
   multi-tenant or public - candidate mitigations: a Rack::Attack throttle on
   `/ingest`, and/or binding a claim to something only the real author can
   produce.
-- [2026-07-30] (stage: Review) Capability-token comparisons use plain `==`
-  (`QueryType#stats_for_user`, `SnapshotIngestService#find_or_create_user!`),
-  not a constant-time compare (`ActiveSupport::SecurityUtils.secure_compare`).
-  Timing attacks against 192-bit `SecureRandom.hex(24)` tokens over the
-  network are impractical, so this is hygiene, not a live hole; cheap to
-  harden if touched.
 - [2026-07-30] (stage: Review) `SnapshotIngestService#find_or_create_user!`
   does `find_by` then `create!` with no uniqueness handling, so two
   concurrent first-ingests for the same brand-new username race: the loser

@@ -31,7 +31,10 @@ module Types
     def stats_for_user(username:, token:)
       ao3_user = Ao3User.find_by(username: username)
       raise GraphQL::ExecutionError, "No stats found for that username" unless ao3_user
-      raise GraphQL::ExecutionError, "Invalid token" unless ao3_user.read_token == token
+
+      unless ActiveSupport::SecurityUtils.secure_compare(ao3_user.read_token, token)
+        raise GraphQL::ExecutionError, "Invalid token"
+      end
 
       StatsForUserResult.new(ao3_user)
     end

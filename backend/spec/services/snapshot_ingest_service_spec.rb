@@ -111,6 +111,19 @@ RSpec.describe SnapshotIngestService do
         end
       }.not_to change(Snapshot, :count)
     end
+
+    # A payload missing "readToken" entirely (as opposed to one with a wrong
+    # but present value, covered above) decodes to a nil client_read_token.
+    # ActiveSupport::SecurityUtils.secure_compare is not nil-safe - it raises
+    # NoMethodError on a nil argument rather than returning false - so this
+    # must still surface as an ordinary TokenMismatch, not a 500.
+    it "raises SnapshotIngestService::TokenMismatch (not a NoMethodError) when readToken is missing from the payload" do
+      described_class.new(payload: valid_ingest_payload(username: "protected3")).call
+
+      expect {
+        described_class.new(payload: valid_ingest_payload(username: "protected3", read_token: nil)).call
+      }.to raise_error(SnapshotIngestService::TokenMismatch)
+    end
   end
 
   describe "#call dedup on (ao3_user, captured_on)" do
