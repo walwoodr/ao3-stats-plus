@@ -1,0 +1,74 @@
+# Render Blueprint (https://render.com/docs/infrastructure-as-code) for the
+# finalized hosting plan (docs/plans/bookmarklet-entrypoint-and-hosting.md,
+# Section 1): split topology - a Docker backend web service, a managed
+# Postgres database, and a separate-origin Static Site for the frontend.
+# Personal/single-user tool - deliberately not built for scale (see
+# README.md's "Deployment (Render)" section and TECH_DEBT.md).
+#
+# Shape pinned by spec/deployment/render_yaml_spec.rb (T5). One deliberate
+# reconciliation against the plan's draft: the frontend lives under a
+# top-level `staticSites:` array (Render's dedicated resource type for
+# static sites), not nested in `services:` with `runtime: static` - the
+# plan's draft used the latter, but the spec (the source of truth once
+# written) expects `staticSites:`, which also matches Render's documented
+# Blueprint schema.
+#
+# fromService only exposes a service's private-network host/port, not its
+# public https://*.onrender.com URL, so the two services' public origins
+# can't be wired together via fromService. Both service names below are
+# fixed/predictable instead, and each origin is hardcoded as a plain
+# `value:` in the other service's envVars, since Render's public URL for a
+# named service is always https://<name>.onrender.com.
+databases:
+  - name: ao3-stats-plus-db
+    plan: basic-256mb
+
+services:
+  - type: web
+    name: ao3-stats-plus-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter
+    healthCheckPath: /up
+    preDeployCommand: bundle exec rails db:migrate
+    # PORT binding: deliberately NOT overridden here (no PORT envVar, no
+    # dockerCommand override of backend/Dockerfile's default CMD). Render's
+    # `runtime: docker` services route external traffic to the port declared
+    # by the Dockerfile's EXPOSE instruction (EXPOSE 80 here) rather than
+    # requiring the app to bind to a platform-injected $PORT - unlike
+    # Render's native/buildpack runtimes, which do require reading $PORT.
+    # Inside the container, Thruster (backend/Dockerfile's CMD) already
+    # listens on port 80 (its HTTP_PORT default) and proxies to Puma on port
+    # 3000 (Thruster's TARGET_PORT default, matching config/puma.rb's own
+    # `ENV.fetch("PORT", 3000)` default) - so EXPOSE 80 and the two
+    # processes' defaults are already mutually consistent with no env vars
+    # set. Setting a PORT envVar here would be actively harmful: Puma would
+    # pick it up via ENV.fetch("PORT", ...) and move off 3000, while
+    # Thruster's TARGET_PORT would stay at 3000 by default, breaking the
+    # proxy between them. See I7 in the implementation task list.
+    envVars:
+      - key: RAILS_MASTER_KEY
+        sync: false
+      - key: RAILS_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ao3-stats-plus-db
+          property: connectionString
+      - key: FRONTEND_ORIGINS
+        value: https://ao3-stats-plus.onrender.com
+
+staticSites:
+  - name: ao3-stats-plus
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_ORIGIN
+        value: https://ao3-stats-plus-api.onrender.com
+      - key: VITE_GRAPHQL_URL
+        value: https://ao3-stats-plus-api.onrender.com/graphql
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
