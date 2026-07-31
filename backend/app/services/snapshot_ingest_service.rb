@@ -30,10 +30,9 @@ class SnapshotIngestService
       if existing_snapshot
         Result.new(ao3_user: ao3_user, snapshot: existing_snapshot, read_token: ao3_user.read_token, deduped: true)
       else
-        is_first_ingest = ao3_user.snapshots.none?
         snapshot = build_snapshot!(ao3_user)
         upsert_works!(ao3_user, snapshot)
-        persist_earliest_post_year!(ao3_user) if is_first_ingest
+        persist_earliest_post_year!(ao3_user) if ao3_user.earliest_post_year.nil?
         Result.new(ao3_user: ao3_user, snapshot: snapshot, read_token: ao3_user.read_token, deduped: false)
       end
     end

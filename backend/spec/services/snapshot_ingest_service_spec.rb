@@ -182,10 +182,13 @@ RSpec.describe SnapshotIngestService do
   end
 
   # earliest_post_year is a supplementary, non-fatal fact captured
-  # alongside a snapshot: the synthetic zero-point baseline year. It is
-  # only ever set on a user's first-ever ingest (never overwritten later),
-  # never touched by the same-day dedup path, and a malformed/out-of-range
-  # value must never cause the real ingest to fail.
+  # alongside a snapshot: the synthetic zero-point baseline year. It's
+  # retried on every ingest until it's set (a scrape can come back empty on
+  # any given capture - e.g. AO3's year-selector markup not matching - with
+  # no guarantee the very first one succeeds), but once set it's never
+  # overwritten by a later ingest, never touched by the same-day dedup path,
+  # and a malformed/out-of-range value must never cause the real ingest to
+  # fail.
   describe "#call earliest_post_year handling" do
     it "persists earliest_post_year from the payload on a brand-new user's first ingest" do
       result = described_class.new(
@@ -199,6 +202,21 @@ RSpec.describe SnapshotIngestService do
       result = described_class.new(payload: valid_ingest_payload(username: "noyear")).call
 
       expect(result.ao3_user.reload.earliest_post_year).to be_nil
+    end
+
+    it "backfills earliest_post_year on a later ingest if the first ingest's scrape came back empty" do
+      first = described_class.new(payload: valid_ingest_payload(username: "backfillyear")).call
+      token = first.read_token
+
+      travel_to(1.day.from_now) do
+        described_class.new(
+          payload: valid_ingest_payload(
+            username: "backfillyear", read_token: token, earliest_post_year: 2014,
+          ),
+        ).call
+      end
+
+      expect(first.ao3_user.reload.earliest_post_year).to eq(2014)
     end
 
     it "does not overwrite an already-set earliest_post_year on a later ingest, even with a different value" do
