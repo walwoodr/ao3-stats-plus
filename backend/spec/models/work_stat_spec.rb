@@ -112,6 +112,12 @@ RSpec.describe WorkStat, type: :model do
       end
 
       it "is valid when #{attr} is explicitly 0 (scraped, and it's genuinely zero)" do
+        # chapters_expected=0 alone would trip the chapter_count/chapters_expected
+        # pairing validation below (chapters_expected requires chapter_count) -
+        # that pairing is exercised on its own in the dedicated describe block
+        # further down, so here it's paired with a same-value chapter_count to
+        # isolate this test to its actual concern (NULL vs. 0).
+        work_stat.chapter_count = 0 if attr == :chapters_expected
         work_stat.public_send("#{attr}=", 0)
         expect(work_stat).to be_valid
       end
