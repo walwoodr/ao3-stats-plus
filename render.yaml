@@ -5,13 +5,13 @@
 # Personal/single-user tool - deliberately not built for scale (see
 # README.md's "Deployment (Render)" section and TECH_DEBT.md).
 #
-# Shape pinned by spec/deployment/render_yaml_spec.rb (T5). One deliberate
-# reconciliation against the plan's draft: the frontend lives under a
-# top-level `staticSites:` array (Render's dedicated resource type for
-# static sites), not nested in `services:` with `runtime: static` - the
-# plan's draft used the latter, but the spec (the source of truth once
-# written) expects `staticSites:`, which also matches Render's documented
-# Blueprint schema.
+# Shape pinned by spec/deployment/render_yaml_spec.rb (T5). The frontend is
+# a `services:` entry with `runtime: static`, same as any other service -
+# Render's Blueprint schema has no separate top-level `staticSites:` key.
+# (An earlier version of this file used `staticSites:`, matching an earlier
+# version of the spec that assumed that key without verifying it against
+# Render's live docs - Review caught that both shared the same wrong
+# assumption. See TECH_DEBT.md.)
 #
 # fromService only exposes a service's private-network host/port, not its
 # public https://*.onrender.com URL, so the two services' public origins
@@ -43,10 +43,13 @@ services:
     # 3000 (Thruster's TARGET_PORT default, matching config/puma.rb's own
     # `ENV.fetch("PORT", 3000)` default) - so EXPOSE 80 and the two
     # processes' defaults are already mutually consistent with no env vars
-    # set. Setting a PORT envVar here would be actively harmful: Puma would
-    # pick it up via ENV.fetch("PORT", ...) and move off 3000, while
-    # Thruster's TARGET_PORT would stay at 3000 by default, breaking the
-    # proxy between them. See I7 in the implementation task list.
+    # set. A stray PORT envVar here wouldn't actually be harmful - Thruster
+    # sets PORT itself when it starts Puma (per Thruster's own README:
+    # TARGET_PORT "is the port your Puma server should run on... Thruster
+    # will set PORT to this value when starting Puma"), overriding whatever
+    # PORT was in the environment - so Puma would stay on 3000 regardless.
+    # It's simply unnecessary, not dangerous. See I7 in the implementation
+    # task list.
     envVars:
       - key: RAILS_MASTER_KEY
         sync: false
@@ -59,8 +62,9 @@ services:
       - key: FRONTEND_ORIGINS
         value: https://ao3-stats-plus.onrender.com
 
-staticSites:
-  - name: ao3-stats-plus
+  - type: web
+    name: ao3-stats-plus
+    runtime: static
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
     envVars:

@@ -1,12 +1,20 @@
 require "yaml"
 
 # Validates render.yaml's eventual shape against Render's Blueprint spec
-# (https://render.com/docs/infrastructure-as-code), per the finalized
-# hosting plan (docs/plans/bookmarklet-entrypoint-and-hosting.md's Section 1
-# / T5): a Docker backend web service on the Starter plan with a /up health
-# check and a migration preDeployCommand, a Basic Postgres database, and a
-# frontend Static Site with SPA-rewrite routing plus VITE_API_ORIGIN/
+# (https://render.com/docs/blueprint-spec), per the finalized hosting plan
+# (docs/plans/bookmarklet-entrypoint-and-hosting.md's Section 1 / T5): a
+# Docker backend web service on the Starter plan with a /up health check
+# and a migration preDeployCommand, a Basic Postgres database, and a
+# frontend static site with SPA-rewrite routing plus VITE_API_ORIGIN/
 # VITE_GRAPHQL_URL build env vars.
+#
+# Static sites live under the top-level `services:` array (type: web,
+# runtime: static), same as any other service - Render's Blueprint schema
+# has no separate top-level `staticSites:` key. An earlier version of this
+# spec assumed `staticSites:` without verifying it against Render's live
+# docs; Review caught that both this spec and render.yaml shared the same
+# wrong assumption (tests passed while being wrong against the real
+# schema) - see TECH_DEBT.md.
 #
 # render.yaml does not exist yet - authoring it is Implementation's job
 # (plan task I7). This spec fails with a clear "file not found" failure
@@ -87,11 +95,14 @@ RSpec.describe "render.yaml" do
   end
 
   describe "the frontend static site" do
-    let(:static_site) { Array(parsed["staticSites"]).first }
+    let(:static_site) do
+      Array(parsed["services"]).find { |svc| svc["runtime"] == "static" }
+    end
 
-    it "is present" do
+    it "is present, static-runtime, and type web" do
       expect(static_site).not_to be_nil,
-        "expected render.yaml's staticSites: to include the frontend"
+        "expected render.yaml's services: to include a runtime: static web service for the frontend"
+      expect(static_site["type"]).to eq("web")
     end
 
     it "rewrites all paths to /index.html for client-side routing" do
