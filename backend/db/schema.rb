@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_30_161225) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_31_090003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -42,15 +42,31 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_30_161225) do
     t.index ["ao3_user_id"], name: "index_snapshots_on_ao3_user_id"
   end
 
+  create_table "work_bookmarks", force: :cascade do |t|
+    t.date "bookmarked_on"
+    t.string "bookmarker_name"
+    t.string "bookmarker_tags"
+    t.string "collections"
+    t.datetime "created_at", null: false
+    t.text "note_html"
+    t.datetime "updated_at", null: false
+    t.bigint "work_id", null: false
+    t.index ["work_id"], name: "index_work_bookmarks_on_work_id"
+  end
+
   create_table "work_stats", force: :cascade do |t|
     t.integer "bookmarks", default: 0, null: false
+    t.integer "chapter_count"
+    t.integer "chapters_expected"
     t.integer "comments", default: 0, null: false
     t.datetime "created_at", null: false
     t.integer "hits", default: 0, null: false
     t.integer "kudos", default: 0, null: false
+    t.integer "public_bookmarks"
     t.bigint "snapshot_id", null: false
     t.integer "subscriptions", default: 0, null: false
     t.datetime "updated_at", null: false
+    t.integer "visible_comments"
     t.integer "word_count", default: 0, null: false
     t.bigint "work_id", null: false
     t.index ["snapshot_id", "work_id"], name: "index_work_stats_on_snapshot_id_and_work_id", unique: true
@@ -61,16 +77,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_30_161225) do
   create_table "works", force: :cascade do |t|
     t.bigint "ao3_user_id", null: false
     t.bigint "ao3_work_id", null: false
+    t.boolean "complete"
     t.datetime "created_at", null: false
     t.string "fandoms", null: false
     t.date "last_seen_on", null: false
+    t.date "published_on"
+    t.string "series"
     t.string "title", null: false
     t.datetime "updated_at", null: false
+    t.datetime "work_page_captured_at"
     t.index ["ao3_user_id", "ao3_work_id"], name: "index_works_on_ao3_user_id_and_ao3_work_id", unique: true
     t.index ["ao3_user_id"], name: "index_works_on_ao3_user_id"
   end
 
   add_foreign_key "snapshots", "ao3_users"
+  add_foreign_key "work_bookmarks", "works"
   add_foreign_key "work_stats", "snapshots"
   add_foreign_key "work_stats", "works"
   add_foreign_key "works", "ao3_users"
