@@ -79,10 +79,15 @@ export function DashboardPage() {
     return (
       <div className="mx-auto max-w-xl p-8">
         <h1 className="font-display text-2xl font-semibold text-ink">{username}&rsquo;s stats</h1>
-        <p className="mt-2 text-destructive">{mismatchMessage}</p>
         {submittedManually ? (
-          <p className="mt-4 text-sm text-ink-soft">Reload the page to try a different token.</p>
+          <>
+            <p className="mt-2 text-destructive">{mismatchMessage}</p>
+            <p className="mt-4 text-sm text-ink-soft">Reload the page to try a different token.</p>
+          </>
         ) : (
+          // TokenEntryForm renders mismatchMessage itself (as a role="alert"
+          // echo of its error prop) - no separate <p> here, so the message
+          // isn't announced/queryable twice for the same error.
           <div className="mt-6">
             <TokenEntryForm onSubmit={handleManualToken} error={mismatchMessage} />
           </div>
@@ -148,6 +153,7 @@ export function DashboardPage() {
 
       {aggregateSeries.length > 0 && (
         <div className="mt-6 flex flex-col gap-8">
+          <h2 className="sr-only">Aggregate stats</h2>
           <TrendChart
             title="Total hits"
             description="Total hits across all your works, combined, at each snapshot you've captured."

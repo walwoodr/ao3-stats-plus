@@ -15,6 +15,22 @@
   WebKit keyboard-navigation docs/issues. Needs Testing to decide whether to
   scope this assertion to non-WebKit projects or accept it as a documented
   WebKit gap.
+- [2026-07-30] (stage: Maintenance) Three `accessibility.spec.ts` axe scans
+  (landing page, install page, no-token dashboard state) fail only under the
+  WebKit Playwright project with `color-contrast` violations reporting
+  values like `fgColor: #8f8df4` / `bgColor: #837d85` on elements styled
+  with `bg-ink`/`text-paper` (whose real design-token values are nowhere
+  near those hex codes - the light-mode token pairs were computationally
+  verified >=4.5:1 during the design re-skin). These read like WebKit
+  capturing colors mid-`transition-colors` (the affected elements all use
+  `transition-colors duration-200`) rather than a real contrast defect -
+  same "WebKit-testing-environment gap, not an app bug" shape as the
+  tab-order item above, but not yet root-caused with the same confidence.
+  Confirmed unrelated to this session's other changes (`git log` shows
+  `LandingPage.tsx` untouched since the design re-skin). Needs Testing to
+  either wait for the transition to settle before scanning (e.g.
+  `page.waitForTimeout` or disabling transitions in the test env) or
+  confirm/refute the timing theory and scope accordingly.
 - [2026-07-23] (stage: Implementation) Manual verification of the
   bookmarklet against live AO3 (plan item 14 in
   `docs/plans/bookmarklet-entrypoint-and-hosting.md`) hit Chrome's **Local
@@ -54,25 +70,6 @@
   browser-specific `javascript:` URI drag restriction). Deferred: the
   copy/paste fallback already works and is keyboard-accessible; revisit if
   drag-install turns out to be commonly expected.
-- [2026-07-30] (stage: Implementation) Two pre-existing Playwright a11y
-  failures found while verifying the MASTER.md design-token re-skin
-  (confirmed via `git stash` against the pre-re-skin code, both fail
-  identically there with the old `slate`/`red` classes visible in the axe/
-  error output, so neither was introduced by the re-skin): (1)
-  `tests/accessibility.spec.ts` "the populated dashboard has no detectable
-  a11y violations" - axe's `heading-order` rule flags `DashboardPage`
-  jumping from `h1` straight to `TrendChart`/`RatioChart`'s `h3` with no
-  intervening `h2` for the aggregate-charts section (the `PerWorkTrends`
-  section below it does have an `h2`). (2) "the token-mismatch error state
-  has no detectable a11y violations" - `page.getByText(/doesn't
-  match.../i)` hits a Playwright strict-mode violation because the same
-  message renders twice (the page-level `<p>` plus `TokenEntryForm`'s
-  `role="alert"` echo of the same `error` prop). Both are structural/content
-  issues, not styling - out of scope for a re-skin task (no behavior/
-  structure changes), left as-is per instructions. Needs Maintenance or a
-  future Planning pass to either promote the aggregate-charts heading to
-  `h2` (or restructure the heading hierarchy) and de-duplicate/scope the
-  mismatch-message assertion.
 - [2026-07-30] (stage: Implementation) `frontend/src/bookmarklet/banners.ts`'s
   color mapping onto MASTER.md's 7-token palette consolidates the previous
   4-color severity scheme (success/failure/info/retry) into 3 roles
@@ -92,7 +89,6 @@
   write access, not just convenience).
 - [2026-7-30] Walk through all strings presented to users in the end UI
   with a human and verify that they are correct. 
-- [2026-7-30] Remove hits-to-kudos ratio
 - [2026-07-30] (stage: Maintenance) **Resolved**, with a caveat: the
   "Improve data ingestion" one-work-per-fandom bug (`scrapeStats.ts`'s
   `parseWorks`, previously a single `querySelector("dl > dt a")` per fandom
@@ -146,15 +142,6 @@
   multi-tenant or public - candidate mitigations: a Rack::Attack throttle on
   `/ingest`, and/or binding a claim to something only the real author can
   produce.
-- [2026-07-30] (stage: Review) `DashboardPage`'s error effect calls
-  `clearToken(username)` on *every* stats-query error, including transient
-  network/CORS failures - but `messageForStatsError` deliberately tells the
-  user a network failure is "not necessarily your token." So a single
-  network blip both shows the reassuring message AND silently wipes the
-  stored token, forcing a re-paste on next load. Clearing should be scoped to
-  the token-mismatch (`ClientError`) branch only. Untested: the effect's
-  token-clearing side effect isn't asserted in `DashboardPage.test.tsx`
-  (`useTokenFromUrl` is mocked there).
 - [2026-07-30] (stage: Review) `graphqlClient.ts` silently falls back to
   `http://localhost:3000/graphql` when `VITE_GRAPHQL_URL` is unset -
   inconsistent with the bookmarklet build, which deliberately fails loudly

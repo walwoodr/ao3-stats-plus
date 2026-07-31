@@ -48,7 +48,7 @@ describe("RatioChart", () => {
     const markers = screen.getAllByTestId(/ratio-point-marker-/);
     expect(markers.length).toBe(SPARSE_RATIO_POINTS.length);
     markers.forEach((marker) => {
-      expect(marker).toHaveAttribute("aria-label");
+      expect(marker.textContent).not.toBe("");
     });
   });
 
@@ -138,13 +138,13 @@ describe("RatioChart", () => {
       expect(rows[2].textContent).toMatch(SPARSE_RATIO_POINTS[0].capturedOn);
     });
 
-    it("gives the synthetic marker an aria-label that identifies it as an estimate with ratio 0", () => {
+    it("gives the synthetic marker a text label that identifies it as an estimate with ratio 0", () => {
       render(
         <RatioChart title="Kudos-to-hits ratio" points={SPARSE_RATIO_POINTS} leadIn={LEAD_IN} />,
       );
 
       const markers = screen.getAllByTestId(/ratio-point-marker-/);
-      const label = markers[0].getAttribute("aria-label") ?? "";
+      const label = markers[0].textContent ?? "";
 
       expect(label).toMatch(/before/i);
       expect(label).toMatch(/2014/);

@@ -218,17 +218,14 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
 
       <div className="sr-only">
         {leadIn && (
-          <span
-            data-testid="trend-point-marker-lead"
-            aria-label={`${leadInLabel(leadIn)}: ${leadIn.value} ${valueLabel}`}
-          />
+          <span data-testid="trend-point-marker-lead">
+            {`${leadInLabel(leadIn)}: ${leadIn.value} ${valueLabel}`}
+          </span>
         )}
         {points.map((point, index) => (
-          <span
-            key={point.capturedOn}
-            data-testid={`trend-point-marker-${index}`}
-            aria-label={`${point.capturedOn}: ${point.value} ${valueLabel}`}
-          />
+          <span key={point.capturedOn} data-testid={`trend-point-marker-${index}`}>
+            {`${point.capturedOn}: ${point.value} ${valueLabel}`}
+          </span>
         ))}
       </div>
 

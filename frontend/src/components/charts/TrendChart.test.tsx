@@ -54,13 +54,13 @@ describe("TrendChart", () => {
     expect(within(table).getAllByRole("row")).toHaveLength(2);
   });
 
-  it("does not encode data using color alone (each marker gets a text/shape attribute)", () => {
+  it("does not encode data using color alone (each marker gets a text label)", () => {
     render(<TrendChart title="Total hits" valueLabel="Hits" points={SPARSE_POINTS} />);
 
     const markers = screen.getAllByTestId(/trend-point-marker-/);
     expect(markers.length).toBe(SPARSE_POINTS.length);
     markers.forEach((marker) => {
-      expect(marker).toHaveAttribute("aria-label");
+      expect(marker.textContent).not.toBe("");
     });
   });
 
@@ -149,14 +149,14 @@ describe("TrendChart", () => {
       expect(rows[2].textContent).toMatch(SPARSE_POINTS[0].capturedOn);
     });
 
-    it("gives the synthetic marker an aria-label that identifies it as an estimate", () => {
+    it("gives the synthetic marker a text label that identifies it as an estimate", () => {
       render(
         <TrendChart title="Total hits" valueLabel="Hits" points={SPARSE_POINTS} leadIn={LEAD_IN} />,
       );
 
       const markers = screen.getAllByTestId(/trend-point-marker-/);
       const syntheticMarker = markers[0];
-      const label = syntheticMarker.getAttribute("aria-label") ?? "";
+      const label = syntheticMarker.textContent ?? "";
 
       expect(label).toMatch(/before/i);
       expect(label).toMatch(/2014/);

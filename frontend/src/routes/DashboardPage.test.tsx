@@ -247,15 +247,9 @@ describe("DashboardPage", () => {
         TWO_POINT_SERIES.length + 1,
       );
 
-      const hitsLabel = within(hitsFigure)
-        .getAllByTestId(/trend-point-marker-/)[0]
-        .getAttribute("aria-label");
-      const kudosLabel = within(kudosFigure)
-        .getAllByTestId(/trend-point-marker-/)[0]
-        .getAttribute("aria-label");
-      const ratioLabel = within(ratioFigure)
-        .getAllByTestId(/ratio-point-marker-/)[0]
-        .getAttribute("aria-label");
+      const hitsLabel = within(hitsFigure).getAllByTestId(/trend-point-marker-/)[0].textContent;
+      const kudosLabel = within(kudosFigure).getAllByTestId(/trend-point-marker-/)[0].textContent;
+      const ratioLabel = within(ratioFigure).getAllByTestId(/ratio-point-marker-/)[0].textContent;
 
       expect(hitsLabel).toMatch(/before/i);
       expect(hitsLabel).toMatch(/\b0\b/);

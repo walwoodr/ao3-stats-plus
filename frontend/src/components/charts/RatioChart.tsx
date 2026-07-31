@@ -206,17 +206,14 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
 
       <div className="sr-only">
         {leadIn && (
-          <span
-            data-testid="ratio-point-marker-lead"
-            aria-label={`${leadInLabel(leadIn)}: ${leadIn.ratio} kudos-to-hits ratio`}
-          />
+          <span data-testid="ratio-point-marker-lead">
+            {`${leadInLabel(leadIn)}: ${leadIn.ratio} kudos-to-hits ratio`}
+          </span>
         )}
         {points.map((point, index) => (
-          <span
-            key={point.capturedOn}
-            data-testid={`ratio-point-marker-${index}`}
-            aria-label={`${point.capturedOn}: ${point.ratio} kudos-to-hits ratio`}
-          />
+          <span key={point.capturedOn} data-testid={`ratio-point-marker-${index}`}>
+            {`${point.capturedOn}: ${point.ratio} kudos-to-hits ratio`}
+          </span>
         ))}
       </div>
 
