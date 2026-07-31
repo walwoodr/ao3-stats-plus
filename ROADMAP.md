@@ -40,3 +40,30 @@ baseline feature on purpose)
   would need to capture each work's creation/posted date, not currently
   collected) plus per-work data-model/ingest changes before per-work charts
   can get their own accurate zero-basis starting point.
+- Present per-work statistics as a graph with a interface allowing the user
+  to select a list of multiple works to see the statistics graphed alongside 
+  one another. Each work should have a unique line-and-point style to allow 
+  for differentation within work, up to a reasonable maximum. 
+- The per-work statistics graph selection should offer an option to select
+  all works within a fandom to display in the graph at the same time
+- When the user has > 2 data points, allow the user to choose a time range 
+  to present via a two point slider that ranges from earliestPostYear to the 
+  current date.
+
+## v2 candidates (confirmed 2026-07-31, deferred from ongoing Maintenance work)
+
+- Mobile-friendly bookmarklet installation/capture flow. Today's InstallPage
+  assumes a desktop browser with a visible bookmarks bar (drag-to-install,
+  with a keyboard-accessible "copy the code" fallback for desktop users who
+  can't drag) - neither path really works on mobile: dragging to a
+  bookmarks bar isn't a mobile gesture, and most mobile browsers (notably
+  iOS Safari) either don't support installing/running `javascript:`
+  bookmarklets the same way, restrict them, or make manually pasting one
+  into a new bookmark's URL field a poor experience. Needs Discovery/
+  Planning on what's actually feasible per mobile browser (iOS Safari vs.
+  Android Chrome may differ significantly) before committing to an
+  approach - candidates include a documented manual-install flow per
+  platform, a companion approach that doesn't rely on bookmarklets at all
+  for mobile (e.g. a share-sheet/shortcut-based capture), or explicitly
+  scoping mobile out with a clear in-app message instead of a broken/
+  confusing attempt.
