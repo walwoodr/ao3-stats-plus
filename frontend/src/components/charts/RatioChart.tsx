@@ -97,7 +97,7 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
     if (!row) return "";
     return row.isLeadIn ? row.capturedOn.slice(0, 4) : row.capturedOn;
   };
-  const formatTooltipLabel = (xValue: number): string => {
+  const formatTooltipLabel = (xValue: React.ReactNode): string => {
     const row = chartData.find((r) => r.xValue === xValue);
     if (!row) return "";
     return row.isLeadIn && leadIn ? leadInLabel(leadIn) : row.capturedOn;
@@ -201,26 +201,22 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
             )}
           </LineChart>
         </ResponsiveContainer>
+      </div>
 
-        <div className="mt-2 flex flex-wrap gap-2">
-          {leadIn && (
-            <span
-              data-testid="ratio-point-marker-lead"
-              aria-label={`${leadInLabel(leadIn)}: ${leadIn.ratio} kudos-to-hits ratio`}
-              className="inline-block h-[9px] w-[9px] rounded-full"
-              style={{ backgroundColor: colors.accent }}
-            />
-          )}
-          {points.map((point, index) => (
-            <span
-              key={point.capturedOn}
-              data-testid={`ratio-point-marker-${index}`}
-              aria-label={`${point.capturedOn}: ${point.ratio} kudos-to-hits ratio`}
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ backgroundColor: colors.ink }}
-            />
-          ))}
-        </div>
+      <div className="sr-only">
+        {leadIn && (
+          <span
+            data-testid="ratio-point-marker-lead"
+            aria-label={`${leadInLabel(leadIn)}: ${leadIn.ratio} kudos-to-hits ratio`}
+          />
+        )}
+        {points.map((point, index) => (
+          <span
+            key={point.capturedOn}
+            data-testid={`ratio-point-marker-${index}`}
+            aria-label={`${point.capturedOn}: ${point.ratio} kudos-to-hits ratio`}
+          />
+        ))}
       </div>
 
       <table aria-label={title} className="sr-only">

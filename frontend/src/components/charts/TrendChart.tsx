@@ -47,11 +47,15 @@ function leadInLabel(leadIn: TrendChartLeadIn): string {
 // Plots one numeric series against real (irregularly spaced) capture dates.
 // The visual Recharts chart is aria-hidden - the actual accessible
 // representation is the data table below it (one row per snapshot, never
-// fabricating rows for the gap between sparse captures) plus a per-point
-// marker with its own aria-label, so the trend isn't color-only. The title
-// and optional description are rendered as real, visible text (not just
-// aria attributes) so a sighted user looking at the dashboard can tell
-// what each chart represents without relying on a screen reader.
+// fabricating rows for the gap between sparse captures) plus a screen-
+// reader-only per-point marker with its own aria-label, so the trend isn't
+// color-only. The markers are sr-only rather than visible dots - as plain
+// same-shaped, same-size circles they didn't convey any real information a
+// sighted user couldn't already get from the chart itself, just visual
+// clutter. The title and optional description are rendered as real, visible
+// text (not just aria attributes) so a sighted user looking at the
+// dashboard can tell what each chart represents without relying on a
+// screen reader.
 export function TrendChart({ title, description, valueLabel, points, leadIn }: TrendChartProps) {
   const headingId = useId();
   const descriptionId = useId();
@@ -106,7 +110,7 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
     if (!row) return "";
     return row.isLeadIn ? row.capturedOn.slice(0, 4) : row.capturedOn;
   };
-  const formatTooltipLabel = (xValue: number): string => {
+  const formatTooltipLabel = (xValue: React.ReactNode): string => {
     const row = chartData.find((r) => r.xValue === xValue);
     if (!row) return "";
     return row.isLeadIn && leadIn ? leadInLabel(leadIn) : row.capturedOn;
@@ -210,26 +214,22 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
             )}
           </LineChart>
         </ResponsiveContainer>
+      </div>
 
-        <div className="mt-2 flex flex-wrap gap-2">
-          {leadIn && (
-            <span
-              data-testid="trend-point-marker-lead"
-              aria-label={`${leadInLabel(leadIn)}: ${leadIn.value} ${valueLabel}`}
-              className="inline-block h-[9px] w-[9px] rounded-full"
-              style={{ backgroundColor: colors.accent }}
-            />
-          )}
-          {points.map((point, index) => (
-            <span
-              key={point.capturedOn}
-              data-testid={`trend-point-marker-${index}`}
-              aria-label={`${point.capturedOn}: ${point.value} ${valueLabel}`}
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ backgroundColor: colors.ink }}
-            />
-          ))}
-        </div>
+      <div className="sr-only">
+        {leadIn && (
+          <span
+            data-testid="trend-point-marker-lead"
+            aria-label={`${leadInLabel(leadIn)}: ${leadIn.value} ${valueLabel}`}
+          />
+        )}
+        {points.map((point, index) => (
+          <span
+            key={point.capturedOn}
+            data-testid={`trend-point-marker-${index}`}
+            aria-label={`${point.capturedOn}: ${point.value} ${valueLabel}`}
+          />
+        ))}
       </div>
 
       <table aria-label={title} className="sr-only">
