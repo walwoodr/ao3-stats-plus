@@ -172,3 +172,15 @@
   nesting fix logged above) before trusting `scrapeWorkPage.ts` in
   production - if the real markup differs, both the fixtures and the
   selectors written against them will need correcting.
+- [2026-07-31] (stage: Testing) **EXTERNAL-UNVERIFIED**: the
+  `frontend/src/bookmarklet/fixtures/work-bookmarks-*.html` fixtures
+  (backing `scrapeWorkBookmarks.test.ts`, work-page enrichment plan's task
+  6) model AO3's `/works/:id/bookmarks` listing - `ol.bookmark.index.group
+  > li.bookmark`, `h5.byline.heading` (with the bookmarker's `<a>` absent
+  for a deleted/orphaned account), a `blockquote.userstuff` note,
+  `h6.landmark.heading` + `ul.meta.tags.commas` for the bookmarker's own
+  tags and for collections, `p.datetime` for the bookmark date, and
+  Kaminari-style `ol.pagination > li.next > a[rel="next"]` pagination -
+  none of it verified against a live AO3 page. Same re-verification need
+  as the work-page fixtures above before Implementation trusts
+  `scrapeWorkBookmarks.ts` in production.

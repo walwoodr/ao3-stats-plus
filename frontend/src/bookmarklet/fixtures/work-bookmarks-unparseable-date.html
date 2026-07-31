@@ -1,0 +1,15 @@
+<!--
+  EXTERNAL-UNVERIFIED: see work-bookmarks-page1.html's header comment - same
+  markup-shape caveat applies here.
+
+  This fixture: a single bookmark whose p.datetime text doesn't parse as a
+  date - bookmarkedOn must come back null rather than failing the parse.
+-->
+<ol class="bookmark index group">
+  <li class="bookmark blurb group" id="bookmark_2001">
+    <h5 class="byline heading">
+      <a href="/users/fourth_reader/pseuds/fourth_reader">fourth_reader</a> bookmarked this
+    </h5>
+    <p class="datetime">not-a-real-date</p>
+  </li>
+</ol>

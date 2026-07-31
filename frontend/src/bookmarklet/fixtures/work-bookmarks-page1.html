@@ -1,0 +1,49 @@
+<!--
+  EXTERNAL-UNVERIFIED: this fixture's markup shape (ol.bookmark.index.group,
+  h5.byline.heading, blockquote.userstuff for the note, ul.meta.tags.commas
+  for the bookmarker's own tags, p.datetime, and the "Collections" landmark
+  heading + list) is modeled on general community knowledge of AO3's
+  rendered /works/:id/bookmarks template - it has not been verified against
+  a live AO3 page (no web/account access available in this stage). See
+  TECH_DEBT.md for the corresponding entry.
+
+  This fixture: page 1 of 3 - two full bookmarks, a "next" pagination link
+  to page 2.
+-->
+<ol class="bookmark index group">
+  <li class="bookmark blurb group" id="bookmark_1001">
+    <h5 class="byline heading">
+      <a href="/users/avid_reader/pseuds/avid_reader">avid_reader</a> bookmarked this
+    </h5>
+    <blockquote class="userstuff bookmark-notes">
+      <p>Loved this so much!</p>
+    </blockquote>
+    <h6 class="landmark heading">Tags</h6>
+    <ul class="meta tags commas">
+      <li class="freeforms"><a class="tag" href="/tags/fluff">fluff</a></li>
+    </ul>
+    <p class="datetime">01 May 2024</p>
+    <h6 class="landmark heading">Collections</h6>
+    <ul class="meta tags commas">
+      <li><a href="/collections/collection-a">Collection A</a></li>
+    </ul>
+  </li>
+  <li class="bookmark blurb group" id="bookmark_1002">
+    <h5 class="byline heading">
+      <a href="/users/second_reader/pseuds/second_reader">second_reader</a> bookmarked this
+    </h5>
+    <blockquote class="userstuff bookmark-notes">
+      <p>Can't wait for the next chapter.</p>
+    </blockquote>
+    <h6 class="landmark heading">Tags</h6>
+    <ul class="meta tags commas">
+      <li class="freeforms"><a class="tag" href="/tags/hurt-comfort">hurt/comfort</a></li>
+      <li class="freeforms"><a class="tag" href="/tags/wip">wip</a></li>
+    </ul>
+    <p class="datetime">02 May 2024</p>
+  </li>
+</ol>
+<ol class="pagination actions" role="navigation" aria-label="Pagination">
+  <li><span class="current">1</span></li>
+  <li class="next"><a rel="next" href="?page=2">Next &#8594;</a></li>
+</ol>
