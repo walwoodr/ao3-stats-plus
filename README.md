@@ -100,60 +100,82 @@ build artifact (produced by `npm run build`, via `build:bookmarklet`) that
 only exists in `dist/`. The dev server (`npm run dev`, port 5173) serves the
 source tree directly and does not serve `dist/` at all, so tunneling it
 gets you a 404 for `/bookmarklet.js`. `npm run preview` (port 4173, after a
-build) serves the actual `dist/` output and is what needs tunneling:
+build) serves the actual `dist/` output and is what needs tunneling.
 
-1. Tunnel the backend first, so you have its public URL before building:
-   `npx tunnelmole 3000` (or the Cloudflare command below).
-2. Set `VITE_API_ORIGIN` and `VITE_GRAPHQL_URL` in `.env.local` (not
-   `.env.example` - see above) to that backend tunnel URL, since the API
-   origin is baked into `bookmarklet.js` at build time.
-3. `npm run build`, then `npm run preview`.
-4. Tunnel the preview server the same way.
-5. **Set `FRONTEND_ORIGINS` on the backend to the frontend's tunnel URL**,
-   e.g. `FRONTEND_ORIGINS=https://<frontend-tunnel-url> bin/rails server`
-   (restart the server after setting it - see the comment at the top of
-   `cors.rb`). `/graphql` CORS (`backend/config/initializers/cors.rb`)
-   defaults to allowing only `http://localhost:5173`; without this, the
-   dashboard's GraphQL requests get rejected by CORS before they ever reach
-   the app, and the resulting plain network error is easy to mistake for an
-   invalid/expired token rather than a CORS misconfiguration.
-
-**Tunnelmole:** `npx tunnelmole <port>` (or `npm install -g tunnelmole` for
-a persistent `tmole` command - see
-[tunnelmole.com/docs](https://tunnelmole.com/docs/)).
-
-**Cloudflare Tunnel (`cloudflared`), if tunnelmole's domain gets blocked by
-your DNS resolver/network** (this happens - some resolvers blocklist
-dynamic tunnel domains as a phishing precaution):
+Cloudflare Tunnel (`cloudflared`) is the only tunnel provider currently
+wired into the host allowlists below - see "Using a different tunnel
+provider" if you need another one.
 
 ```sh
-brew install cloudflared
-cloudflared tunnel --url http://localhost:3000   # backend
-cloudflared tunnel --url http://localhost:4173   # preview, after building
+brew install cloudflared   # once
 ```
 
-Each prints a random `https://*.trycloudflare.com` URL for that port. No
-account/login needed for this quick-tunnel mode - see
+**Quick path (recommended) - two convenience scripts handle the fiddly
+parts:**
+
+1. `cd backend && bin/rails server` (leave running).
+2. In `frontend/`: `npm run tunnel:backend`. This opens a Cloudflare Quick
+   Tunnel to `:3000` and, once the tunnel's URL is up, automatically writes
+   `VITE_API_ORIGIN`/`VITE_GRAPHQL_URL` into `.env.local` for you (creating
+   it from `.env.example` first if it doesn't exist) - no hand-editing, and
+   no risk of forgetting the `/graphql` suffix on one of the two. Leave it
+   running.
+3. In another terminal: `npm run build && npm run preview` (serves the real
+   `dist/` build, with the bookmarklet baked against the tunnel origin from
+   step 2, at `:4173`).
+4. In a third terminal: `npm run tunnel:preview` - opens a second Cloudflare
+   Quick Tunnel to `:4173` and prints its URL.
+5. Visit `InstallPage` via that preview tunnel URL (not `localhost`), so the
+   generated bookmarklet's loader points at the tunnel origin instead of
+   `localhost:4173`, and install/click it from there.
+
+You do **not** need to set `FRONTEND_ORIGINS` on the backend for this -
+`backend/config/initializers/cors.rb`'s local-dev default already allows any
+`https://*.trycloudflare.com` origin for `/graphql`, specifically so a fresh
+tunnel (a new random subdomain every restart) works without hand-editing
+that env var each time. This only matters if you override `FRONTEND_ORIGINS`
+yourself (e.g. to test a specific fixed origin) or deploy - see the comment
+at the top of `cors.rb`.
+
+**Manual path**, if you'd rather run `cloudflared` yourself instead of via
+the npm scripts above: `cloudflared tunnel --url http://localhost:3000` (or
+`:4173` for the preview server) prints a random `https://*.trycloudflare.com`
+URL for that port - no account/login needed for this quick-tunnel mode, see
 [developers.cloudflare.com/cloudflare-one/.../quick-tunnels](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/).
+You'll still need to copy the backend tunnel's URL into `.env.local`'s
+`VITE_API_ORIGIN`/`VITE_GRAPHQL_URL` (append `/graphql` to the latter)
+yourself before building.
 
 Vite rejects requests whose `Host` header it doesn't recognize (this
 applies to both `vite dev` and `vite preview`), so you'll otherwise hit
 "Blocked request. This host is not allowed" once you load the site through
-either tunnel. `vite.config.ts` already allows both `.tunnelmole.net` and
-`.trycloudflare.com` via `server.allowedHosts`, which `preview` inherits
-unless overridden - no extra config needed for either provider, but a
-different one's domain would need adding there.
+the tunnel. `vite.config.ts`'s `server.allowedHosts` already allows
+`.trycloudflare.com`, which `preview` inherits unless overridden.
 
 Rails has the same protection on the backend (`ActionDispatch::HostAuthorization`):
 tunneling `:3000` will 403 with a "Blocked hosts" error until the tunnel's
 host is allowed. `backend/config/environments/development.rb` already allows
-`.trycloudflare.com` via `config.hosts`; a different tunnel provider's domain
-would need adding there the same way.
+`.trycloudflare.com` via `config.hosts`.
 
-Then visit `InstallPage` via whichever tunnel URL fronts your preview
-server (not `localhost`) so the generated bookmarklet's loader points at
-the tunnel origin instead of `localhost:4173`, and install/click it from
-there.
+### Using a different tunnel provider
+
+If `trycloudflare.com` gets blocked by your DNS resolver/network (this
+happens - some resolvers blocklist dynamic tunnel domains as a phishing
+precaution), any other tunnel provider (e.g.
+[Tunnelmole](https://tunnelmole.com/docs/), `npx tunnelmole <port>`) can be
+substituted, but its domain needs adding in three places first, since none
+of the conveniences above are wired to it:
+
+- `frontend/vite.config.ts`'s `server.allowedHosts`
+- `backend/config/environments/development.rb`'s `config.hosts`
+- `backend/config/initializers/cors.rb`'s `DEFAULT_FRONTEND_ORIGINS` (or
+  just pass `FRONTEND_ORIGINS=https://<your-frontend-tunnel-url>` to
+  `bin/rails server` for that one run, restarting the server after setting
+  it - see the comment at the top of `cors.rb`)
+
+`npm run tunnel:backend`/`npm run tunnel:preview` are Cloudflare-specific
+(`scripts/tunnel-backend.mjs` shells out to `cloudflared` directly) - use
+the manual path above with your provider's own tunnel command instead.
 
 ## CI
 
