@@ -5,6 +5,7 @@
 class Work < ApplicationRecord
   belongs_to :ao3_user
   has_many :work_stats, dependent: :destroy
+  has_many :work_bookmarks, dependent: :destroy
 
   validates :ao3_work_id, presence: true, uniqueness: { scope: :ao3_user_id }
   validates :title, presence: true
