@@ -8,8 +8,7 @@ view on top of them.
 
 ## Tier 1 - High-value, do soon
 
-Status: **5 of 6 done.** Only the drag-install item remains, blocked on a
-repro description.
+Status: **6 of 6 done.**
 
 - [x] **`RatioChart` lead-in: `1` -> `0`.** Done (`16b16e9`).
 - [x] **`scrapeStats.ts` one-work-per-fandom bug.** Done (`3a366d1`) - fixed
@@ -38,11 +37,14 @@ repro description.
   one assertion on WebKit specifically (`test.skip(browserName ===
   "webkit", ...)`), since it's a documented Playwright/WebKit environment
   limitation, not an app bug.
-- [ ] **Bookmarklet drag-install unreliable.** *(Moved up from Tier 2 per
-  explicit instruction.)* Not yet root-caused (candidates: the `onClick`
-  `preventDefault()` interfering with native drag semantics, or a
-  browser-specific `javascript:` URI drag restriction). **Still blocked**:
-  waiting on a repro description.
+- [x] **Bookmarklet drag-install unreliable.** *(Moved up from Tier 2 per
+  explicit instruction.)* Done (`3f49316`). Neither originally-suspected
+  candidate was the cause - found by actually inspecting the drag
+  gesture's real `dataTransfer` payload in a browser: React silently
+  sanitizes a `javascript:` URL passed as the `href` prop into a stub
+  that just throws, which still matched the old test's loose
+  `/^javascript:/` regex. Fixed via a ref-based `setAttribute`, bypassing
+  React's own href reconciliation.
 
 ## Tier 2 - Worth doing, not urgent
 
