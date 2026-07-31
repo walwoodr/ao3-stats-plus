@@ -49,14 +49,6 @@
   reader user who triggers the bookmarklet on the wrong view may get a weak
   or missed announcement. Deferred: matches the confirmed plan; revisit if
   the cross-origin a11y smoke test (plan section 6) surfaces it.
-- [2026-07-30] (stage: Maintenance) `InstallPage`'s draggable bookmarklet
-  link doesn't reliably drag-install into the bookmarks bar in at least one
-  browser tested manually - users have to fall back to the "Show code" /
-  Copy button flow instead. Not yet root-caused (candidates: the `onClick`
-  `preventDefault()` interfering with native drag semantics, or a
-  browser-specific `javascript:` URI drag restriction). Deferred: the
-  copy/paste fallback already works and is keyboard-accessible; revisit if
-  drag-install turns out to be commonly expected.
 - [2026-07-30] (stage: Implementation) `frontend/src/bookmarklet/banners.ts`'s
   color mapping onto MASTER.md's 7-token palette consolidates the previous
   4-color severity scheme (success/failure/info/retry) into 3 roles

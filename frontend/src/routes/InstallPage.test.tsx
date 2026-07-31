@@ -14,6 +14,22 @@ describe("InstallPage", () => {
     expect(bookmarkletLink.getAttribute("href")).toMatch(/^javascript:/);
   });
 
+  // Regression test: React sanitizes a javascript: URL passed directly as
+  // the href prop, silently replacing it with a stub that just throws
+  // ("React has blocked a javascript: URL as a security precaution.") -
+  // the stub still matches /^javascript:/, which is why the test above
+  // didn't catch this. A user who drags the link installs a bookmark that
+  // throws instead of running the real capture script.
+  it("sets the real bookmarklet loader as the href, not React's blocked-URL stub", () => {
+    render(<InstallPage />);
+
+    const bookmarkletLink = screen.getByRole("link", { name: /ao3 stats/i });
+    const href = bookmarkletLink.getAttribute("href") ?? "";
+
+    expect(href).toContain("bookmarklet.js");
+    expect(href).not.toMatch(/react has blocked/i);
+  });
+
   it("provides a keyboard-accessible fallback that reveals the bookmarklet code", async () => {
     const user = userEvent.setup();
     render(<InstallPage />);

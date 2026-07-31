@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // The bookmarklet is a loader: dragging/installing this link just injects a
 // small IIFE that pulls in the real bookmarklet bundle from our own origin
@@ -14,6 +14,19 @@ function buildBookmarkletSource(): string {
 export function InstallPage() {
   const [showCode, setShowCode] = useState(false);
   const bookmarkletSource = buildBookmarkletSource();
+  const bookmarkletLinkRef = useRef<HTMLAnchorElement>(null);
+
+  // React sanitizes a javascript: URL passed directly as the href PROP,
+  // silently swapping it for a stub that just throws ("React has blocked a
+  // javascript: URL as a security precaution.") - a real defense against
+  // accidentally rendering untrusted data as a script URL, but this one is
+  // our own trusted, hardcoded loader, not user input. Setting the
+  // attribute directly on the DOM node (outside React's own prop
+  // reconciliation) is the standard way to opt out of that sanitization
+  // for a deliberately-a-javascript:-URL case like a bookmarklet.
+  useEffect(() => {
+    bookmarkletLinkRef.current?.setAttribute("href", bookmarkletSource);
+  }, [bookmarkletSource]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(bookmarkletSource);
@@ -40,6 +53,7 @@ export function InstallPage() {
 
       <p className="mt-6">
         <a
+          ref={bookmarkletLinkRef}
           href={bookmarkletSource}
           onClick={(event) => event.preventDefault()}
           className="inline-block cursor-pointer rounded-md bg-ink px-4 py-2 font-sans font-semibold text-paper outline-none transition-colors duration-200 hover:bg-ink-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
