@@ -270,3 +270,7 @@ recurring schedule. This needs a decision from Discovery/Planning - options
 include (non-exhaustively) an approved background-job gem, an external/OS
 scheduler (cron, a hosting platform's scheduled-job feature, a scheduled
 CI workflow) hitting a plain endpoint or rake task, or something else.
+
+## License
+
+GPL-3.0 - see [`LICENSE`](LICENSE) for the full text.
