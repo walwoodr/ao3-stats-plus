@@ -40,6 +40,18 @@ describe("tokenStorage", () => {
 
       expect(localStorage.getItem("ao3-stats-plus:readToken:someauthor")).toBe("tok_abc123");
     });
+
+    // AO3's own username charset is restricted enough that this can't happen
+    // with a real account, but encoding the username into the key is cheap
+    // defense-in-depth against any URL/localStorage-key-special character.
+    it("encodes a username containing special characters into the storage key", () => {
+      setStoredReadToken("weird/name&value", "tok_abc123");
+
+      expect(localStorage.getItem("ao3-stats-plus:readToken:weird%2Fname%26value")).toBe(
+        "tok_abc123",
+      );
+      expect(getStoredReadToken("weird/name&value")).toBe("tok_abc123");
+    });
   });
 
   describe("a missing key", () => {

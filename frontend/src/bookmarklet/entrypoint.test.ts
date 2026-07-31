@@ -146,6 +146,39 @@ describe("bookmarklet entrypoint", () => {
       });
     });
 
+    it("encodes the username when building the dashboard URL and the token-storage key", async () => {
+      const { scrapeStats } = await import("./scrapeStats");
+      const { postIngest } = await import("./ingestClient");
+      const { getStoredReadToken, setStoredReadToken } = await import("./tokenStorage");
+      const { renderSuccessBanner } = await import("./banners");
+      const weirdUsername = "weird/name&value";
+      vi.mocked(scrapeStats).mockReturnValue({
+        ok: true,
+        data: { ...scrapedData, username: weirdUsername },
+      } as ScrapeResult);
+      vi.mocked(getStoredReadToken).mockReturnValue(undefined);
+      vi.mocked(postIngest).mockResolvedValue({
+        status: "success",
+        readToken: "tok_new",
+        capturedOn: "2026-07-23",
+        deduped: false,
+      } as IngestResult);
+
+      await import("./entrypoint");
+      await vi.waitFor(() => expect(renderSuccessBanner).toHaveBeenCalled());
+
+      // getStoredReadToken/setStoredReadToken take the raw username - encoding
+      // for storage is tokenStorage's own concern (see tokenStorage.test.ts) -
+      // but the dashboard URL is built here, so it must not let a URL-special
+      // character (e.g. "&", "/") corrupt the path segment or query string.
+      expect(getStoredReadToken).toHaveBeenCalledWith(weirdUsername);
+      expect(setStoredReadToken).toHaveBeenCalledWith(weirdUsername, "tok_new");
+      expect(renderSuccessBanner).toHaveBeenCalledWith(document.body, {
+        readToken: "tok_new",
+        dashboardUrl: `${FRONTEND_ORIGIN}/u/${encodeURIComponent(weirdUsername)}?token=tok_new`,
+      });
+    });
+
     it("replays a previously stored token in the payload on a repeat capture", async () => {
       const { scrapeStats } = await import("./scrapeStats");
       const { postIngest } = await import("./ingestClient");

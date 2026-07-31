@@ -74,7 +74,7 @@ function routeResult(
       setGuardBanner(
         renderSuccessBanner(document.body, {
           readToken: result.readToken,
-          dashboardUrl: `${frontendOrigin}/u/${username}?token=${result.readToken}`,
+          dashboardUrl: `${frontendOrigin}/u/${encodeURIComponent(username)}?token=${result.readToken}`,
         }),
       );
       return;

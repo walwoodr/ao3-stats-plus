@@ -34,12 +34,6 @@
   logged in case Deployment or Retrospective want to fold the tunnel step
   into a documented pre-Deployment smoke-test procedure, or confirm
   production origins are enough to make LNA moot.
-- [2026-07-23] (stage: Review) `entrypoint.ts` interpolates the scraped
-  `username` into the dashboard URL (`${frontendOrigin}/u/${username}?token=`)
-  and into the localStorage key without `encodeURIComponent`. AO3's username
-  charset is restricted enough that this is low-risk today, but encoding it
-  would be more robust against any URL-special character and is cheap.
-  Deferred: not a live defect, no failing case with real AO3 usernames.
 - [2026-07-23] (stage: Review) The pre-POST scrape-failure banner
   (`renderInfoBanner`) uses `role="status"` (polite live region) and does not
   move focus. It is the *only* feedback when a capture can't proceed (no

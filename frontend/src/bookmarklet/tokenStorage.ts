@@ -14,7 +14,7 @@ const KEY_PREFIX = "ao3-stats-plus:readToken:";
 
 export function getStoredReadToken(username: string): string | undefined {
   try {
-    return window.localStorage.getItem(`${KEY_PREFIX}${username}`) ?? undefined;
+    return window.localStorage.getItem(`${KEY_PREFIX}${encodeURIComponent(username)}`) ?? undefined;
   } catch {
     return undefined;
   }
@@ -22,7 +22,7 @@ export function getStoredReadToken(username: string): string | undefined {
 
 export function setStoredReadToken(username: string, token: string): void {
   try {
-    window.localStorage.setItem(`${KEY_PREFIX}${username}`, token);
+    window.localStorage.setItem(`${KEY_PREFIX}${encodeURIComponent(username)}`, token);
   } catch {
     // localStorage unavailable - losing the persisted token is an
     // acceptable degradation; throwing here would abort the whole capture.
