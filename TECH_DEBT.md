@@ -93,19 +93,24 @@
 - [2026-7-30] Walk through all strings presented to users in the end UI
   with a human and verify that they are correct. 
 - [2026-7-30] Remove hits-to-kudos ratio
-- [2026-7-30] Improve data ingestion -- the current list of pieces is drastically
-  wrong. 
-- [2026-07-30] (stage: Review) Root cause of the "Improve data ingestion"
-  item above: `scrapeStats.ts`'s `parseWorks` selects the work link with a
-  single `querySelector("dl > dt a")` per `li.fandom.listbox.group` row,
-  capturing only one work per fandom heading. Real AO3 nests multiple works
-  under each fandom, so every work after the first in a given fandom is
-  silently dropped from the scrape - a multi-fandom work is the only reason
-  the current output looks like it's deduplicating correctly. The test
-  fixtures encode this same one-work-per-fandom shape, so the existing tests
-  pass without matching real AO3 markup. Fix needs `querySelectorAll` (or
-  equivalent) per fandom row, plus rebuilt fixtures captured from a real
-  saved AO3 stats page rather than hand-authored ones.
+- [2026-07-30] (stage: Maintenance) **Resolved**, with a caveat: the
+  "Improve data ingestion" one-work-per-fandom bug (`scrapeStats.ts`'s
+  `parseWorks`, previously a single `querySelector("dl > dt a")` per fandom
+  row) is fixed - it now iterates every direct-child `<dl>` under a fandom
+  row (`:scope > dl`), so multiple different works under one fandom heading
+  are all captured, not just the first. A new fixture
+  (`fixtures/multiple-works-same-fandom.html`) and three tests cover it.
+  **Caveat**: I could not get a real, currently-live saved AO3 stats page to
+  verify the exact nesting shape directly (would need an authenticated
+  session) and attempted to confirm it against AO3's open-source repo
+  (otwcode/otwarchive) but hit an auth wall on GitHub's code search. The fix
+  is grounded in strong circumstantial evidence (the existing fixtures'
+  established per-work `<dl>` shape, "grouped by fandom" as AO3's documented
+  default stats view, and the fact that a single `querySelector` was
+  guaranteed-wrong regardless of the exact nesting), but the new fixture is
+  a best-evidence reconstruction, not a captured real page. Worth a quick
+  real-world sanity check against an actual AO3 stats page with a
+  multi-work fandom the next time someone has one handy.
 - [2026-07-30] (stage: Review) `config/initializers/cors.rb`'s
   `DEFAULT_FRONTEND_ORIGINS` fallback now includes an open
   `https://*.trycloudflare.com` wildcard, and cors.rb is active in every

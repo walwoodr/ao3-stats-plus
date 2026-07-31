@@ -85,6 +85,43 @@ describe("scrapeStats", () => {
     });
   });
 
+  // Regression test: AO3 groups works by fandom heading, and a fandom
+  // heading with more than one work in it renders as multiple per-work <dl>
+  // blocks nested under the same <li class="fandom listbox group"> - not
+  // one work per fandom heading. parseWorks previously used a single
+  // querySelector("dl > dt a") per fandom row, which only ever finds the
+  // first work's link, silently dropping every work after it in the same
+  // fandom.
+  describe("multiple different works under one fandom heading", () => {
+    const doc = loadFixture("multiple-works-same-fandom.html");
+    const result = scrapeStats(doc, STATS_PATHNAME);
+
+    it("captures both works, not just the first", () => {
+      if (!result.ok) throw new Error("expected ok result");
+      const ids = result.data.works.map((w) => w.ao3WorkId).sort();
+      expect(ids).toEqual([301, 302]);
+    });
+
+    it("gives each work its own title and stats, not the first work's data twice", () => {
+      if (!result.ok) throw new Error("expected ok result");
+      const first = result.data.works.find((w) => w.ao3WorkId === 301);
+      const second = result.data.works.find((w) => w.ao3WorkId === 302);
+
+      expect(first).toMatchObject({ title: "First Work", hits: 700, kudos: 60, wordCount: 15_000 });
+      expect(second).toMatchObject({
+        title: "Second Work",
+        hits: 500,
+        kudos: 40,
+        wordCount: 30_000,
+      });
+    });
+
+    it("gives both works the shared fandom heading", () => {
+      if (!result.ok) throw new Error("expected ok result");
+      expect(result.data.works.every((w) => w.fandoms.includes("Shared Fandom"))).toBe(true);
+    });
+  });
+
   describe("a zero-works user (AO3's no_stats template)", () => {
     it("returns a no-works result instead of posting an empty snapshot", () => {
       const doc = loadFixture("no-stats.html");

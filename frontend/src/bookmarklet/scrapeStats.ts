@@ -131,7 +131,11 @@ function parseAggregate(statsRoot: Element): Omit<AggregateStats, "worksCount"> 
 
 // Per-work rows are grouped under a fandom heading, so the same work can
 // appear multiple times (once per fandom it's tagged with) - dedup by
-// ao3WorkId and union the fandom names onto a single entry.
+// ao3WorkId and union the fandom names onto a single entry. A fandom
+// heading with more than one work in it renders as multiple per-work <dl>
+// blocks nested under the same fandom row (":scope > dl" - direct children
+// only, not the nested dl.stats inside each work's own <dd>), not one work
+// per fandom row - iterate all of them, not just the first.
 function parseWorks(statsRoot: Element): ScrapedWork[] | null {
   const rows = Array.from(
     statsRoot.querySelectorAll("ul.statistics.index.group > li.fandom.listbox.group"),
@@ -140,37 +144,45 @@ function parseWorks(statsRoot: Element): ScrapedWork[] | null {
 
   for (const row of rows) {
     const fandom = row.querySelector("h5.heading")?.textContent?.trim();
-    const link = row.querySelector("dl > dt a");
-    const href = link?.getAttribute("href") ?? "";
-    const idMatch = href.match(/\/works\/(\d+)/);
+    if (!fandom) return null;
 
-    if (!fandom || !link || !idMatch) return null;
+    const workDls = Array.from(row.querySelectorAll(":scope > dl"));
+    if (workDls.length === 0) return null;
 
-    const ao3WorkId = Number(idMatch[1]);
-    const title = link.textContent?.trim() ?? "";
-    const statsDl = row.querySelector("dl.stats");
-    const wordCount = parseWorkWordCount(row.querySelector("dl > dt span.words")?.textContent) ?? 0;
-    const hits = parseNumber(statsDl?.querySelector("dd.hits")?.textContent) ?? 0;
-    const kudos = parseNumber(statsDl?.querySelector("dd.kudos")?.textContent) ?? 0;
-    const comments = parseNumber(statsDl?.querySelector("dd.comments")?.textContent) ?? 0;
-    const bookmarks = parseNumber(statsDl?.querySelector("dd.bookmarks")?.textContent) ?? 0;
-    const subscriptions = parseNumber(statsDl?.querySelector("dd.subscriptions")?.textContent) ?? 0;
+    for (const workDl of workDls) {
+      const link = workDl.querySelector("dt a");
+      const href = link?.getAttribute("href") ?? "";
+      const idMatch = href.match(/\/works\/(\d+)/);
 
-    const existing = worksById.get(ao3WorkId);
-    if (existing) {
-      if (!existing.fandoms.includes(fandom)) existing.fandoms.push(fandom);
-    } else {
-      worksById.set(ao3WorkId, {
-        ao3WorkId,
-        title,
-        fandoms: [fandom],
-        hits,
-        kudos,
-        comments,
-        bookmarks,
-        subscriptions,
-        wordCount,
-      });
+      if (!link || !idMatch) return null;
+
+      const ao3WorkId = Number(idMatch[1]);
+      const title = link.textContent?.trim() ?? "";
+      const statsDl = workDl.querySelector("dl.stats");
+      const wordCount = parseWorkWordCount(workDl.querySelector("dt span.words")?.textContent) ?? 0;
+      const hits = parseNumber(statsDl?.querySelector("dd.hits")?.textContent) ?? 0;
+      const kudos = parseNumber(statsDl?.querySelector("dd.kudos")?.textContent) ?? 0;
+      const comments = parseNumber(statsDl?.querySelector("dd.comments")?.textContent) ?? 0;
+      const bookmarks = parseNumber(statsDl?.querySelector("dd.bookmarks")?.textContent) ?? 0;
+      const subscriptions =
+        parseNumber(statsDl?.querySelector("dd.subscriptions")?.textContent) ?? 0;
+
+      const existing = worksById.get(ao3WorkId);
+      if (existing) {
+        if (!existing.fandoms.includes(fandom)) existing.fandoms.push(fandom);
+      } else {
+        worksById.set(ao3WorkId, {
+          ao3WorkId,
+          title,
+          fandoms: [fandom],
+          hits,
+          kudos,
+          comments,
+          bookmarks,
+          subscriptions,
+          wordCount,
+        });
+      }
     }
   }
 
