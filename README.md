@@ -196,12 +196,15 @@ origins, not a single combined deploy:
   $7/mo) built from `backend/Dockerfile`, at
   `https://ao3-stats-plus-api.onrender.com`.
 - **Database** - `ao3-stats-plus-db`, managed Postgres (Basic 256mb plan,
-  $6/mo).
+  $6/mo compute + $0.30/mo for a 1GB disk, set explicitly via
+  `diskSizeGB: 1` in `render.yaml` - Render's Basic-tier default is 15GB
+  ($4.50/mo) if left unset, far more than this app's actual data needs).
 - **Frontend** - `ao3-stats-plus`, a free Static Site built from
   `frontend/` (`npm install && npm run build`, publishing `frontend/dist`),
   at `https://ao3-stats-plus.onrender.com`.
 
-**Total: ~$13/mo** (Starter web + Basic Postgres; the static site is free).
+**Total: ~$13.30/mo** (Starter web $7 + Basic Postgres $6.30; the static
+site is free).
 
 ### Wiring the two services together
 

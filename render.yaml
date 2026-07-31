@@ -22,6 +22,14 @@
 databases:
   - name: ao3-stats-plus-db
     plan: basic-256mb
+    # Render's Basic tier defaults to a 15GB disk (~$4.50/mo at $0.30/GB)
+    # when diskSizeGB is left unset - far more than a personal stats
+    # tracker needs (a few thousand snapshot rows over years is a few MB).
+    # 1GB is the platform minimum (allowed values: 1, or multiples of 5)
+    # and costs $0.30/mo instead. Bump this if real usage ever approaches
+    # it - resizing up is supported; Render does not support shrinking a
+    # disk back down later.
+    diskSizeGB: 1
 
 services:
   - type: web
