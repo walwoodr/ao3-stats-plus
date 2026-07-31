@@ -2,19 +2,6 @@
 
 ## Backlog
 
-- [2026-07-22] (stage: Implementation) `frontend/tests/accessibility.spec.ts`
-  ("the manual token-entry form has a programmatic label and keyboard tab
-  order") fails only under the WebKit Playwright project, not
-  Chromium/Firefox. Root cause: WebKit's default keyboard-navigation mode
-  only tabs to text inputs/selects/links, not `<button>` elements (mirrors
-  real Safari's default "Full Keyboard Access: Text boxes and lists only"
-  setting) - Tab from the token input never reaches the submit button in
-  WebKit specifically, even though the DOM/tab order is correct (proven by
-  the identical test passing on the other two browsers). This is a known
-  Playwright/WebKit environment limitation, not an app bug - see Playwright's
-  WebKit keyboard-navigation docs/issues. Needs Testing to decide whether to
-  scope this assertion to non-WebKit projects or accept it as a documented
-  WebKit gap.
 - [2026-07-30] (stage: Maintenance) Three `accessibility.spec.ts` axe scans
   (landing page, install page, no-token dashboard state) fail only under the
   WebKit Playwright project with `color-contrast` violations reporting
