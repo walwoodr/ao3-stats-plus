@@ -131,11 +131,14 @@ function parseAggregate(statsRoot: Element): Omit<AggregateStats, "worksCount"> 
 
 // Per-work rows are grouped under a fandom heading, so the same work can
 // appear multiple times (once per fandom it's tagged with) - dedup by
-// ao3WorkId and union the fandom names onto a single entry. A fandom
-// heading with more than one work in it renders as multiple per-work <dl>
-// blocks nested under the same fandom row (":scope > dl" - direct children
-// only, not the nested dl.stats inside each work's own <dd>), not one work
-// per fandom row - iterate all of them, not just the first.
+// ao3WorkId and union the fandom names onto a single entry.
+//
+// AO3 nests each work one level deeper than the fandom row itself:
+// li.fandom.listbox.group > ul.index.group > li > dl - verified against
+// AO3's own view template (otwcode/otwarchive's app/views/stats/
+// index.html.erb), not a direct-child <dl> on the fandom row. A fandom
+// with more than one work gets more than one <li> inside that inner
+// ul.index.group - iterate all of them, not just the first.
 function parseWorks(statsRoot: Element): ScrapedWork[] | null {
   const rows = Array.from(
     statsRoot.querySelectorAll("ul.statistics.index.group > li.fandom.listbox.group"),
@@ -146,10 +149,13 @@ function parseWorks(statsRoot: Element): ScrapedWork[] | null {
     const fandom = row.querySelector("h5.heading")?.textContent?.trim();
     if (!fandom) return null;
 
-    const workDls = Array.from(row.querySelectorAll(":scope > dl"));
-    if (workDls.length === 0) return null;
+    const workItems = Array.from(row.querySelectorAll(":scope > ul.index.group > li"));
+    if (workItems.length === 0) return null;
 
-    for (const workDl of workDls) {
+    for (const workItem of workItems) {
+      const workDl = workItem.querySelector(":scope > dl");
+      if (!workDl) return null;
+
       const link = workDl.querySelector("dt a");
       const href = link?.getAttribute("href") ?? "";
       const idMatch = href.match(/\/works\/(\d+)/);

@@ -68,24 +68,25 @@
   write access, not just convenience).
 - [2026-7-30] Walk through all strings presented to users in the end UI
   with a human and verify that they are correct. 
-- [2026-07-30] (stage: Maintenance) **Resolved**, with a caveat: the
-  "Improve data ingestion" one-work-per-fandom bug (`scrapeStats.ts`'s
-  `parseWorks`, previously a single `querySelector("dl > dt a")` per fandom
-  row) is fixed - it now iterates every direct-child `<dl>` under a fandom
-  row (`:scope > dl`), so multiple different works under one fandom heading
-  are all captured, not just the first. A new fixture
-  (`fixtures/multiple-works-same-fandom.html`) and three tests cover it.
-  **Caveat**: I could not get a real, currently-live saved AO3 stats page to
-  verify the exact nesting shape directly (would need an authenticated
-  session) and attempted to confirm it against AO3's open-source repo
-  (otwcode/otwarchive) but hit an auth wall on GitHub's code search. The fix
-  is grounded in strong circumstantial evidence (the existing fixtures'
-  established per-work `<dl>` shape, "grouped by fandom" as AO3's documented
-  default stats view, and the fact that a single `querySelector` was
-  guaranteed-wrong regardless of the exact nesting), but the new fixture is
-  a best-evidence reconstruction, not a captured real page. Worth a quick
-  real-world sanity check against an actual AO3 stats page with a
-  multi-work fandom the next time someone has one handy.
+- [2026-07-31] (stage: Review/Maintenance) **Resolved, with real evidence.**
+  The "Improve data ingestion" one-work-per-fandom bug went through two
+  rounds: the first fix (`:scope > dl`, direct children of the fandom row)
+  was a best-evidence reconstruction that turned out wrong - Review fetched
+  AO3's actual view template (`otwcode/otwarchive`'s
+  `app/views/stats/index.html.erb`, `raw.githubusercontent.com`, verified
+  directly rather than trusted) and found each work nests one level deeper
+  than assumed: `li.fandom.listbox.group > ul.index.group > li > dl`, not
+  a direct-child `<dl>`. The first fix's direct-child selector matched
+  zero elements against that real shape, so `parseWorks` returned `null`
+  and every scrape failed outright - worse than the original bug (which at
+  least captured the first work per fandom via a descendant selector).
+  Re-fixed to select `:scope > ul.index.group > li`, then `:scope > dl`
+  within each. All 5 affected fixtures (`all-years-happy-path.html`,
+  `multi-fandom-work.html`, `multi-year-history.html`,
+  `multiple-works-same-fandom.html`, `no-year-links.html`) rebuilt to match
+  the real nesting; confirmed the corrected fixtures fail against the
+  unfixed selector (15/20 tests red) before applying the fix, then green
+  after (20/20).
 - [2026-07-30] (stage: Review) `config/initializers/cors.rb`'s
   `DEFAULT_FRONTEND_ORIGINS` fallback now includes an open
   `https://*.trycloudflare.com` wildcard, and cors.rb is active in every
@@ -145,3 +146,30 @@
   per work (N+1) since it's resolved per parent `Work` with no batch/
   preload. Fine at personal scale (tens of works); revisit with a GraphQL
   dataloader/preload if per-work counts grow.
+- [2026-07-31] (stage: Review) `spec/deployment/render_yaml_spec.rb` validates
+  render.yaml against a *self-defined* expected shape, not against Render's
+  actual published Blueprint schema, so it cannot catch the file being
+  internally consistent yet wrong against Render's API (exactly how the
+  `staticSites:` mistake produced a false-green). Even once the current
+  schema error is corrected, this spec will not catch future Render schema
+  drift. Deferred: consider a lightweight periodic check against Render's
+  live Blueprint reference (or a documented "re-verify against render.com/docs
+  before deploy" step), rather than treating a green local spec as proof the
+  Blueprint is deployable.
+- [2026-07-31] (stage: Review) `DashboardPage`'s token-clearing effect now
+  fires on any `error instanceof ClientError` (commit `fa1b2b4`). That is a
+  strict improvement over clearing on every error, but `ClientError` is
+  broader than "bad token": graphql-request also throws it for a non-2xx
+  response or any backend-surfaced GraphQL error, so a transient backend
+  5xx would still clear a valid token *and* show the "token doesn't match"
+  copy (via `messageForStatsError`, which has the same conflation). Pre-
+  existing conflation, low probability for a personal tool; revisit by
+  discriminating a genuine auth/token rejection (e.g. an error code/path in
+  the GraphQL `errors` payload) from a generic server error before clearing.
+- [2026-07-31] (stage: Review) `InstallPage.test.tsx`'s clipboard test
+  ("lets a keyboard user copy the fallback code...") asserts only
+  `expect(writeText).toHaveBeenCalled()`, not the argument. It proves the
+  copy handler is wired, but would also pass if the wrong text were copied.
+  Cheap to strengthen to `toHaveBeenCalledWith(bookmarkletSource)` so it
+  actually locks in that the bookmarklet source (not some other string) is
+  what lands on the clipboard.
