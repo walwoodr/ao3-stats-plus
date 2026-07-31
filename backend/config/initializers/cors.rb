@@ -33,9 +33,12 @@ AO3_ORIGINS = [
 # real AO3"). Falls back to the Vite dev server origin plus that same
 # wildcard, so local tunnel testing works without setting FRONTEND_ORIGINS
 # by hand every time the tunnel restarts.
-# TODO(deployment): set FRONTEND_ORIGINS explicitly once the deployed
-# frontend origin is decided - the fallback below is a local-dev
-# placeholder (an open subdomain wildcard), not a production-ready default.
+#
+# In production, FRONTEND_ORIGINS is set explicitly via render.yaml's
+# ao3-stats-plus-api service (envVars: FRONTEND_ORIGINS, hardcoded to the
+# deployed frontend's https://ao3-stats-plus.onrender.com origin - see
+# render.yaml and README.md's "Deployment (Render)" section), so production
+# never falls through to this dev-only wildcard default below.
 DEFAULT_FRONTEND_ORIGINS = "http://localhost:5173,https://*.trycloudflare.com".freeze
 
 # Wildcard-to-Regexp conversion lives in CorsFrontendOriginMatcher
