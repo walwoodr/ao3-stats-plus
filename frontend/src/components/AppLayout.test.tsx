@@ -24,6 +24,15 @@ describe("AppLayout", () => {
     expect(screen.getByRole("banner")).toBeInTheDocument();
   });
 
+  // Brand name must match what InstallPage/the bookmarklet itself show
+  // ("AO3 Stats+") rather than the lowercase technical package/repo name -
+  // two different names for the same product read as a mistake, not a
+  // stylistic choice.
+  it("shows the product's brand name, not the technical package name", () => {
+    renderAt("/");
+    expect(screen.getByRole("link", { name: "AO3 Stats+" })).toBeInTheDocument();
+  });
+
   it("renders a navigation landmark with links to Home and Install", () => {
     renderAt("/");
     const nav = screen.getByRole("navigation");

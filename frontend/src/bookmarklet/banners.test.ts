@@ -71,6 +71,20 @@ describe("bookmarklet banners", () => {
       expect(writeText).toHaveBeenCalledWith("tok_visible_123");
     });
 
+    it("confirms the copy visibly rather than leaving the button unchanged", () => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.assign(navigator, { clipboard: { writeText } });
+
+      renderSuccessBanner(container, {
+        readToken: "tok_visible_123",
+        dashboardUrl: "https://app.example.com/u/someauthor",
+      });
+      const copyButton = container.querySelector("button");
+      copyButton?.click();
+
+      expect(copyButton?.textContent).toMatch(/copied/i);
+    });
+
     it("uses an accessible status role so screen readers announce success", () => {
       const banner = renderSuccessBanner(container, {
         readToken: "tok_visible_123",
@@ -108,6 +122,19 @@ describe("bookmarklet banners", () => {
       });
 
       expect(banner.getAttribute("role")).toBe("alert");
+    });
+
+    // The schemaVersion is a debugging detail, not something a non-technical
+    // reader needs to parse alongside the actual problem - it must not be
+    // concatenated into the primary message sentence.
+    it("keeps the schemaVersion out of the primary message text", () => {
+      const banner = renderFailureBanner(container, {
+        message: "This bookmarklet is out of date - please reinstall it.",
+        schemaVersion: 1,
+      });
+
+      const message = banner.querySelector("p");
+      expect(message?.textContent).toBe("This bookmarklet is out of date - please reinstall it.");
     });
   });
 

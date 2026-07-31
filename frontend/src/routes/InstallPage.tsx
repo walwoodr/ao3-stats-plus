@@ -13,6 +13,7 @@ function buildBookmarkletSource(): string {
 
 export function InstallPage() {
   const [showCode, setShowCode] = useState(false);
+  const [copied, setCopied] = useState(false);
   const bookmarkletSource = buildBookmarkletSource();
   const bookmarkletLinkRef = useRef<HTMLAnchorElement>(null);
 
@@ -28,27 +29,49 @@ export function InstallPage() {
     bookmarkletLinkRef.current?.setAttribute("href", bookmarkletSource);
   }, [bookmarkletSource]);
 
+  // Resets on the next code-reveal toggle rather than a timer, so the
+  // confirmation doesn't silently disappear while the user is still looking
+  // at the revealed code block deciding what to do next.
   const handleCopy = () => {
     navigator.clipboard.writeText(bookmarkletSource);
+    setCopied(true);
+  };
+
+  const handleToggleShowCode = () => {
+    setShowCode((prev) => !prev);
+    setCopied(false);
   };
 
   return (
     <div className="mx-auto max-w-2xl p-8">
       <h1 className="font-display text-2xl font-semibold text-ink">
-        Install the AO3 Stats+ bookmarklet
+        Save the AO3 Stats+ bookmarklet
       </h1>
       <p className="mt-4 text-ink-soft">
-        Drag the button below to your browser's bookmarks bar. Whenever you're on your AO3 stats
-        page, click it to capture a snapshot of your stats.
+        Drag the "AO3 Stats+" button to your browser's bookmarks bar. Whenever you're on your AO3
+        stats page, click it to capture a snapshot of your stats.
+      </p>
+      <p className="mt-4 text-sm text-ink-soft">
+        The bookmarklet is a small script that makes a request to this site to fetch code to read
+        your stats page and send your stats at that moment in time to the database. The code is open
+        source and you can view it on{" "}
+        <a
+          href="https://github.com/walwoodr/ao3-stats-plus"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-accent hover:underline"
+        >
+          GitHub
+        </a>
       </p>
 
       <button
         type="button"
         aria-expanded={showCode}
-        onClick={() => setShowCode((prev) => !prev)}
+        onClick={handleToggleShowCode}
         className="mt-6 cursor-pointer rounded-md border border-ink-soft px-4 py-2 text-sm font-semibold text-ink outline-none transition-colors duration-200 hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
-        Show code
+        {showCode ? "Hide code" : "Show code"}
       </button>
 
       <p className="mt-6">
@@ -79,7 +102,7 @@ export function InstallPage() {
             onClick={handleCopy}
             className="mt-2 cursor-pointer rounded-md border border-ink-soft px-3 py-1 text-sm font-semibold text-ink outline-none transition-colors duration-200 hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
-            Copy
+            {copied ? "Copied!" : "Copy"}
           </button>
         </div>
       )}

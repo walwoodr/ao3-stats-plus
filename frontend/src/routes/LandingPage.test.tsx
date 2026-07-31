@@ -14,6 +14,18 @@ describe("LandingPage", () => {
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
   });
 
+  // Same brand name as AppLayout's header link and InstallPage's heading
+  // ("AO3 Stats+"), not the lowercase technical package/repo name.
+  it("uses the product's brand name, not the technical package name", () => {
+    render(
+      <MemoryRouter>
+        <LandingPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("AO3 Stats+");
+  });
+
   it("links to the bookmarklet install instructions", () => {
     render(
       <MemoryRouter>

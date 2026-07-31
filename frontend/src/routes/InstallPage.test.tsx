@@ -35,7 +35,12 @@ describe("InstallPage", () => {
     render(<InstallPage />);
 
     const toggle = screen.getByRole("button", { name: /show.*code|copy.*code/i });
-    await user.tab();
+    // Tabs until the toggle itself has focus rather than assuming it's the
+    // Nth tab stop - other focusable elements (e.g. the open-source GitHub
+    // link) may legitimately sit earlier in the page's tab order.
+    while (document.activeElement !== toggle) {
+      await user.tab();
+    }
     // The fallback toggle must be reachable/operable purely via keyboard.
     await user.keyboard("{Enter}");
 
@@ -65,6 +70,28 @@ describe("InstallPage", () => {
     await user.click(copyButton);
 
     expect(writeText).toHaveBeenCalledWith(codeBlock.textContent);
+  });
+
+  it("confirms the copy visibly rather than leaving the button unchanged", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
+    render(<InstallPage />);
+
+    await user.click(screen.getByRole("button", { name: /show.*code|copy.*code/i }));
+    await user.click(screen.getByRole("button", { name: /^copy$/i }));
+
+    expect(screen.getByRole("button", { name: /copied/i })).toBeInTheDocument();
+  });
+
+  it("toggles the reveal button's label between Show code and Hide code", async () => {
+    const user = userEvent.setup();
+    render(<InstallPage />);
+
+    const toggle = screen.getByRole("button", { name: /show code/i });
+    await user.click(toggle);
+
+    expect(screen.getByRole("button", { name: /hide code/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^show code$/i })).not.toBeInTheDocument();
   });
 
   it("explains that dragging the link to the bookmarks bar installs it", () => {

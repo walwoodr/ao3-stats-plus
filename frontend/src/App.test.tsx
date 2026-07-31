@@ -8,6 +8,6 @@ import App from "./App";
 describe("App", () => {
   it("renders the home page heading", () => {
     render(<App />);
-    expect(screen.getByRole("heading", { name: /ao3-stats-plus/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /ao3 stats\+/i })).toBeInTheDocument();
   });
 });

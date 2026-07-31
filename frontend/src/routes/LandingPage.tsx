@@ -3,10 +3,9 @@ import { Link } from "react-router-dom";
 export function LandingPage() {
   return (
     <div className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-6 p-8 text-center">
-      <h1 className="font-display text-4xl font-semibold text-ink">ao3-stats-plus</h1>
+      <h1 className="font-display text-4xl font-semibold text-ink">AO3 Stats+</h1>
       <p className="text-lg text-ink-soft">
-        Track how your AO3 fic stats - hits, kudos, comments, bookmarks, subscriptions - change over
-        time, straight from your own stats page.
+        Track your AO3 fic stats over time.
       </p>
       <Link
         to="/install"

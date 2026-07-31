@@ -19,7 +19,7 @@ export function AppLayout() {
           to="/"
           className="rounded-sm font-display text-lg font-semibold text-ink outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
-          ao3-stats-plus
+          AO3 Stats+
         </Link>
       </header>
 

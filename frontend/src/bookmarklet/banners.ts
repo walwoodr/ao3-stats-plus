@@ -144,11 +144,17 @@ export function renderSuccessBanner(container: HTMLElement, data: SuccessBannerD
   const copyButton = document.createElement("button");
   copyButton.type = "button";
   copyButton.textContent = "Copy";
-  copyButton.style.cssText = primaryButtonStyle(colors.growth);
+  copyButton.style.cssText = primaryButtonStyle(colors.card);
   copyButton.addEventListener("click", () => {
     navigator.clipboard.writeText(data.readToken);
+    copyButton.textContent = "Copied!";
   });
   banner.appendChild(copyButton);
+  const copyExplainer = document.createElement("p");
+  copyExplainer.textContent =
+    "You may wish to save your read token in a password wallet to guarantee future access to your saved stats.";
+  copyExplainer.style.cssText = MESSAGE_STYLE;
+  banner.appendChild(copyExplainer);
 
   const link = document.createElement("a");
   link.href = data.dashboardUrl;
@@ -167,7 +173,19 @@ export function renderFailureBanner(container: HTMLElement, data: FailureBannerD
   const banner = document.createElement("div");
   banner.setAttribute("role", "alert");
   banner.style.cssText = `${bannerBaseStyle(colors)}background:${tintBackground(colors, colors.destructive)};border:1px solid ${colors.destructive};`;
-  banner.textContent = `${data.message} (schemaVersion ${data.schemaVersion})`;
+
+  const message = document.createElement("p");
+  message.textContent = data.message;
+  message.style.cssText = MESSAGE_STYLE;
+  banner.appendChild(message);
+
+  // schemaVersion is a debugging detail, not part of the problem
+  // explanation - de-emphasized (smaller, muted) rather than concatenated
+  // into the message a non-technical reader has to parse.
+  const detail = document.createElement("p");
+  detail.textContent = `schemaVersion ${data.schemaVersion}`;
+  detail.style.cssText = `${MESSAGE_STYLE}font-size:0.75rem;color:${colors.inkSoft};`;
+  banner.appendChild(detail);
 
   container.appendChild(banner);
   return banner;
