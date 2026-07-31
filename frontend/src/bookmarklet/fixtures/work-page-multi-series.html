@@ -5,7 +5,10 @@
   span.series elements inside dd.series (mirroring how dd.fandom.tags lists
   multiple li.tag entries for a multi-fandom work).
 
-  This fixture: a work belonging to two different series.
+  This fixture: a work belonging to two different series. Per the verified
+  work_meta_list behavior (see work-page-complete-no-series.html's header),
+  only the Bookmarks row is ever linked - Chapters, Comments, and Kudos are
+  always plain text.
 -->
 <div id="workskin">
   <div id="main" class="works-show region" role="main">
@@ -37,11 +40,11 @@
             <dt>Updated:</dt>
             <dd class="status">2024-03-01</dd>
             <dt>Chapters:</dt>
-            <dd class="chapters"><a href="/works/333/navigate">2</a>/5</dd>
+            <dd class="chapters">2/5</dd>
             <dt>Comments:</dt>
-            <dd class="comments"><a href="/works/333#comments">3</a></dd>
+            <dd class="comments">3</dd>
             <dt>Kudos:</dt>
-            <dd class="kudos"><a href="/works/333#kudos">20</a></dd>
+            <dd class="kudos">20</dd>
             <dt>Bookmarks:</dt>
             <dd class="bookmarks"><a href="/works/333/bookmarks">2</a></dd>
             <dt>Hits:</dt>

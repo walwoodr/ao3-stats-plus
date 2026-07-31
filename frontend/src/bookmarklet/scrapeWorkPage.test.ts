@@ -11,11 +11,16 @@ import { scrapeWorkPage } from "./scrapeWorkPage";
 // throws - a changed/broken layout is a typed { ok: false, reason:
 // "scrape-failed" } result, mirroring scrapeStats.ts's established pattern.
 //
-// EXTERNAL-UNVERIFIED: every fixture this spec loads carries its own header
-// comment flagging that its markup shape is modeled on otwcode/otwarchive's
+// EXTERNAL-UNVERIFIED: the outer dl.work.meta.group/dl.stats nesting and
+// the dd.series markup shape are modeled on otwcode/otwarchive's
 // work_meta_list helper and general knowledge of AO3's rendered template,
 // not verified against a live AO3 page - see each fixture file and
-// TECH_DEBT.md for the corresponding entry.
+// TECH_DEBT.md for the corresponding entry. Two things ARE confirmed
+// against work_meta_list's real source (app/helpers/works_helper.rb):
+// (1) Comments and Bookmarks rows are omitted entirely when their count is
+// zero, not rendered as a bare "0" - a zero must be inferred from the
+// row's absence; (2) only the Bookmarks row is ever wrapped in a link -
+// Chapters, Comments, and Kudos are always plain text, regardless of count.
 function loadFixture(name: string): Document {
   const html = readFileSync(join(__dirname, "fixtures", name), "utf-8");
   return new DOMParser().parseFromString(html, "text/html");
@@ -79,12 +84,12 @@ describe("scrapeWorkPage", () => {
       expect(result.ok).toBe(true);
     });
 
-    it("parses public_bookmarks_count as 0 (not null) from a bare, unlinked dd.bookmarks", () => {
+    it("parses public_bookmarks_count as 0 (not null) when dd.bookmarks is absent entirely (AO3 omits the row when the count is zero)", () => {
       if (!result.ok) throw new Error("expected ok result");
       expect(result.data.publicBookmarks).toBe(0);
     });
 
-    it("parses count_visible_comments as 0 (not null) from a bare, unlinked dd.comments", () => {
+    it("parses count_visible_comments as 0 (not null) when dd.comments is absent entirely (AO3 omits the row when the count is zero)", () => {
       if (!result.ok) throw new Error("expected ok result");
       expect(result.data.visibleComments).toBe(0);
     });

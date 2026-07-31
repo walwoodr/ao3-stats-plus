@@ -11,7 +11,10 @@
   it) will need correcting against a live page capture.
 
   This fixture: an ongoing WIP with an open-ended chapter count ("3/?" -
-  chaptersExpected unknown), not yet complete, one series.
+  chaptersExpected unknown), not yet complete, one series. Per the verified
+  work_meta_list behavior (see work-page-complete-no-series.html's header),
+  only the Bookmarks row is ever linked - Chapters, Comments, and Kudos are
+  always plain text.
 -->
 <div id="workskin">
   <div id="main" class="works-show region" role="main">
@@ -42,11 +45,11 @@
             <dt>Words:</dt>
             <dd class="words">12,345</dd>
             <dt>Chapters:</dt>
-            <dd class="chapters"><a href="/works/111/navigate">3</a>/?</dd>
+            <dd class="chapters">3/?</dd>
             <dt>Comments:</dt>
-            <dd class="comments"><a href="/works/111?show_comments=true#comments">14</a></dd>
+            <dd class="comments">14</dd>
             <dt>Kudos:</dt>
-            <dd class="kudos"><a href="/works/111#kudos">40</a></dd>
+            <dd class="kudos">40</dd>
             <dt>Bookmarks:</dt>
             <dd class="bookmarks"><a href="/works/111/bookmarks">6</a></dd>
             <dt>Hits:</dt>

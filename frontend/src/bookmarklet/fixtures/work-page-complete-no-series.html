@@ -4,9 +4,20 @@
 
   This fixture: a finished work ("Completed:" dt present, chapters "10/10"),
   in no series (no dt.series/dd.series pair at all), with genuinely zero
-  public bookmarks and zero visible comments - both rendered as bare "0"
-  text with no wrapping <a>, since AO3 only links a stat once there's
-  something to link to.
+  public bookmarks and zero visible comments. Verified against AO3's real
+  work_meta_list helper (otwcode/otwarchive, app/helpers/works_helper.rb):
+  `if (comment_count = work.count_visible_comments) > 0` and
+  `if (bookmark_count = work.public_bookmarks_count) > 0` wrap the whole
+  dt/dd pair for comments and bookmarks respectively - AO3 omits the row
+  entirely when the count is zero, it does NOT render a bare "0". This
+  fixture has neither dt.comments/dd.comments nor dt.bookmarks/dd.bookmarks
+  at all, so the scraper must infer 0 from the row's absence (while other
+  stats rows, e.g. dd.hits/dd.published, ARE present - distinguishing
+  "this field is genuinely zero" from "the whole stats block is broken/
+  missing", which is what work-page-malformed.html tests instead).
+  Also verified: chapter_total_display (used for the Chapters row) never
+  wraps its number in a link - only the Bookmarks row does (via link_to),
+  and only when bookmark_count > 0.
 -->
 <div id="workskin">
   <div id="main" class="works-show region" role="main">
@@ -31,13 +42,9 @@
             <dt>Words:</dt>
             <dd class="words">5,000</dd>
             <dt>Chapters:</dt>
-            <dd class="chapters"><a href="/works/222/navigate">10</a>/10</dd>
-            <dt>Comments:</dt>
-            <dd class="comments">0</dd>
+            <dd class="chapters">10/10</dd>
             <dt>Kudos:</dt>
-            <dd class="kudos"><a href="/works/222#kudos">5</a></dd>
-            <dt>Bookmarks:</dt>
-            <dd class="bookmarks">0</dd>
+            <dd class="kudos">5</dd>
             <dt>Hits:</dt>
             <dd class="hits">50</dd>
           </dl>

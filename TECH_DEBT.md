@@ -156,7 +156,8 @@
   multi-project coverage merging (possibly a known Vitest issue/GitHub
   discussion, or a per-project `coverage` override needed instead of a
   top-level one).
-- [2026-07-31] (stage: Testing) **EXTERNAL-UNVERIFIED**: all six
+- [2026-07-31] (stage: Testing, partially re-verified stage: Discovery/main
+  thread) **EXTERNAL-UNVERIFIED**: all six
   `frontend/src/bookmarklet/fixtures/work-page-*.html` fixtures (backing
   `scrapeWorkPage.test.ts`, per the work-page enrichment plan's task 5) are
   modeled on otwcode/otwarchive's `app/helpers/works_helper.rb`
@@ -164,14 +165,23 @@
   work-page template - `dl.work.meta.group`, a nested `dl.stats` with
   `dd.published`/`dd.status`/`dd.chapters`/`dd.comments`/`dd.bookmarks`, a
   "Completed:"-vs-"Updated:" `dt` distinguishing `complete`, and
-  `dd.series > span.series > a` for series membership. None of this has
-  been verified against a live AO3 page (no web/account access available
-  during Testing). Each fixture carries its own `EXTERNAL-UNVERIFIED`
-  header comment. Implementation must re-verify these selectors against a
-  real AO3 work page (same discipline as the 2026-07-31 stats-page fandom-
-  nesting fix logged above) before trusting `scrapeWorkPage.ts` in
-  production - if the real markup differs, both the fixtures and the
-  selectors written against them will need correcting.
+  `dd.series > span.series > a` for series membership. The outer nesting and
+  series markup remain unverified against a live AO3 page. Two things WERE
+  independently re-verified by fetching `work_meta_list`'s real source
+  directly (not just re-reading the Discovery citation) and the fixtures
+  corrected accordingly: (1) Comments/Bookmarks rows are omitted entirely
+  when their count is zero (`if count > 0` gates the whole `dt`/`dd` pair),
+  not rendered as a bare "0" as the original fixtures wrongly assumed - this
+  was load-bearing for the plan's NULL-vs-0 design goal, since a naive
+  "read text from dd.comments" implementation would have misread "row
+  absent because zero" as "not captured"; (2) only the Bookmarks row is ever
+  wrapped in a link - the original fixtures incorrectly linked Chapters,
+  Comments, and Kudos too. Each fixture carries its own `EXTERNAL-UNVERIFIED`
+  header comment. Implementation must still re-verify the outer nesting/
+  series selectors against a real AO3 work page (same discipline as the
+  2026-07-31 stats-page fandom-nesting fix logged above) before trusting
+  `scrapeWorkPage.ts` in production - if the real markup differs, both the
+  fixtures and the selectors written against them will need correcting.
 - [2026-07-31] (stage: Testing) **EXTERNAL-UNVERIFIED**: the
   `frontend/src/bookmarklet/fixtures/work-bookmarks-*.html` fixtures
   (backing `scrapeWorkBookmarks.test.ts`, work-page enrichment plan's task

@@ -3,6 +3,10 @@
 
   This fixture: dd.published contains text that doesn't parse as a date -
   publishedOn must come back null rather than aborting the whole scrape.
+  Comments/bookmarks are genuinely zero here too, so (per the verified
+  omit-when-zero behavior documented in work-page-complete-no-series.html's
+  header) neither dt.comments/dd.comments nor dt.bookmarks/dd.bookmarks is
+  present, and chapters/kudos are never linked by AO3's real work_meta_list.
 -->
 <div id="workskin">
   <div id="main" class="works-show region" role="main">
@@ -23,13 +27,7 @@
             <dt>Published:</dt>
             <dd class="published">not-a-real-date</dd>
             <dt>Chapters:</dt>
-            <dd class="chapters"><a href="/works/444/navigate">1</a>/1</dd>
-            <dt>Comments:</dt>
-            <dd class="comments">0</dd>
-            <dt>Kudos:</dt>
-            <dd class="kudos">0</dd>
-            <dt>Bookmarks:</dt>
-            <dd class="bookmarks">0</dd>
+            <dd class="chapters">1/1</dd>
             <dt>Hits:</dt>
             <dd class="hits">1</dd>
           </dl>

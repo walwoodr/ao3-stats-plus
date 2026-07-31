@@ -4,7 +4,10 @@
   This fixture: a popular work whose bookmarks/comments render with
   comma-delimited thousands separators, exactly like the existing
   stats-page fixtures (frontend/src/bookmarklet/fixtures/all-years-happy-path.html)
-  already exercise for the aggregate/per-work stats-page counters.
+  already exercise for the aggregate/per-work stats-page counters. Per the
+  verified work_meta_list behavior (see work-page-complete-no-series.html's
+  header), only the Bookmarks row is ever linked (via link_to, only when
+  nonzero) - Chapters, Comments, and Kudos are always plain text.
 -->
 <div id="workskin">
   <div id="main" class="works-show region" role="main">
@@ -27,11 +30,11 @@
             <dt>Updated:</dt>
             <dd class="status">2020-06-01</dd>
             <dt>Chapters:</dt>
-            <dd class="chapters"><a href="/works/555/navigate">20</a>/25</dd>
+            <dd class="chapters">20/25</dd>
             <dt>Comments:</dt>
-            <dd class="comments"><a href="/works/555#comments">2,500</a></dd>
+            <dd class="comments">2,500</dd>
             <dt>Kudos:</dt>
-            <dd class="kudos"><a href="/works/555#kudos">9,000</a></dd>
+            <dd class="kudos">9,000</dd>
             <dt>Bookmarks:</dt>
             <dd class="bookmarks"><a href="/works/555/bookmarks">1,234</a></dd>
             <dt>Hits:</dt>
