@@ -60,6 +60,10 @@ jobs:
       # actually hits this origin - the point is exercising the same
       # build/verify path a real deploy would use, not localhost's default.
       VITE_API_ORIGIN: https://api.example.test
+      # Same reasoning as VITE_API_ORIGIN above: vite.config.ts now fails
+      # the build loudly if this is unset, so the main app build doesn't
+      # silently ship pointed at localhost either.
+      VITE_GRAPHQL_URL: https://api.example.test/graphql
     steps:
       - uses: actions/checkout@v4
 
