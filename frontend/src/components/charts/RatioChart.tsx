@@ -104,6 +104,30 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
     return row.isLeadIn && leadIn ? leadInLabel(leadIn) : row.capturedOn;
   };
 
+  // See TrendChart's identical guard: no current caller mounts this with
+  // empty points and no leadIn, but the numeric XAxis domain below would
+  // otherwise throw reading chartData[0]/chartData[chartData.length - 1]
+  // on an empty array.
+  if (chartData.length === 0) {
+    return (
+      <div
+        aria-labelledby={headingId}
+        aria-describedby={description ? descriptionId : undefined}
+        className="w-full rounded-lg border border-ink/12 bg-card p-6 transition-colors duration-200 hover:border-ink/24"
+      >
+        <h3 id={headingId} className="font-display text-base font-semibold text-ink">
+          {title}
+        </h3>
+        {description && (
+          <p id={descriptionId} className="mt-1 text-sm text-ink-soft">
+            {description}
+          </p>
+        )}
+        <p className="mt-4 text-sm text-ink-soft">No data yet.</p>
+      </div>
+    );
+  }
+
   return (
     <figure
       role="img"

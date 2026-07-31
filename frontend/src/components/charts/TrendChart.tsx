@@ -116,6 +116,30 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
     return row.isLeadIn && leadIn ? leadInLabel(leadIn) : row.capturedOn;
   };
 
+  // No current caller mounts this with empty points and no leadIn - Recharts'
+  // numeric XAxis domain reads chartData[0]/chartData[chartData.length - 1],
+  // which would otherwise throw on an empty array - but the component is
+  // reusable, so it degrades to a plain message instead of a chart region.
+  if (chartData.length === 0) {
+    return (
+      <div
+        aria-labelledby={headingId}
+        aria-describedby={description ? descriptionId : undefined}
+        className="w-full rounded-lg border border-ink/12 bg-card p-6 transition-colors duration-200 hover:border-ink/24"
+      >
+        <h3 id={headingId} className="font-display text-base font-semibold text-ink">
+          {title}
+        </h3>
+        {description && (
+          <p id={descriptionId} className="mt-1 text-sm text-ink-soft">
+            {description}
+          </p>
+        )}
+        <p className="mt-4 text-sm text-ink-soft">No data yet.</p>
+      </div>
+    );
+  }
+
   return (
     <figure
       role="img"

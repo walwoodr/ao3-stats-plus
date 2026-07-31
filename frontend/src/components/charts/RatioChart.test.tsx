@@ -153,4 +153,20 @@ describe("RatioChart", () => {
       expect(label).toMatch(/kudos-to-hits ratio/i);
     });
   });
+
+  // See TrendChart's identical describe block: no current caller renders
+  // RatioChart with empty points and no leadIn, but the component must
+  // degrade to an empty state rather than throwing since it's reusable.
+  describe("with no points and no leadIn", () => {
+    it("renders without throwing", () => {
+      expect(() => render(<RatioChart title="Kudos-to-hits ratio" points={[]} />)).not.toThrow();
+    });
+
+    it("shows an empty-state message instead of a chart region", () => {
+      render(<RatioChart title="Kudos-to-hits ratio" points={[]} />);
+
+      expect(screen.queryByRole("img", { name: /kudos-to-hits ratio/i })).not.toBeInTheDocument();
+      expect(screen.getByText(/no data/i)).toBeInTheDocument();
+    });
+  });
 });

@@ -181,4 +181,23 @@ describe("TrendChart", () => {
       expect(within(table).getAllByRole("row")).toHaveLength(3);
     });
   });
+
+  // No caller currently renders TrendChart with empty points and no leadIn
+  // (DashboardPage only mounts it once aggregateSeries.length > 0), but the
+  // component is reusable and has Storybook stories, so it must degrade to
+  // an empty state rather than throwing when chartData ends up empty.
+  describe("with no points and no leadIn", () => {
+    it("renders without throwing", () => {
+      expect(() =>
+        render(<TrendChart title="Total hits" valueLabel="Hits" points={[]} />),
+      ).not.toThrow();
+    });
+
+    it("shows an empty-state message instead of a chart region", () => {
+      render(<TrendChart title="Total hits" valueLabel="Hits" points={[]} />);
+
+      expect(screen.queryByRole("img", { name: /total hits/i })).not.toBeInTheDocument();
+      expect(screen.getByText(/no data/i)).toBeInTheDocument();
+    });
+  });
 });

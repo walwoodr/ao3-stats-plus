@@ -87,17 +87,6 @@
   the real nesting; confirmed the corrected fixtures fail against the
   unfixed selector (15/20 tests red) before applying the fix, then green
   after (20/20).
-- [2026-07-30] (stage: Review) `TrendChart.tsx`/`RatioChart.tsx` now read
-  `chartData[0].xValue` and `chartData[chartData.length - 1].xValue` for the
-  numeric XAxis `domain` with no empty-data guard, so rendering either chart
-  with an empty `points` array and no `leadIn` throws a TypeError (the prior
-  `dataKey="capturedOn"` version tolerated empty data). Not currently
-  reachable - every caller in `DashboardPage.tsx` renders the charts only
-  when the series is non-empty (`aggregateSeries.length > 0`; per-work works
-  always carry >=1 point) - but the components are reusable and have
-  Storybook stories, so a future caller/story with empty points would crash.
-  Deferred: latent robustness gap, not a live defect; add an empty-data
-  early return if these charts gain other callers.
 - [2026-07-30] (stage: Review) `/ingest` has no authentication, no rate
   limiting, and no recovery path from a claimed username. Any HTTP client
   (CORS only constrains browsers, not `curl`/scripts) can POST an unclaimed
