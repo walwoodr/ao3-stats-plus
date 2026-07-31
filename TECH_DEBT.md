@@ -90,15 +90,6 @@
   to weigh memorability against the token's job as a capability secret
   (shorter/more guessable phrases are weaker if this is meant to gate
   write access, not just convenience).
-- [2026-07-30] (stage: Maintenance) `InstallPage.test.tsx`'s clipboard test
-  ("lets a keyboard user copy the fallback code without dragging anything")
-  fails in this environment with `TypeError: Cannot set property clipboard
-  of #<Navigator> which has only a getter` - `Object.assign(navigator,
-  { clipboard: ... })` no longer works against this jsdom/Node's read-only
-  `navigator.clipboard` getter. Confirmed pre-existing (unrelated to this
-  session's chart work via `git status` on the file) - needs
-  `Object.defineProperty` or a proper clipboard mock instead of
-  `Object.assign`, but wasn't in scope for the lead-in positioning fix.
 - [2026-7-30] Walk through all strings presented to users in the end UI
   with a human and verify that they are correct. 
 - [2026-7-30] Remove hits-to-kudos ratio

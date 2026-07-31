@@ -28,9 +28,14 @@ describe("InstallPage", () => {
   });
 
   it("lets a keyboard user copy the fallback code without dragging anything", async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, { clipboard: { writeText } });
+    // userEvent.setup() (also called by an earlier test in this file)
+    // replaces navigator.clipboard with its own getter-only stub - a plain
+    // Object.assign(navigator, { clipboard: ... }) throws against that
+    // ("Cannot set property clipboard... which has only a getter"), so
+    // this spies on the stub's own writeText instead of hand-rolling a
+    // replacement object.
     const user = userEvent.setup();
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
     render(<InstallPage />);
 
     await user.click(screen.getByRole("button", { name: /show.*code|copy.*code/i }));
