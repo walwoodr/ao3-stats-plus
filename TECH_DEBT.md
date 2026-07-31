@@ -87,18 +87,6 @@
   the real nesting; confirmed the corrected fixtures fail against the
   unfixed selector (15/20 tests red) before applying the fix, then green
   after (20/20).
-- [2026-07-30] (stage: Review) `config/initializers/cors.rb`'s
-  `DEFAULT_FRONTEND_ORIGINS` fallback now includes an open
-  `https://*.trycloudflare.com` wildcard, and cors.rb is active in every
-  environment (including production). If a production deploy forgets to set
-  `FRONTEND_ORIGINS` explicitly, any Cloudflare Quick Tunnel origin would be
-  allowed to call `/graphql`. Low risk today: GraphQL has no cookie/session
-  auth (`GraphqlController` context carries no `current_user`; access is
-  gated by the per-request `read_token` capability, which a cross-origin
-  page cannot read), so the wildcard grants no ambient-credential access.
-  Already acknowledged by the in-file `TODO(deployment)`. Deferred: consider
-  failing closed (raise/empty allowlist) in production when `FRONTEND_ORIGINS`
-  is unset, rather than falling back to a dev default at all.
 - [2026-07-30] (stage: Review) `TrendChart.tsx`/`RatioChart.tsx` now read
   `chartData[0].xValue` and `chartData[chartData.length - 1].xValue` for the
   numeric XAxis `domain` with no empty-data guard, so rendering either chart

@@ -30,32 +30,30 @@ AO3_ORIGINS = [
 # Cloudflare Quick Tunnel origin, since those subdomains are randomly
 # generated on every tunnel restart (see vite.config.ts's matching
 # allowedHosts wildcard and README.md's "Testing the bookmarklet against
-# real AO3"). Falls back to the Vite dev server origin plus that same
-# wildcard, so local tunnel testing works without setting FRONTEND_ORIGINS
-# by hand every time the tunnel restarts.
+# real AO3").
 #
 # In production, FRONTEND_ORIGINS is set explicitly via render.yaml's
 # ao3-stats-plus-api service (envVars: FRONTEND_ORIGINS, hardcoded to the
 # deployed frontend's https://ao3-stats-plus.onrender.com origin - see
-# render.yaml and README.md's "Deployment (Render)" section), so production
-# never falls through to this dev-only wildcard default below.
-DEFAULT_FRONTEND_ORIGINS = "http://localhost:5173,https://*.trycloudflare.com".freeze
-
-# Wildcard-to-Regexp conversion lives in CorsFrontendOriginMatcher
-# (app/services/cors_frontend_origin_matcher.rb) so it's independently
-# unit-testable - see spec/services/cors_frontend_origin_matcher_spec.rb.
+# render.yaml and README.md's "Deployment (Render)" section). If it's ever
+# unset in production anyway (e.g. a misconfigured deploy), this fails
+# closed to an empty allowlist rather than falling back to the dev-only
+# wildcard default below - see CorsFrontendOriginsResolver.
+#
+# Wildcard-to-Regexp conversion (CorsFrontendOriginMatcher) and the
+# fail-closed-in-production resolution (CorsFrontendOriginsResolver) both
+# live under app/services so they're independently unit-testable - see
+# spec/services/cors_frontend_origin_matcher_spec.rb and
+# spec/services/cors_frontend_origins_resolver_spec.rb.
 # require_relative'd explicitly rather than relied on via autoloading:
 # this initializer's top-level code runs during the `load_config_initializers`
 # step, which - in this Rails version - happens before `setup_main_autoloader`
-# activates Zeitwerk's autoloader for app/**, so the bare constant isn't
+# activates Zeitwerk's autoloader for app/**, so the bare constants aren't
 # resolvable here yet.
 require_relative "../../app/services/cors_frontend_origin_matcher"
+require_relative "../../app/services/cors_frontend_origins_resolver"
 
-frontend_origins = ENV.fetch("FRONTEND_ORIGINS", DEFAULT_FRONTEND_ORIGINS)
-  .split(",")
-  .map(&:strip)
-  .reject(&:blank?)
-  .map { |origin| CorsFrontendOriginMatcher.call(origin) }
+frontend_origins = CorsFrontendOriginsResolver.call(ENV["FRONTEND_ORIGINS"], production: Rails.env.production?)
 
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
