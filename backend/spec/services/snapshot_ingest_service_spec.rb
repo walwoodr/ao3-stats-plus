@@ -185,9 +185,10 @@ RSpec.describe SnapshotIngestService do
   # alongside a snapshot: the synthetic zero-point baseline year. It's
   # retried on every ingest until it's set (a scrape can come back empty on
   # any given capture - e.g. AO3's year-selector markup not matching - with
-  # no guarantee the very first one succeeds), but once set it's never
-  # overwritten by a later ingest, never touched by the same-day dedup path,
-  # and a malformed/out-of-range value must never cause the real ingest to
+  # no guarantee the very first one succeeds), including a same-day dedup
+  # ingest (a user retrying the bookmarklet the same day counts as a retry
+  # too), but once set it's never overwritten by a later ingest, and a
+  # malformed/out-of-range value must never cause the real ingest to
   # fail.
   describe "#call earliest_post_year handling" do
     it "persists earliest_post_year from the payload on a brand-new user's first ingest" do
@@ -236,7 +237,7 @@ RSpec.describe SnapshotIngestService do
       expect(first.ao3_user.reload.earliest_post_year).to eq(2014)
     end
 
-    it "never touches earliest_post_year on the same-day dedup path" do
+    it "does not overwrite an already-set earliest_post_year on the same-day dedup path" do
       first = described_class.new(
         payload: valid_ingest_payload(username: "dedupyear", earliest_post_year: 2014),
       ).call
@@ -245,6 +246,26 @@ RSpec.describe SnapshotIngestService do
       second = described_class.new(
         payload: valid_ingest_payload(
           username: "dedupyear", read_token: token, earliest_post_year: 2020,
+        ),
+      ).call
+
+      expect(second.deduped?).to be(true)
+      expect(first.ao3_user.reload.earliest_post_year).to eq(2014)
+    end
+
+    # The real-world case a same-day dedup previously dropped silently: a
+    # user's first-ever capture scrapes no year (e.g. AO3's year-selector
+    # markup wasn't there yet), then they retry the bookmarklet the same
+    # day once the page/markup is right - a same-day retry is exactly the
+    # kind of thing a user does when troubleshooting, so this path getting
+    # it right matters as much as the next day's capture does.
+    it "backfills earliest_post_year on a same-day dedup ingest if it was still nil" do
+      first = described_class.new(payload: valid_ingest_payload(username: "dedupbackfill")).call
+      token = first.read_token
+
+      second = described_class.new(
+        payload: valid_ingest_payload(
+          username: "dedupbackfill", read_token: token, earliest_post_year: 2014,
         ),
       ).call
 

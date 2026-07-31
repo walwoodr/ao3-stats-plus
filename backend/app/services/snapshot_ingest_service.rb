@@ -25,6 +25,12 @@ class SnapshotIngestService
 
     ActiveRecord::Base.transaction do
       ao3_user = find_or_create_user!
+      # Orthogonal to snapshot dedup: whether *this* capture is a same-day
+      # repeat has nothing to do with whether earliest_post_year is still
+      # missing, so this runs on both branches below rather than only the
+      # new-snapshot one - a same-day retry (e.g. a user troubleshooting a
+      # failed first scrape) must be able to backfill it too.
+      persist_earliest_post_year!(ao3_user) if ao3_user.earliest_post_year.nil?
       existing_snapshot = ao3_user.snapshots.find_by(captured_on: captured_on)
 
       if existing_snapshot
@@ -32,7 +38,6 @@ class SnapshotIngestService
       else
         snapshot = build_snapshot!(ao3_user)
         upsert_works!(ao3_user, snapshot)
-        persist_earliest_post_year!(ao3_user) if ao3_user.earliest_post_year.nil?
         Result.new(ao3_user: ao3_user, snapshot: snapshot, read_token: ao3_user.read_token, deduped: false)
       end
     end
