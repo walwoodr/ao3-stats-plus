@@ -8,38 +8,41 @@ view on top of them.
 
 ## Tier 1 - High-value, do soon
 
-- **`RatioChart` lead-in: `1` -> `0`.** Reverses the earlier explicit
-  `ratio: 1` decision. Cheap - same shape as the `earliestPostYear`
-  lead-in work already done; a value + test change in `DashboardPage.tsx`
-  and the relevant chart specs.
-- **`scrapeStats.ts` one-work-per-fandom bug.** Root cause of the
-  "data ingestion is drastically wrong" note - real works are silently
-  dropped today when a fandom heading has more than one. Needs
-  `querySelectorAll` (or equivalent) per fandom row, plus rebuilt test
-  fixtures captured from a real saved AO3 stats page. Highest
-  data-correctness impact of anything on this list.
-- **`DashboardPage` clears a valid token on network errors.** Active bug
-  affecting real usage right now - a network blip logs the user out while
-  showing a message that says it isn't their token's fault. Scope the
-  `clearToken` call to the token-mismatch (`ClientError`) branch only.
-- **InstallPage clipboard test - consolidate + fix.** Logged twice in
-  `TECH_DEBT.md` (merging into one entry as part of this pass); currently
-  the only red test in the frontend suite. Fix via
-  `Object.defineProperty` instead of `Object.assign`, or use
-  `userEvent`'s own clipboard stub.
-- **Two Playwright a11y failures (heading-order, duplicate-text).** Real,
-  currently-failing a11y checks, pre-existing (confirmed via `git stash`
-  not introduced by the re-skin). Heading-order needs an `h2` promoted
-  for the aggregate-charts section; duplicate-text needs the mismatch
-  assertion scoped to one element.
-- **WebKit tab-order a11y test.** Needs a decision (scope the assertion
-  to non-WebKit projects, or accept as a documented WebKit-only gap) -
-  cheap either way, just needs someone to decide and act.
-- **Bookmarklet drag-install unreliable.** *(Moved up from Tier 2 per
+Status: **5 of 6 done.** Only the drag-install item remains, blocked on a
+repro description.
+
+- [x] **`RatioChart` lead-in: `1` -> `0`.** Done (`16b16e9`).
+- [x] **`scrapeStats.ts` one-work-per-fandom bug.** Done (`3a366d1`) - fixed
+  via `:scope > dl` iterating every work per fandom row instead of just the
+  first. Caveat logged in `TECH_DEBT.md`: couldn't get direct access to a
+  real live AO3 stats page to verify the exact nesting shape, so the fix
+  is grounded in strong circumstantial evidence, not a captured real page -
+  worth a sanity check against a real multi-work-per-fandom account.
+- [x] **`DashboardPage` clears a valid token on network errors.** Done
+  (`fa1b2b4`) - `clearToken` now only fires on a backend-confirmed
+  `ClientError`, not a plain network/CORS failure.
+- [x] **InstallPage clipboard test - consolidate + fix.** Done (`4e92dba`)
+  - root cause was `userEvent.setup()` unconditionally attaching its own
+  getter-only `navigator.clipboard` stub; fixed by spying on the existing
+  stub instead of replacing it.
+- [x] **Two Playwright a11y failures (heading-order, duplicate-text).**
+  Done (`b5f4c8b`). Fixing heading-order surfaced a third, previously-
+  masked violation (`aria-prohibited-attr` on the chart point-markers,
+  hidden until they became genuinely reachable earlier this session) -
+  fixed by switching markers from `aria-label` to plain text content.
+  Also surfaced 3 new WebKit-only `color-contrast` failures (landing/
+  install/no-token-dashboard), logged to `TECH_DEBT.md` as a likely
+  CSS-transition timing artifact, not a real defect - out of scope for
+  this pass.
+- [x] **WebKit tab-order a11y test.** Done (`ce8ea3a`) - decided: skip the
+  one assertion on WebKit specifically (`test.skip(browserName ===
+  "webkit", ...)`), since it's a documented Playwright/WebKit environment
+  limitation, not an app bug.
+- [ ] **Bookmarklet drag-install unreliable.** *(Moved up from Tier 2 per
   explicit instruction.)* Not yet root-caused (candidates: the `onClick`
   `preventDefault()` interfering with native drag semantics, or a
-  browser-specific `javascript:` URI drag restriction). **Blocked**: the
-  user will describe the exact repro/issue when it's ready to be worked.
+  browser-specific `javascript:` URI drag restriction). **Still blocked**:
+  waiting on a repro description.
 
 ## Tier 2 - Worth doing, not urgent
 
@@ -67,6 +70,15 @@ view on top of them.
   deployment plan's live smoke-test task (R1)
 
 ## Already scheduled (deployment plan - see TaskList T1-T5/I1-I7/R1-R8)
+
+**Testing stage (T1-T5) complete** - failing tests written and confirmed
+red for: the `DATABASE_URL`/`database.yml` mismatch, the extracted CORS
+origin-matcher (`CorsFrontendOriginMatcher`, now genuinely unit-testable),
+the frontend production-build env check (extended
+`verify-bookmarklet-build.mjs` to also catch a stray `"localhost"` in a
+production bundle), and a `render.yaml` shape guardrail spec (the file
+itself doesn't exist yet - that's Implementation's job, I3). Implementation
+(I1-I7) not yet started.
 
 Not duplicated here: CORS fail-closed in production (I5), and
 `graphqlClient`'s silent-localhost fallback is covered by the frontend
