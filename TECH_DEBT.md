@@ -122,13 +122,6 @@
   multi-tenant or public - candidate mitigations: a Rack::Attack throttle on
   `/ingest`, and/or binding a claim to something only the real author can
   produce.
-- [2026-07-30] (stage: Review) `graphqlClient.ts` silently falls back to
-  `http://localhost:3000/graphql` when `VITE_GRAPHQL_URL` is unset -
-  inconsistent with the bookmarklet build, which deliberately fails loudly
-  when `VITE_API_ORIGIN` is unset (see vite.bookmarklet.config.ts). A
-  production frontend build with the env var forgotten would silently ship a
-  dashboard pointed at localhost. Consider failing the build/boot loudly, or
-  at least warning, when it's unset in a production build.
 - [2026-07-30] (stage: Review) Capability-token comparisons use plain `==`
   (`QueryType#stats_for_user`, `SnapshotIngestService#find_or_create_user!`),
   not a constant-time compare (`ActiveSupport::SecurityUtils.secure_compare`).
