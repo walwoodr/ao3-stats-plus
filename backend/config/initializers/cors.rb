@@ -38,21 +38,21 @@ AO3_ORIGINS = [
 # placeholder (an open subdomain wildcard), not a production-ready default.
 DEFAULT_FRONTEND_ORIGINS = "http://localhost:5173,https://*.trycloudflare.com".freeze
 
-# Turns a single "*" wildcard segment into a Regexp rack-cors can match
-# against (see Rack::Cors::Resources#origins, which accepts Regexp
-# alongside literal strings); origins without a "*" pass through unchanged.
-frontend_origin_matcher = lambda do |origin|
-  next origin unless origin.include?("*")
-
-  pattern = Regexp.escape(origin).gsub('\*', "[^.]+")
-  Regexp.new("\\A#{pattern}\\z")
-end
+# Wildcard-to-Regexp conversion lives in CorsFrontendOriginMatcher
+# (app/services/cors_frontend_origin_matcher.rb) so it's independently
+# unit-testable - see spec/services/cors_frontend_origin_matcher_spec.rb.
+# require_relative'd explicitly rather than relied on via autoloading:
+# this initializer's top-level code runs during the `load_config_initializers`
+# step, which - in this Rails version - happens before `setup_main_autoloader`
+# activates Zeitwerk's autoloader for app/**, so the bare constant isn't
+# resolvable here yet.
+require_relative "../../app/services/cors_frontend_origin_matcher"
 
 frontend_origins = ENV.fetch("FRONTEND_ORIGINS", DEFAULT_FRONTEND_ORIGINS)
   .split(",")
   .map(&:strip)
   .reject(&:blank?)
-  .map(&frontend_origin_matcher)
+  .map { |origin| CorsFrontendOriginMatcher.call(origin) }
 
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
