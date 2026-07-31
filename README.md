@@ -177,6 +177,78 @@ of the conveniences above are wired to it:
 (`scripts/tunnel-backend.mjs` shells out to `cloudflared` directly) - use
 the manual path above with your provider's own tunnel command instead.
 
+## Deployment (Render)
+
+Hosted on [Render](https://render.com), fully managed, defined as
+Infrastructure-as-Code in `render.yaml` (a Render Blueprint) at the repo
+root. This is a personal/single-user tool - the setup below is deliberately
+minimal and **not built for scale** (see the open scale-related items in
+`TECH_DEBT.md`: the per-work N+1 query, no `/ingest` rate limiting/auth, and
+the credential-less claim design - none of that has changed as part of this
+deployment work).
+
+### Split topology
+
+Frontend and backend are two separate Render services with two separate
+origins, not a single combined deploy:
+
+- **Backend** - `ao3-stats-plus-api`, a Docker web service (Starter plan,
+  $7/mo) built from `backend/Dockerfile`, at
+  `https://ao3-stats-plus-api.onrender.com`.
+- **Database** - `ao3-stats-plus-db`, managed Postgres (Basic 256mb plan,
+  $6/mo).
+- **Frontend** - `ao3-stats-plus`, a free Static Site built from
+  `frontend/` (`npm install && npm run build`, publishing `frontend/dist`),
+  at `https://ao3-stats-plus.onrender.com`.
+
+**Total: ~$13/mo** (Starter web + Basic Postgres; the static site is free).
+
+### Wiring the two services together
+
+Render Blueprints support a `fromService` env var reference for wiring
+services together automatically, but it only exposes a service's *private*-
+network `host`/`port` - there's no built-in property for a service's public
+`https://*.onrender.com` URL. Since the frontend needs the backend's public
+origin (to call `/graphql` and to know where the bookmarklet should POST),
+`fromService` can't wire this pair together.
+
+Instead, both services use fixed, predictable `name:` values in
+`render.yaml`, and each service's `envVars` hardcodes the *other* service's
+public origin as a plain `value:` (Render's public URL for a named service
+is always deterministically `https://<name>.onrender.com`):
+
+- Backend's `FRONTEND_ORIGINS` → `https://ao3-stats-plus.onrender.com`
+  (consumed by `backend/config/initializers/cors.rb` for `/graphql` CORS).
+- Frontend's `VITE_API_ORIGIN` / `VITE_GRAPHQL_URL` → built against
+  `https://ao3-stats-plus-api.onrender.com`.
+
+If either service is ever renamed, both `render.yaml` entries referencing
+its old hardcoded URL need updating together - there's no automatic
+propagation.
+
+### Required secrets
+
+`RAILS_MASTER_KEY` is declared in `render.yaml` with `sync: false`, meaning
+Render will **not** auto-generate or supply it - it must be entered manually
+in the Render dashboard (Environment tab) the first time the backend service
+is created, using the value from the existing (gitignored)
+`backend/config/master.key`. Nothing else needs manual secret entry:
+`DATABASE_URL` is wired automatically via `fromDatabase`, and
+`FRONTEND_ORIGINS`/`VITE_API_ORIGIN`/`VITE_GRAPHQL_URL` are plain hardcoded
+values as described above.
+
+### Migrations on deploy
+
+The backend service's `preDeployCommand` (`bundle exec rails db:migrate`)
+runs automatically before each deploy goes live, so schema changes ship
+alongside the code that needs them without a manual migration step.
+
+### Health checks
+
+The backend declares `healthCheckPath: /up` (Rails' built-in health check
+endpoint), which Render polls to confirm a new deploy is healthy before
+routing traffic to it.
+
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`) runs three jobs on push/PR to
