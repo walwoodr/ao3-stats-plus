@@ -1,0 +1,59 @@
+<!--
+  EXTERNAL-UNVERIFIED: this fixture's markup shape (dl.work.meta.group,
+  nested dl.stats, dd.chapters/comments/bookmarks/published/status classes)
+  is modeled on otwcode/otwarchive's app/helpers/works_helper.rb
+  (work_meta_list) and app/views/works/_meta.html.erb as cited by
+  docs/plans/work-page-enrichment-data-model.md, and on general community
+  knowledge of AO3's rendered work-page template - it has not been verified
+  against a live AO3 page (no web/account access available in this stage).
+  See TECH_DEBT.md for the corresponding entry. If AO3's real markup
+  differs, this fixture (and the selectors Implementation writes against
+  it) will need correcting against a live page capture.
+
+  This fixture: an ongoing WIP with an open-ended chapter count ("3/?" -
+  chaptersExpected unknown), not yet complete, one series.
+-->
+<div id="workskin">
+  <div id="main" class="works-show region" role="main">
+    <div class="wrapper">
+      <div class="preface group">
+        <h2 class="title heading">An Open-Ended WIP</h2>
+      </div>
+      <dl class="work meta group">
+        <dt class="fandom">Fandom:</dt>
+        <dd class="fandom tags">
+          <ul class="commas">
+            <li><a class="tag" href="/tags/Fandom%20One/works">Fandom One</a></li>
+          </ul>
+        </dd>
+        <dt class="series">Series:</dt>
+        <dd class="series">
+          <span class="series">
+            Part <strong>2</strong> of <a href="/series/456">Series One</a>
+          </span>
+        </dd>
+        <dt class="stats">Stats:</dt>
+        <dd class="stats">
+          <dl class="stats">
+            <dt>Published:</dt>
+            <dd class="published">2023-05-01</dd>
+            <dt>Updated:</dt>
+            <dd class="status">2023-06-15</dd>
+            <dt>Words:</dt>
+            <dd class="words">12,345</dd>
+            <dt>Chapters:</dt>
+            <dd class="chapters"><a href="/works/111/navigate">3</a>/?</dd>
+            <dt>Comments:</dt>
+            <dd class="comments"><a href="/works/111?show_comments=true#comments">14</a></dd>
+            <dt>Kudos:</dt>
+            <dd class="kudos"><a href="/works/111#kudos">40</a></dd>
+            <dt>Bookmarks:</dt>
+            <dd class="bookmarks"><a href="/works/111/bookmarks">6</a></dd>
+            <dt>Hits:</dt>
+            <dd class="hits">400</dd>
+          </dl>
+        </dd>
+      </dl>
+    </div>
+  </div>
+</div>

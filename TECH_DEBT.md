@@ -156,3 +156,19 @@
   multi-project coverage merging (possibly a known Vitest issue/GitHub
   discussion, or a per-project `coverage` override needed instead of a
   top-level one).
+- [2026-07-31] (stage: Testing) **EXTERNAL-UNVERIFIED**: all six
+  `frontend/src/bookmarklet/fixtures/work-page-*.html` fixtures (backing
+  `scrapeWorkPage.test.ts`, per the work-page enrichment plan's task 5) are
+  modeled on otwcode/otwarchive's `app/helpers/works_helper.rb`
+  (`work_meta_list`) and general community knowledge of AO3's rendered
+  work-page template - `dl.work.meta.group`, a nested `dl.stats` with
+  `dd.published`/`dd.status`/`dd.chapters`/`dd.comments`/`dd.bookmarks`, a
+  "Completed:"-vs-"Updated:" `dt` distinguishing `complete`, and
+  `dd.series > span.series > a` for series membership. None of this has
+  been verified against a live AO3 page (no web/account access available
+  during Testing). Each fixture carries its own `EXTERNAL-UNVERIFIED`
+  header comment. Implementation must re-verify these selectors against a
+  real AO3 work page (same discipline as the 2026-07-31 stats-page fandom-
+  nesting fix logged above) before trusting `scrapeWorkPage.ts` in
+  production - if the real markup differs, both the fixtures and the
+  selectors written against them will need correcting.

@@ -1,0 +1,40 @@
+<!--
+  EXTERNAL-UNVERIFIED: see work-page-wip-open-ended.html's header comment.
+
+  This fixture: dd.published contains text that doesn't parse as a date -
+  publishedOn must come back null rather than aborting the whole scrape.
+-->
+<div id="workskin">
+  <div id="main" class="works-show region" role="main">
+    <div class="wrapper">
+      <div class="preface group">
+        <h2 class="title heading">Unparseable Published Date</h2>
+      </div>
+      <dl class="work meta group">
+        <dt class="fandom">Fandom:</dt>
+        <dd class="fandom tags">
+          <ul class="commas">
+            <li><a class="tag" href="/tags/Fandom%20One/works">Fandom One</a></li>
+          </ul>
+        </dd>
+        <dt class="stats">Stats:</dt>
+        <dd class="stats">
+          <dl class="stats">
+            <dt>Published:</dt>
+            <dd class="published">not-a-real-date</dd>
+            <dt>Chapters:</dt>
+            <dd class="chapters"><a href="/works/444/navigate">1</a>/1</dd>
+            <dt>Comments:</dt>
+            <dd class="comments">0</dd>
+            <dt>Kudos:</dt>
+            <dd class="kudos">0</dd>
+            <dt>Bookmarks:</dt>
+            <dd class="bookmarks">0</dd>
+            <dt>Hits:</dt>
+            <dd class="hits">1</dd>
+          </dl>
+        </dd>
+      </dl>
+    </div>
+  </div>
+</div>
