@@ -12,6 +12,17 @@
 // run), which is a different concern from Vitest's in-memory unit/component
 // tests - it's invoked as its own CI step, after the "Build" step, in
 // .github/workflows/ci.yml.
+//
+// Also serves as T4 of docs/plans/bookmarklet-entrypoint-and-hosting.md's
+// finalized hosting plan: locks in that a production-mode build bakes the
+// real (non-localhost) VITE_API_ORIGIN into bookmarklet.js rather than
+// leaking a local dev origin into what Render's static site would actually
+// serve (see the "localhost" check below). The complementary half of T4 -
+// that the build still fails loudly when VITE_API_ORIGIN is unset - is
+// already covered by vite.bookmarklet.config.test.ts's "throws a descriptive
+// error when VITE_API_ORIGIN is unset" specs; this file already worked
+// correctly before this plan (hence this being a regression-lock, not new
+// red-then-green behavior).
 
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -79,6 +90,22 @@ if (!configuredOrigin) {
     `does not contain the configured VITE_API_ORIGIN ("${configuredOrigin}") anywhere in the ` +
       "bundle - the /ingest POST target may have been baked in as undefined/void 0 instead " +
       "of the real origin (see vite.bookmarklet.config.ts).",
+  );
+} else if (!/localhost/i.test(configuredOrigin) && /localhost/i.test(source)) {
+  // Deployment-plan guard (docs/plans/bookmarklet-entrypoint-and-hosting.md's
+  // finalized hosting plan, T4): confirms a production-shaped build (a real,
+  // non-localhost VITE_API_ORIGIN, e.g. the deployed Render backend origin)
+  // doesn't also leave a "localhost" string anywhere in the bundle - e.g.
+  // from a stale prior local-dev build artifact lingering in dist/, since
+  // this script only checks *presence* of configuredOrigin above, not
+  // *absence* of anything else. Deliberately narrower than banning
+  // "localhost" outright: a genuinely local dev build (VITE_API_ORIGIN
+  // itself pointed at localhost) is expected to contain it and shouldn't
+  // fail this check.
+  failures.push(
+    `bakes in the configured production VITE_API_ORIGIN ("${configuredOrigin}") but the bundle ` +
+      'still contains the string "localhost" somewhere - a production build must not also point ' +
+      "at a local dev origin (check for a stale dist/bookmarklet.js from an earlier build).",
   );
 }
 
