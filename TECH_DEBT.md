@@ -189,3 +189,34 @@
   whether this is actually desired (developing against live production
   data has its own risks - accidental writes via `/ingest`, rate limits,
   etc.) before it's built.
+- [2026-07-31] (stage: Retrospective) `npx vitest run --coverage`'s printed
+  report silently omits several source files that have real, passing test
+  files - confirmed via direct verification that `AppLayout.tsx`,
+  `LandingPage.tsx`, `App.tsx`, `TokenEntryForm.tsx`, `useTokenStore.ts`,
+  `useTokenFromUrl.ts`, `useStatsForUser.ts`, `ingestClient.ts`,
+  `buildIngestPayload.ts`, `tokenStorage.ts`, `colorTokens.ts`, and
+  `constants.ts` all have dedicated `.test.ts(x)` files that run and pass
+  (18 test files total across the suite), yet none of them appear in the
+  coverage table - the report only ever lists a handful of files
+  (bookmarklet/*, charts/*, lib's graphqlClient+useChartColors,
+  routes/Dashboard+Install). Tried `coverage.all: true` plus an explicit
+  `include`/`exclude` in `vite.config.ts`'s `test.coverage` block - no
+  effect on which files appear, so the cause is likely specific to this
+  repo's multi-project Vitest config (`test.projects: [...]`, one jsdom
+  project + one Storybook/browser project) not merging/attributing v8
+  coverage correctly across projects, rather than a `coverage.all`
+  misconfiguration. The printed "91.79% statements" figure is real for the
+  files it does cover, but is not the true whole-project number - treat it
+  as a lower bound, not a baseline-compliance verdict, until this is
+  root-caused. Needs Testing/Maintenance to dig into Vitest's
+  multi-project coverage merging (possibly a known Vitest issue/GitHub
+  discussion, or a per-project `coverage` override needed instead of a
+  top-level one).
+- [2026-07-31] (stage: Retrospective) Backend has no test coverage tool
+  configured at all (no SimpleCov or equivalent in the Gemfile), so R8's
+  85% baseline (CODE_STANDARDS.md) can't be measured for `backend/` -
+  only the frontend's (currently unreliable, see the item above) Vitest
+  coverage report exists. Adding one (e.g. `simplecov`) is an out-of-stack
+  gem addition requiring explicit sign-off per `TECH_STACK.md`'s policy,
+  not something to add unilaterally - flagging for a decision rather than
+  adding it now.
