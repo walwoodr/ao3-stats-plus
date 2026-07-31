@@ -173,3 +173,19 @@
   Cheap to strengthen to `toHaveBeenCalledWith(bookmarkletSource)` so it
   actually locks in that the bookmarklet source (not some other string) is
   what lands on the clipboard.
+- [2026-07-31] (stage: Maintenance) No documented/convenient way to point
+  local frontend dev at the real deployed backend
+  (`https://ao3-stats-plus-api.onrender.com`, now live on Render) instead
+  of `localhost:3000` or a Cloudflare tunnel. Today's `.env.local`
+  workflow (see README.md, "Frontend (React + Vite)" and the
+  `npm run tunnel:backend` convenience) is oriented entirely around local-
+  backend and tunnel-to-local-backend development - there's no equivalent
+  quick path to run `npm run dev` against the production API for testing
+  frontend changes against real deployed data/behavior without also
+  running the backend locally. Candidate shape: a documented
+  `.env.local` snippet or a small npm script (mirroring
+  `tunnel-backend.mjs`'s pattern) that sets `VITE_GRAPHQL_URL`/
+  `VITE_API_ORIGIN` to the real Render origin. Needs a product decision on
+  whether this is actually desired (developing against live production
+  data has its own risks - accidental writes via `/ingest`, rate limits,
+  etc.) before it's built.
