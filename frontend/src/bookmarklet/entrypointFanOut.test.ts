@@ -45,13 +45,26 @@ const scrapedData: ScrapedData = {
   username: "someauthor",
   earliestPostYear: null,
   aggregate: {
-    hits: 1234, kudos: 100, comments: 20, bookmarks: 15, subscriptions: 10,
-    userSubscriptions: 5, wordCount: 75_000, worksCount: 1,
+    hits: 1234,
+    kudos: 100,
+    comments: 20,
+    bookmarks: 15,
+    subscriptions: 10,
+    userSubscriptions: 5,
+    wordCount: 75_000,
+    worksCount: 1,
   },
   works: [
     {
-      ao3WorkId: 111, title: "Work A", fandoms: ["Fandom One"], hits: 400,
-      kudos: 40, comments: 8, bookmarks: 6, subscriptions: 4, wordCount: 30_000,
+      ao3WorkId: 111,
+      title: "Work A",
+      fandoms: ["Fandom One"],
+      hits: 400,
+      kudos: 40,
+      comments: 8,
+      bookmarks: 6,
+      subscriptions: 4,
+      wordCount: 30_000,
     },
   ],
 };
@@ -100,7 +113,10 @@ describe("bookmarklet entrypoint - Phase 1 -> Phase 2 handoff", () => {
     const { runFanOut } = await import("./fanOut");
     vi.mocked(scrapeStats).mockReturnValue({ ok: true, data: scrapedData } as ScrapeResult);
     vi.mocked(postIngest).mockResolvedValue({
-      status: "success", readToken: "tok_new", capturedOn: "2026-07-23", deduped: false,
+      status: "success",
+      readToken: "tok_new",
+      capturedOn: "2026-07-23",
+      deduped: false,
     } as IngestResult);
 
     await import("./entrypoint");
@@ -115,7 +131,10 @@ describe("bookmarklet entrypoint - Phase 1 -> Phase 2 handoff", () => {
     const { runFanOut } = await import("./fanOut");
     vi.mocked(scrapeStats).mockReturnValue({ ok: true, data: scrapedData } as ScrapeResult);
     vi.mocked(postIngest).mockResolvedValue({
-      status: "success", readToken: "tok_new", capturedOn: "2026-07-23", deduped: false,
+      status: "success",
+      readToken: "tok_new",
+      capturedOn: "2026-07-23",
+      deduped: false,
     } as IngestResult);
 
     await import("./entrypoint");
@@ -138,7 +157,10 @@ describe("bookmarklet entrypoint - Phase 1 -> Phase 2 handoff", () => {
     const { runFanOut } = await import("./fanOut");
     vi.mocked(scrapeStats).mockReturnValue({ ok: true, data: scrapedData } as ScrapeResult);
     vi.mocked(postIngest).mockResolvedValue({
-      status: "success", readToken: "tok_prev", capturedOn: "2026-07-23", deduped: true,
+      status: "success",
+      readToken: "tok_prev",
+      capturedOn: "2026-07-23",
+      deduped: true,
     } as IngestResult);
 
     await import("./entrypoint");

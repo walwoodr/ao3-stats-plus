@@ -30,12 +30,22 @@ const scrapedWorkPage = (ao3WorkId: number): WorkPageScrapeResult =>
   ({
     ok: true,
     data: {
-      ao3WorkId, publicBookmarks: 1, visibleComments: 2, publishedOn: "2023-05-01",
-      chapterCount: 1, chaptersExpected: 1, complete: false, series: [],
+      ao3WorkId,
+      publicBookmarks: 1,
+      visibleComments: 2,
+      publishedOn: "2023-05-01",
+      chapterCount: 1,
+      chaptersExpected: 1,
+      complete: false,
+      series: [],
     },
   }) as WorkPageScrapeResult;
 
-const emptyBookmarksResult: FetchWorkBookmarksResult = { bookmarks: [], truncated: false, pagesFetched: 1 };
+const emptyBookmarksResult: FetchWorkBookmarksResult = {
+  bookmarks: [],
+  truncated: false,
+  pagesFetched: 1,
+};
 
 function stubBannerImplementation(fn: ReturnType<typeof vi.fn>) {
   fn.mockImplementation((container: HTMLElement) => {
@@ -93,7 +103,9 @@ describe("runFanOut", () => {
     const { postWorkDetail } = await import("./workDetailIngestClient");
     vi.mocked(scrapeWorkPage).mockReturnValueOnce(scrapedWorkPage(ao3WorkId));
     vi.mocked(fetchAllWorkBookmarks).mockResolvedValueOnce(emptyBookmarksResult);
-    vi.mocked(postWorkDetail).mockResolvedValueOnce({ status: "success" } as WorkDetailIngestResult);
+    vi.mocked(postWorkDetail).mockResolvedValueOnce({
+      status: "success",
+    } as WorkDetailIngestResult);
   }
 
   describe("sequential throttled iteration (never parallel bursts)", () => {
@@ -190,7 +202,10 @@ describe("runFanOut", () => {
       vi.mocked(scrapeWorkPage).mockReturnValue(scrapedWorkPage(111));
       vi.mocked(fetchAllWorkBookmarks).mockResolvedValue(emptyBookmarksResult);
       vi.mocked(postWorkDetail)
-        .mockResolvedValueOnce({ status: "invalid", message: "bad payload" } as WorkDetailIngestResult)
+        .mockResolvedValueOnce({
+          status: "invalid",
+          message: "bad payload",
+        } as WorkDetailIngestResult)
         .mockResolvedValueOnce({ status: "success" } as WorkDetailIngestResult);
 
       const summary = await runFanOut(baseOptions([111, 222]), {
@@ -207,7 +222,10 @@ describe("runFanOut", () => {
     it("skips a work whose page fetch resolves null (timed out/aborted) and continues to the next", async () => {
       const runFanOut = await importRunFanOut();
       await stubSuccessfulWork(222);
-      const fetchWorkPageDocument = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(new Document());
+      const fetchWorkPageDocument = vi
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(new Document());
 
       const summary = await runFanOut(baseOptions([111, 222]), {
         fetchWorkPageDocument,
@@ -315,7 +333,11 @@ describe("runFanOut", () => {
       const { fetchAllWorkBookmarks } = await import("./scrapeWorkBookmarks");
       const { postWorkDetail } = await import("./workDetailIngestClient");
       vi.mocked(scrapeWorkPage).mockReturnValue(scrapedWorkPage(111));
-      vi.mocked(fetchAllWorkBookmarks).mockResolvedValue({ bookmarks: [], truncated: true, pagesFetched: 5 });
+      vi.mocked(fetchAllWorkBookmarks).mockResolvedValue({
+        bookmarks: [],
+        truncated: true,
+        pagesFetched: 5,
+      });
       vi.mocked(postWorkDetail).mockResolvedValue({ status: "success" } as WorkDetailIngestResult);
 
       const summary = await runFanOut(baseOptions([111], { maxBookmarkPagesPerWork: 5 }), {
@@ -369,7 +391,8 @@ describe("runFanOut", () => {
         sleep: vi.fn().mockResolvedValue(undefined),
       });
 
-      const progressBanner = vi.mocked(banners.renderProgressBanner).mock.results[0]?.value as HTMLElement;
+      const progressBanner = vi.mocked(banners.renderProgressBanner).mock.results[0]
+        ?.value as HTMLElement;
       expect(progressBanner.isConnected).toBe(false);
       expect(banners.renderSummaryBanner).toHaveBeenCalledTimes(1);
     });

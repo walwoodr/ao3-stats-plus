@@ -245,8 +245,12 @@ describe("bookmarklet banners", () => {
   describe("renderSummaryBanner (Phase 2 fan-out final report)", () => {
     it("reports the enriched, skipped, and total counts", () => {
       const banner = renderSummaryBanner(container, {
-        enriched: 8, skipped: 2, total: 10, truncatedWorks: false,
-        truncatedBookmarkPagesCount: 0, circuitBroken: false,
+        enriched: 8,
+        skipped: 2,
+        total: 10,
+        truncatedWorks: false,
+        truncatedBookmarkPagesCount: 0,
+        circuitBroken: false,
       });
 
       expect(banner.textContent).toMatch(/8/);
@@ -255,8 +259,12 @@ describe("bookmarklet banners", () => {
 
     it("surfaces truncation rather than silently dropping it", () => {
       const banner = renderSummaryBanner(container, {
-        enriched: 3, skipped: 0, total: 3, truncatedWorks: true,
-        truncatedBookmarkPagesCount: 1, circuitBroken: false,
+        enriched: 3,
+        skipped: 0,
+        total: 3,
+        truncatedWorks: true,
+        truncatedBookmarkPagesCount: 1,
+        circuitBroken: false,
       });
 
       expect(banner.textContent).toMatch(/truncat/i);
@@ -264,8 +272,12 @@ describe("bookmarklet banners", () => {
 
     it("surfaces a circuit-broken run distinctly from an ordinary partial-success summary", () => {
       const banner = renderSummaryBanner(container, {
-        enriched: 1, skipped: 4, total: 5, truncatedWorks: false,
-        truncatedBookmarkPagesCount: 0, circuitBroken: true,
+        enriched: 1,
+        skipped: 4,
+        total: 5,
+        truncatedWorks: false,
+        truncatedBookmarkPagesCount: 0,
+        circuitBroken: true,
       });
 
       expect(banner.textContent).toMatch(/stopped|circuit|paused/i);
@@ -273,8 +285,12 @@ describe("bookmarklet banners", () => {
 
     it("uses an accessible status role so screen readers announce the final result", () => {
       const banner = renderSummaryBanner(container, {
-        enriched: 5, skipped: 0, total: 5, truncatedWorks: false,
-        truncatedBookmarkPagesCount: 0, circuitBroken: false,
+        enriched: 5,
+        skipped: 0,
+        total: 5,
+        truncatedWorks: false,
+        truncatedBookmarkPagesCount: 0,
+        circuitBroken: false,
       });
 
       expect(banner.getAttribute("role")).toBe("status");

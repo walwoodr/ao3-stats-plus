@@ -99,7 +99,9 @@ describe("postWorkDetail", () => {
 
   describe("on 422 Unprocessable Entity (invalid payload)", () => {
     it("returns an invalid result carrying the server's error message", async () => {
-      vi.mocked(fetch).mockResolvedValue(jsonResponse(422, { ok: false, error: "ao3WorkId required" }));
+      vi.mocked(fetch).mockResolvedValue(
+        jsonResponse(422, { ok: false, error: "ao3WorkId required" }),
+      );
 
       const result = await postWorkDetail(API_ORIGIN, payload);
 
@@ -109,7 +111,9 @@ describe("postWorkDetail", () => {
 
   describe("on 409 Conflict (no snapshot for today - the defensive guard)", () => {
     it("returns a noSnapshotForToday result", async () => {
-      vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { ok: false, error: "no snapshot for today" }));
+      vi.mocked(fetch).mockResolvedValue(
+        jsonResponse(409, { ok: false, error: "no snapshot for today" }),
+      );
 
       const result = await postWorkDetail(API_ORIGIN, payload);
 
