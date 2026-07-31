@@ -71,19 +71,30 @@ class SnapshotIngestService
 
   def find_or_create_user!
     ao3_user = Ao3User.find_by(username: username)
+    return authorize_existing_user!(ao3_user) if ao3_user
 
-    if ao3_user
-      # secure_compare is constant-time but not nil-safe (raises on a nil
-      # argument); client_read_token can genuinely be nil for a malformed
-      # payload missing "readToken" entirely, so it's coerced to a string
-      # first - "" still safely fails the comparison rather than matching.
-      unless ActiveSupport::SecurityUtils.secure_compare(ao3_user.read_token, client_read_token.to_s)
-        raise TokenMismatch, "token mismatch for #{username}"
-      end
-      ao3_user
-    else
+    begin
       Ao3User.create!(username: username, read_token: generate_token)
+    rescue ActiveRecord::RecordNotUnique
+      # Two concurrent first-ingests for the same brand-new username: this
+      # request's find_by above ran before the other request committed, so
+      # it saw no row and lost the race to the unique index on username.
+      # The other request's row now exists - fall back to it exactly like
+      # the existing-user path above, rather than letting RecordNotUnique
+      # propagate into a 500.
+      authorize_existing_user!(Ao3User.find_by(username: username))
     end
+  end
+
+  def authorize_existing_user!(ao3_user)
+    # secure_compare is constant-time but not nil-safe (raises on a nil
+    # argument); client_read_token can genuinely be nil for a malformed
+    # payload missing "readToken" entirely, so it's coerced to a string
+    # first - "" still safely fails the comparison rather than matching.
+    unless ActiveSupport::SecurityUtils.secure_compare(ao3_user.read_token, client_read_token.to_s)
+      raise TokenMismatch, "token mismatch for #{username}"
+    end
+    ao3_user
   end
 
   def generate_token

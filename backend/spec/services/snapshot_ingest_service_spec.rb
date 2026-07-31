@@ -74,6 +74,58 @@ RSpec.describe SnapshotIngestService do
     end
   end
 
+  # Two concurrent first-ingests for the same brand-new username race on the
+  # ao3_users.username unique index: this request's find_by (inside
+  # find_or_create_user!) runs before the concurrent "winner" request has
+  # committed, so it sees no row and attempts Ao3User.create!, which then
+  # collides with the now-committed winner row and raises
+  # ActiveRecord::RecordNotUnique. transactional fixtures make a real second
+  # DB connection infeasible here, so the race is simulated directly: the
+  # winner row is persisted for real, but find_by is stubbed to return nil on
+  # its first call (this request's own pre-collision lookup) and the real
+  # winner row on the retry after rescuing RecordNotUnique.
+  describe "#call when a concurrent first-ingest already created the username" do
+    def simulate_race_with(winner)
+      allow(Ao3User).to receive(:find_by).with(username: winner.username).and_return(nil, winner)
+      allow(Ao3User).to receive(:create!).and_raise(
+        ActiveRecord::RecordNotUnique.new("duplicate key value violates unique constraint"),
+      )
+    end
+
+    it "does not raise ActiveRecord::RecordNotUnique" do
+      winner = Ao3User.create!(username: "raceduser", read_token: "winner_token")
+      simulate_race_with(winner)
+
+      expect {
+        described_class.new(
+          payload: valid_ingest_payload(username: "raceduser", read_token: winner.read_token),
+        ).call
+      }.not_to raise_error
+    end
+
+    it "treats the retry as the existing user once the winner's token matches" do
+      winner = Ao3User.create!(username: "raceduser2", read_token: "winner_token")
+      simulate_race_with(winner)
+
+      result = described_class.new(
+        payload: valid_ingest_payload(username: "raceduser2", read_token: winner.read_token),
+      ).call
+
+      expect(result.ao3_user).to eq(winner)
+    end
+
+    it "raises TokenMismatch (not RecordNotUnique) when the retry's token doesn't match the winner's" do
+      winner = Ao3User.create!(username: "raceduser3", read_token: "winner_token")
+      simulate_race_with(winner)
+
+      expect {
+        described_class.new(
+          payload: valid_ingest_payload(username: "raceduser3", read_token: "loser_token"),
+        ).call
+      }.to raise_error(SnapshotIngestService::TokenMismatch)
+    end
+  end
+
   describe "#call with an existing username and a matching token" do
     it "reuses the existing Ao3User rather than creating another one" do
       first = described_class.new(payload: valid_ingest_payload(username: "returning")).call

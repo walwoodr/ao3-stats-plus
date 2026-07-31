@@ -93,13 +93,6 @@
   multi-tenant or public - candidate mitigations: a Rack::Attack throttle on
   `/ingest`, and/or binding a claim to something only the real author can
   produce.
-- [2026-07-30] (stage: Review) `SnapshotIngestService#find_or_create_user!`
-  does `find_by` then `create!` with no uniqueness handling, so two
-  concurrent first-ingests for the same brand-new username race: the loser
-  hits the DB unique index, raises `ActiveRecord::RecordNotUnique` (not
-  rescued by `IngestController`), and returns a 500 instead of retrying/
-  deduping. Very low probability for a personal tool; revisit with a
-  `retry`-on-RecordNotUnique or upsert if it ever matters.
 - [2026-07-30] (stage: Review) `PerWorkSeriesType#points` issues one query
   per work (N+1) since it's resolved per parent `Work` with no batch/
   preload. Fine at personal scale (tens of works); revisit with a GraphQL
