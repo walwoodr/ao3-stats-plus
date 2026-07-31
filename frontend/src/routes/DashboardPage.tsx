@@ -61,8 +61,12 @@ export function DashboardPage() {
     setMismatchMessage(messageForStatsError(error));
   }
 
+  // Only a backend-confirmed rejection means the token itself is actually
+  // wrong - a plain network/CORS failure (see messageForStatsError above)
+  // says nothing about the token, so clearing it there would silently log
+  // a user out over a transient connectivity blip.
   useEffect(() => {
-    if (error) clearToken(username);
+    if (error instanceof ClientError) clearToken(username);
   }, [error, username, clearToken]);
 
   const handleManualToken = (enteredToken: string) => {

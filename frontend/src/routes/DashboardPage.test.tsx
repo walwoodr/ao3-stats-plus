@@ -1,10 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ClientError } from "graphql-request";
 import { GraphQLError } from "graphql";
 import { DashboardPage } from "./DashboardPage";
 import { useTokenFromUrl } from "../store/useTokenFromUrl";
+import { useTokenStore } from "../store/useTokenStore";
 import { useStatsForUser } from "../queries/useStatsForUser";
 
 // graphql-request throws ClientError for a real GraphQL-level rejection from
@@ -51,6 +52,13 @@ function mockStats(overrides: Partial<ReturnType<typeof useStatsForUser>>) {
 }
 
 describe("DashboardPage", () => {
+  // useTokenStore is a real (unmocked) Zustand store persisted to
+  // localStorage - reset it between tests so token-clearing assertions
+  // below aren't polluted by state left over from a previous test.
+  beforeEach(() => {
+    useTokenStore.setState({ tokensByUsername: {} });
+  });
+
   describe("with no token available", () => {
     it("renders the empty state with a manual token-entry form", () => {
       vi.mocked(useTokenFromUrl).mockReturnValue(undefined);
@@ -95,6 +103,16 @@ describe("DashboardPage", () => {
       ).toBeGreaterThan(0);
       expect(screen.getByLabelText(/read token/i)).toBeInTheDocument();
     });
+
+    it("clears the stored token, since it's backend-confirmed wrong", () => {
+      useTokenStore.getState().setToken("someauthor", "tok_wrong");
+      vi.mocked(useTokenFromUrl).mockReturnValue("tok_wrong");
+      mockStats({ error: makeClientError("token mismatch") });
+
+      renderDashboard();
+
+      expect(useTokenStore.getState().getToken("someauthor")).toBeUndefined();
+    });
   });
 
   // Regression test: a plain network/CORS failure (e.g. a TypeError with no
@@ -114,6 +132,16 @@ describe("DashboardPage", () => {
         screen.getAllByText(/couldn't reach the server|network or configuration/i).length,
       ).toBeGreaterThan(0);
       expect(screen.queryByText(/doesn't match this username/i)).not.toBeInTheDocument();
+    });
+
+    it("does not clear the stored token, since a network failure says nothing about it", () => {
+      useTokenStore.getState().setToken("someauthor", "tok_valid");
+      vi.mocked(useTokenFromUrl).mockReturnValue("tok_valid");
+      mockStats({ error: new TypeError("Failed to fetch") });
+
+      renderDashboard();
+
+      expect(useTokenStore.getState().getToken("someauthor")).toBe("tok_valid");
     });
   });
 
