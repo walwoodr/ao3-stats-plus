@@ -35,5 +35,18 @@ global `CLAUDE.md`.
   vs. full-page/route-level automated scanning.
 - **Approved**: by the user, 2026-07-22 (Testing stage).
 
+### SimpleCov
+
+- **What**: test coverage measurement for `backend/` (`spec/spec_helper.rb`
+  starts it before any application code loads), using the built-in `"rails"`
+  profile plus custom groups for `app/graphql` and `app/services`.
+- **Why**: `CODE_STANDARDS.md`'s 85% coverage baseline (checked at
+  Retrospective, not a commit/CI gate) was previously unmeasurable for
+  `backend/` - no coverage tool was configured at all, so "coverage is low"
+  and "coverage is unknown" were indistinguishable. Flagged at Retrospective
+  2026-07-31 (`docs/retros/2026-07-render-deploy-and-tier1-maintenance.md`,
+  finding #3).
+- **Approved**: by the user, 2026-07-31 (Retrospective follow-up).
+
 Anything not listed above is still governed by the global
 `~/.claude/TECH_STACK.md` and its "ask before adding" policy.

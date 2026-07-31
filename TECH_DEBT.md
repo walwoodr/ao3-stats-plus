@@ -156,11 +156,3 @@
   multi-project coverage merging (possibly a known Vitest issue/GitHub
   discussion, or a per-project `coverage` override needed instead of a
   top-level one).
-- [2026-07-31] (stage: Retrospective) Backend has no test coverage tool
-  configured at all (no SimpleCov or equivalent in the Gemfile), so R8's
-  85% baseline (CODE_STANDARDS.md) can't be measured for `backend/` -
-  only the frontend's (currently unreliable, see the item above) Vitest
-  coverage report exists. Adding one (e.g. `simplecov`) is an out-of-stack
-  gem addition requiring explicit sign-off per `TECH_STACK.md`'s policy,
-  not something to add unilaterally - flagging for a decision rather than
-  adding it now.

@@ -46,3 +46,11 @@ group :development, :test do
   # RSpec test framework (per TECH_STACK.md, used instead of Minitest)
   gem "rspec-rails"
 end
+
+group :test do
+  # Test coverage measurement, so the 85% baseline (CODE_STANDARDS.md) is
+  # actually measurable for backend/ - see .simplecov and Retrospective's
+  # coverage baseline check for how this gets used. Approved by the user
+  # 2026-07-31 (out-of-stack sign-off per TECH_STACK.md).
+  gem "simplecov", require: false
+end

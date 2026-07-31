@@ -12,6 +12,21 @@
 # the additional setup, and require it from the spec files that actually need
 # it.
 #
+# SimpleCov must start before any application code loads (rails_helper.rb,
+# required after this file per .rspec's `--require spec_helper`, is what
+# pulls in config/environment) - starting it any later would miss coverage
+# on code loaded during Rails boot.
+require "simplecov"
+SimpleCov.start "rails" do
+  # The "rails" profile groups Controllers/Channels/Models/Mailers/Helpers/
+  # Jobs/Libraries by default but doesn't know about this project's own
+  # app/graphql and app/services directories - both are real, populated
+  # directories here (GraphQL API layer, extracted service objects), so
+  # they'd otherwise land in an unlabeled catch-all group in the report.
+  group "GraphQL", "app/graphql"
+  group "Services", "app/services"
+end
+
 # See https://rubydoc.info/gems/rspec-core/RSpec/Core/Configuration
 RSpec.configure do |config|
   # rspec-expectations config goes here. You can use an alternate

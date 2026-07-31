@@ -29,6 +29,7 @@ npm-debug.log*
 /frontend/playwright-report/
 /frontend/test-results/
 /frontend/coverage/
+/backend/coverage/
 
 # Env
 .env
