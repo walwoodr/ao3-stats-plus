@@ -20,6 +20,25 @@ class IngestController < ApplicationController
     render json: { ok: false, error: e.message }, status: :upgrade_required
   end
 
+  # POST /ingest/work is Phase 2's per-work enrichment sibling action (plan
+  # section 3): same "one narrow non-GraphQL action per bookmarklet
+  # capability" design and rescue-and-render pattern as #create above, but
+  # its own service/error set since it's authorizing/persisting a different
+  # payload shape.
+  def create_work_detail
+    result = WorkDetailIngestService.new(payload: ingest_params).call
+
+    render json: { ok: true, ao3WorkId: result.work.ao3_work_id }, status: :created
+  rescue WorkDetailIngestService::InvalidPayload => e
+    render json: { ok: false, error: e.message }, status: :unprocessable_entity
+  rescue WorkDetailIngestService::TokenMismatch => e
+    render json: { ok: false, error: e.message }, status: :forbidden
+  rescue WorkDetailIngestService::UnsupportedSchemaVersion => e
+    render json: { ok: false, error: e.message }, status: :upgrade_required
+  rescue WorkDetailIngestService::NoSnapshotForToday => e
+    render json: { ok: false, error: e.message }, status: :conflict
+  end
+
   private
 
   def ingest_params

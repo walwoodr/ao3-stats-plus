@@ -62,6 +62,13 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
     resource "/ingest",
       headers: :any,
       methods: %i[post options]
+
+    # /ingest/work (Phase 2 per-work enrichment, plan section 3) is AO3-
+    # bookmarklet-only exactly like /ingest - same trust boundary, so it's
+    # scoped to the same AO3_ORIGINS allow block rather than the frontend one.
+    resource "/ingest/work",
+      headers: :any,
+      methods: %i[post options]
   end
 
   allow do
