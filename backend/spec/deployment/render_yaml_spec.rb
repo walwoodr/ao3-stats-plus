@@ -2,11 +2,11 @@ require "yaml"
 
 # Validates render.yaml's eventual shape against Render's Blueprint spec
 # (https://render.com/docs/blueprint-spec), per the finalized hosting plan
-# (docs/plans/bookmarklet-entrypoint-and-hosting.md's Section 1 / T5): a
-# Docker backend web service on the Starter plan with a /up health check
-# and a migration preDeployCommand, a Basic Postgres database, and a
-# frontend static site with SPA-rewrite routing plus VITE_API_ORIGIN/
-# VITE_GRAPHQL_URL build env vars.
+# (docs/plans/render-hosting-deployment.md, T5): a Docker backend web
+# service on the Starter plan with a /up health check and a migration
+# preDeployCommand, a Basic Postgres database, and a frontend static site
+# with SPA-rewrite routing plus VITE_API_ORIGIN/VITE_GRAPHQL_URL build env
+# vars.
 #
 # Static sites live under the top-level `services:` array (type: web,
 # runtime: static), same as any other service - Render's Blueprint schema
@@ -34,7 +34,7 @@ RSpec.describe "render.yaml" do
   it "exists at the repo root" do
     expect(File.exist?(render_yaml_path)).to be(true), <<~MSG
       expected #{render_yaml_path} to exist. Authoring it is Implementation's
-      job (docs/plans/bookmarklet-entrypoint-and-hosting.md, task I7) - see
+      job (docs/plans/render-hosting-deployment.md, task I7) - see
       the rest of this spec file for its expected shape.
     MSG
   end

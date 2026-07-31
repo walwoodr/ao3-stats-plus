@@ -1,7 +1,7 @@
 # Render Blueprint (https://render.com/docs/infrastructure-as-code) for the
-# finalized hosting plan (docs/plans/bookmarklet-entrypoint-and-hosting.md,
-# Section 1): split topology - a Docker backend web service, a managed
-# Postgres database, and a separate-origin Static Site for the frontend.
+# finalized hosting plan (docs/plans/render-hosting-deployment.md): split
+# topology - a Docker backend web service, a managed Postgres database, and
+# a separate-origin Static Site for the frontend.
 # Personal/single-user tool - deliberately not built for scale (see
 # README.md's "Deployment (Render)" section and TECH_DEBT.md).
 #
