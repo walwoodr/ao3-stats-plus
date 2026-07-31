@@ -77,9 +77,45 @@ RSpec.describe Work, type: :model do
       expect(work).to respond_to(:work_stats)
     end
 
+    # New for work-page enrichment (docs/plans/work-page-enrichment-data-model.md
+    # section 1c): the delete-and-replace bookmark-notes list.
+    it "has many work_bookmarks" do
+      expect(work).to respond_to(:work_bookmarks)
+    end
+
     it "requires an ao3_user" do
       work.ao3_user = nil
       expect(work).not_to be_valid
+    end
+  end
+
+  # New latest-state identity/status fields from work-page enrichment (plan
+  # section 1b) - all nullable, overwritten on each work-page capture, so a
+  # work that has never had one is still a perfectly valid record.
+  describe "work-page enrichment fields (1b)" do
+    it "is valid with published_on, series, complete, and work_page_captured_at all nil (never captured)" do
+      work.published_on = nil
+      work.series = nil
+      work.complete = nil
+      work.work_page_captured_at = nil
+
+      expect(work).to be_valid
+    end
+
+    it "is valid once populated from a work-page capture" do
+      work.published_on = Date.new(2023, 5, 1)
+      work.series = "Series One, Series Two"
+      work.complete = true
+      work.work_page_captured_at = Time.current
+
+      expect(work).to be_valid
+    end
+
+    it "stores series as a comma-joined string, identical in shape to fandoms" do
+      work.series = "Series One, Series Two"
+      work.save!
+
+      expect(work.reload.series).to eq("Series One, Series Two")
     end
   end
 end
