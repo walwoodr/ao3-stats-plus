@@ -156,57 +156,61 @@
   multi-project coverage merging (possibly a known Vitest issue/GitHub
   discussion, or a per-project `coverage` override needed instead of a
   top-level one).
-- [2026-07-31] (stage: Testing, partially re-verified stage: Discovery/main
-  thread) **EXTERNAL-UNVERIFIED**: all six
-  `frontend/src/bookmarklet/fixtures/work-page-*.html` fixtures (backing
-  `scrapeWorkPage.test.ts`, per the work-page enrichment plan's task 5) are
-  modeled on otwcode/otwarchive's `app/helpers/works_helper.rb`
-  (`work_meta_list`) and general community knowledge of AO3's rendered
-  work-page template - `dl.work.meta.group`, a nested `dl.stats` with
-  `dd.published`/`dd.status`/`dd.chapters`/`dd.comments`/`dd.bookmarks`, a
-  "Completed:"-vs-"Updated:" `dt` distinguishing `complete`, and
-  `dd.series > span.series > a` for series membership. The outer nesting and
-  series markup remain unverified against a live AO3 page. Two things WERE
-  independently re-verified by fetching `work_meta_list`'s real source
-  directly (not just re-reading the Discovery citation) and the fixtures
-  corrected accordingly: (1) Comments/Bookmarks rows are omitted entirely
-  when their count is zero (`if count > 0` gates the whole `dt`/`dd` pair),
-  not rendered as a bare "0" as the original fixtures wrongly assumed - this
-  was load-bearing for the plan's NULL-vs-0 design goal, since a naive
+- [2026-07-31] (stage: Testing, independently re-verified stage: main
+  thread) `frontend/src/bookmarklet/fixtures/work-page-*.html` fixtures
+  (backing `scrapeWorkPage.ts`/`scrapeWorkPage.test.ts`, work-page
+  enrichment plan's task 5/13). Confirmed against AO3's real source
+  (`otwcode/otwarchive`: `app/helpers/works_helper.rb`'s `work_meta_list`,
+  `app/views/works/_meta.html.erb`, `app/helpers/series_helper.rb`'s
+  `show_series_data`/`series_data_for_work`) and fixed accordingly: (1)
+  Comments/Bookmarks rows are omitted entirely when their count is zero
+  (`if count > 0` gates the whole `dt`/`dd` pair), not rendered as a bare
+  "0" - load-bearing for the plan's NULL-vs-0 design goal, since a naive
   "read text from dd.comments" implementation would have misread "row
-  absent because zero" as "not captured"; (2) only the Bookmarks row is ever
-  wrapped in a link - the original fixtures incorrectly linked Chapters,
-  Comments, and Kudos too. Each fixture carries its own `EXTERNAL-UNVERIFIED`
-  header comment. Implementation must still re-verify the outer nesting/
-  series selectors against a real AO3 work page (same discipline as the
-  2026-07-31 stats-page fandom-nesting fix logged above) before trusting
-  `scrapeWorkPage.ts` in production - if the real markup differs, both the
-  fixtures and the selectors written against them will need correcting.
-- [2026-07-31] (stage: Testing) **EXTERNAL-UNVERIFIED**: the
+  absent because zero" as "not captured"; (2) only the Bookmarks row is
+  ever wrapped in a link - Chapters/Comments/Kudos are always plain text;
+  (3) the outer `dl.work.meta.group > dt.stats + dd.stats > dl.stats >
+  (dt/dd pairs)` nesting is correct as originally modeled; (4) series
+  markup was wrong and has been fixed:
+  `dd.series > span.series > span.position > a` is the real structure (the
+  series title link is nested inside `span.position`, not directly inside
+  `span.series`, and AO3 never wraps the position number in `<strong>`) -
+  critically, `span.series` can also contain sibling "Previous Work"/
+  "Next Work" navigation links for any work that isn't first/last in that
+  series, so `parseSeries`'s original `span.series a` selector would have
+  incorrectly picked those up as series names for any real multi-work
+  series membership. Fixed to `span.series span.position a`, with a
+  regression test (`scrapeWorkPage.test.ts`, "excludes Previous Work/Next
+  Work navigation links from the series names") and both affected fixtures
+  corrected. **Still open**: the exact `dt`/`dd` class-name conventions for
+  each stat row (`dd.published`/`dd.status`/etc.) match general AO3
+  knowledge and the confirmed helper source's field order, but haven't been
+  visually diffed against a rendered live page - low risk given how much of
+  the surrounding structure is now confirmed, but worth a final live check
+  before Deployment per this project's established discipline (see the
+  2026-07-31 stats-page fandom-nesting entry below for why this matters).
+- [2026-07-31] (stage: Testing, partially re-verified stage: main thread)
   `frontend/src/bookmarklet/fixtures/work-bookmarks-*.html` fixtures
-  (backing `scrapeWorkBookmarks.test.ts`, work-page enrichment plan's task
-  6) model AO3's `/works/:id/bookmarks` listing - `ol.bookmark.index.group
-  > li.bookmark`, `h5.byline.heading` (with the bookmarker's `<a>` absent
-  for a deleted/orphaned account), a `blockquote.userstuff` note,
-  `h6.landmark.heading` + `ul.meta.tags.commas` for the bookmarker's own
-  tags and for collections, `p.datetime` for the bookmark date, and
-  Kaminari-style `ol.pagination > li.next > a[rel="next"]` pagination -
-  none of it verified against a live AO3 page. Same re-verification need
-  as the work-page fixtures above before Implementation trusts
-  `scrapeWorkBookmarks.ts` in production.
-- [2026-07-31] (stage: Implementation) **EXTERNAL-UNVERIFIED, still open**:
-  `scrapeWorkPage.ts` and `scrapeWorkBookmarks.ts` (work-page enrichment
-  plan's task 13) were implemented directly against the fixtures described
-  in the two entries immediately above, with no live AO3 access available
-  in this stage either - the outer `dl.work.meta.group`/nested `dl.stats`
-  shape, the "Completed:"/"Updated:" `dt` distinguishing `complete`, the
-  `dd.series > span.series > a` series markup, and the entire
-  `/works/:id/bookmarks` listing shape (byline/note/tags/collections/
-  pagination markup) all remain unverified against a real AO3 page. Every
-  backend/frontend spec targeting these files is green against the
-  fixtures, but that only proves the code matches Testing's modeled markup,
-  not AO3's real one. Must be re-verified against a live AO3 work page and
-  a live `/works/:id/bookmarks` page (same discipline as the 2026-07-31
-  stats-page fandom-nesting fix logged above) before this feature is
-  trusted in production - flagging for Review/Deployment to schedule that
-  check rather than let it silently ship unverified.
+  (backing `scrapeWorkBookmarks.ts`/`scrapeWorkBookmarks.test.ts`,
+  work-page enrichment plan's task 6/13) model AO3's `/works/:id/bookmarks`
+  listing - `ol.bookmark.index.group > li.bookmark` (outer wrapper
+  **confirmed** correct against `app/views/bookmarks/index.html.erb`),
+  `h5.byline.heading`, a `blockquote.userstuff` note, `h6.landmark.heading`
+  + `ul.meta.tags.commas` for tags/collections, `p.datetime` for the
+  bookmark date - these per-bookmark fields were cited by Discovery against
+  `_bookmark_blurb.html.erb`/`_bookmark_user_module.html.erb` but not
+  independently re-fetched by this later pass; treat as probably correct
+  but not to the same confidence as the outer wrapper. **EXTERNAL-UNVERIFIED
+  and likely wrong**: the fixtures assume Kaminari-style
+  `ol.pagination > li.next > a[rel="next"]` pagination, but
+  `bookmarks/index.html.erb` actually calls `pagy_nav @pagy` (the **Pagy**
+  gem, not Kaminari) - Pagy's default nav markup is not
+  `ol.pagination`/`li.next`/`rel="next"`, though the exact real markup
+  (default Pagy output vs. a possible AO3 template override) could not be
+  located in this pass (GitHub code search requires auth; no `pagy.rb`
+  initializer or custom nav template found at the paths checked). If the
+  scraper's pagination-detection selector is wrong, the practical failure
+  mode is graceful (treats every page as the last, so no data corruption -
+  just misses later pages for a heavily-bookmarked work), but this must be
+  confirmed against a live `/works/:id/bookmarks` page before trusting
+  multi-page capture in production.

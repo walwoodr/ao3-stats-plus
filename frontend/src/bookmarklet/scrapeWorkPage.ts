@@ -103,7 +103,12 @@ function parseSeries(metaGroup: Element): string[] {
   const seriesDd = metaGroup.querySelector("dd.series");
   if (!seriesDd) return [];
 
-  return Array.from(seriesDd.querySelectorAll("span.series a"))
+  // Each span.series can also contain sibling "Previous Work"/"Next Work"
+  // navigation links (for any work that isn't first/last in that series) -
+  // the actual series title link is nested one level deeper, inside
+  // span.position, so the selector must be scoped there rather than to any
+  // <a> anywhere inside span.series.
+  return Array.from(seriesDd.querySelectorAll("span.series span.position a"))
     .map((link) => link.textContent?.trim())
     .filter((name): name is string => !!name);
 }

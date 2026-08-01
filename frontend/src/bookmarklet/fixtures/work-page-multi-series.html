@@ -1,14 +1,27 @@
 <!--
-  EXTERNAL-UNVERIFIED: see work-page-wip-open-ended.html's header comment -
-  same markup-shape caveat applies here, including the assumption that a
-  work belonging to more than one series renders as multiple consecutive
-  span.series elements inside dd.series (mirroring how dd.fandom.tags lists
-  multiple li.tag entries for a multi-fandom work).
+  Series markup CONFIRMED against AO3's real series_helper.rb
+  (show_series_data/series_data_for_work, otwcode/otwarchive): each series a
+  work belongs to renders as its own <span class="series">, but the "Part N
+  of <title link>" text is nested inside an INNER <span class="position">
+  (plain text, no <strong> around the number - the original fixture/scraper
+  had both of these wrong). Critically, span.series can ALSO contain sibling
+  "Previous Work"/"Next Work" navigation links (<a class="previous">/
+  <a class="next">) for any work that isn't first/last in that series - this
+  fixture's second series (Series Two) exercises exactly that case, since a
+  selector scoped to "span.series a" (not "span.position a") would
+  incorrectly pick up "Previous Work"/"Next Work" as if they were series
+  names for any real work in the middle of a series.
 
-  This fixture: a work belonging to two different series. Per the verified
-  work_meta_list behavior (see work-page-complete-no-series.html's header),
-  only the Bookmarks row is ever linked - Chapters, Comments, and Kudos are
-  always plain text.
+  The outer dl.work.meta.group/nested dl.stats shape and the individual
+  dt/dd stats classes remain EXTERNAL-UNVERIFIED (see
+  work-page-wip-open-ended.html's header) - only the series markup above is
+  independently confirmed. Per the verified work_meta_list behavior (see
+  work-page-complete-no-series.html's header), only the Bookmarks row is
+  ever linked - Chapters, Comments, and Kudos are always plain text.
+
+  This fixture: a work belonging to two different series - the sole work in
+  Series One (no previous/next links), and the middle work of three in
+  Series Two (both previous and next links present).
 -->
 <div id="workskin">
   <div id="main" class="works-show region" role="main">
@@ -26,10 +39,13 @@
         <dt class="series">Series:</dt>
         <dd class="series">
           <span class="series">
-            Part <strong>1</strong> of <a href="/series/456">Series One</a>
+            <span class="position">Part 1 of <a href="/series/456">Series One</a></span>
           </span>
           <span class="series">
-            Part <strong>3</strong> of <a href="/series/789">Series Two</a>
+            <a href="/works/330" class="previous">&#8592; Previous Work</a
+            ><span class="divider"> </span
+            ><span class="position">Part 2 of <a href="/series/789">Series Two</a></span
+            ><span class="divider"> </span><a href="/works/336" class="next">Next Work &#8594;</a>
           </span>
         </dd>
         <dt class="stats">Stats:</dt>

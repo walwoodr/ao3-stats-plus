@@ -119,6 +119,23 @@ describe("scrapeWorkPage", () => {
       if (!result.ok) throw new Error("expected ok result");
       expect(result.data.series).toEqual(["Series One", "Series Two"]);
     });
+
+    // Confirmed against AO3's real series_helper.rb: a span.series for a
+    // work that isn't first/last in its series also contains sibling
+    // "Previous Work"/"Next Work" navigation links - a selector scoped to
+    // "span.series a" instead of the inner "span.position a" would
+    // incorrectly pick these up as if they were series names. This
+    // fixture's second series (Series Two) has both links present.
+    it("excludes Previous Work/Next Work navigation links from the series names", () => {
+      const doc = loadFixture("work-page-multi-series.html");
+      const result = scrapeWorkPage(doc, "/works/333");
+
+      if (!result.ok) throw new Error("expected ok result");
+      expect(result.data.series).not.toContain("Previous Work");
+      expect(result.data.series).not.toContain("Next Work");
+      expect(result.data.series.some((name) => name.includes("Previous"))).toBe(false);
+      expect(result.data.series.some((name) => name.includes("Next"))).toBe(false);
+    });
   });
 
   describe("comma-delimited large numbers", () => {

@@ -11,10 +11,14 @@
   it) will need correcting against a live page capture.
 
   This fixture: an ongoing WIP with an open-ended chapter count ("3/?" -
-  chaptersExpected unknown), not yet complete, one series. Per the verified
-  work_meta_list behavior (see work-page-complete-no-series.html's header),
-  only the Bookmarks row is ever linked - Chapters, Comments, and Kudos are
-  always plain text.
+  chaptersExpected unknown), not yet complete, one series - not the first
+  work in that series (has a "Previous Work" link, no "Next Work" link,
+  since it's the latest so far). Per the verified work_meta_list behavior
+  (see work-page-complete-no-series.html's header), only the Bookmarks row
+  is ever linked - Chapters, Comments, and Kudos are always plain text. Per
+  the verified series_helper.rb behavior (see work-page-multi-series.html's
+  header), the series title link is nested inside span.position, not
+  directly inside span.series.
 -->
 <div id="workskin">
   <div id="main" class="works-show region" role="main">
@@ -32,7 +36,9 @@
         <dt class="series">Series:</dt>
         <dd class="series">
           <span class="series">
-            Part <strong>2</strong> of <a href="/series/456">Series One</a>
+            <a href="/works/109" class="previous">&#8592; Previous Work</a
+            ><span class="divider"> </span
+            ><span class="position">Part 2 of <a href="/series/456">Series One</a></span>
           </span>
         </dd>
         <dt class="stats">Stats:</dt>
