@@ -20,6 +20,8 @@ import {
   renderUnauthorizedBanner,
 } from "./banners";
 import { SCHEMA_VERSION } from "./constants";
+import { runFanOut } from "./fanOut";
+import { createAo3FanOutDependencies } from "./ao3Fetch";
 
 declare global {
   interface Window {
@@ -112,6 +114,36 @@ function routeResult(
   }
 }
 
+// Phase 2 (fan-out enrichment) only ever starts once Phase 1's POST has
+// resolved successfully (plan section 2, step 2) - a dedup response
+// (deduped: true) still counts as success, since today's snapshot exists
+// either way and is what Phase 2 attaches its enrichment to. Deliberately
+// fire-and-forget with a caught/logged failure rather than awaited: Phase 1
+// has already succeeded and shown its own banner by this point, so a bug in
+// Phase 2's long-running background enrichment must never surface as an
+// unhandled rejection or otherwise disturb that already-complete outcome.
+function startFanOut(
+  apiOrigin: string,
+  username: string,
+  readToken: string,
+  works: IngestPayload["works"],
+): void {
+  Promise.resolve(
+    runFanOut(
+      {
+        apiOrigin,
+        username,
+        readToken,
+        works: works.map((work) => ({ ao3WorkId: work.ao3WorkId })),
+        container: document.body,
+      },
+      createAo3FanOutDependencies(),
+    ),
+  ).catch((error: unknown) => {
+    console.error("[ao3-stats-plus] work-page enrichment fan-out failed", error);
+  });
+}
+
 // Re-POSTs the same already-built payload without re-scraping, so a
 // networkError's Retry button (and any retry after that) doesn't make the
 // user re-trigger a scrape just to resubmit.
@@ -125,6 +157,10 @@ async function submit(
   routeResult(result, frontendOrigin, username, () => {
     void submit(apiOrigin, frontendOrigin, username, payload);
   });
+
+  if (result.status === "success") {
+    startFanOut(apiOrigin, username, result.readToken, payload.works);
+  }
 }
 
 async function main(): Promise<void> {

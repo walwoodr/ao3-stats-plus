@@ -38,6 +38,20 @@ export interface UnauthorizedBannerData {
   message: string;
 }
 
+export interface ProgressBannerData {
+  current: number;
+  total: number;
+}
+
+export interface SummaryBannerData {
+  enriched: number;
+  skipped: number;
+  total: number;
+  truncatedWorks: boolean;
+  truncatedBookmarkPagesCount: number;
+  circuitBroken: boolean;
+}
+
 // jsdom-safe: matches the rest of the app's `prefers-color-scheme` handling
 // (see src/lib/useChartColors.ts), but resolved once per banner render
 // rather than reactively - a banner is a one-shot injection into the host
@@ -246,6 +260,80 @@ export function renderUnauthorizedBanner(
   banner.setAttribute("role", "alert");
   banner.style.cssText = `${bannerBaseStyle(colors)}background:${tintBackground(colors, colors.destructive)};border:1px solid ${colors.destructive};`;
   banner.textContent = data.message;
+
+  container.appendChild(banner);
+  return banner;
+}
+
+// Phase 2 fan-out's live progress indicator (plan section 8): a polite live
+// region ("Capturing work N of M...") that updates *in place* via
+// updateProgressBanner below, rather than a new alert node per work, so a
+// screen-reader user hears periodic progress, not a flood. Unlike
+// renderSuccessBanner, it deliberately does not move focus - repeatedly
+// stealing focus on every work processed would be actively hostile to
+// keyboard/screen-reader users.
+export function renderProgressBanner(
+  container: HTMLElement,
+  data: ProgressBannerData,
+): HTMLElement {
+  const colors = resolveColorTokens();
+  const banner = document.createElement("div");
+  banner.setAttribute("role", "status");
+  banner.setAttribute("aria-live", "polite");
+  banner.style.cssText = `${bannerBaseStyle(colors)}background:${tintBackground(colors, colors.accent)};border:1px solid ${colors.accent};`;
+  banner.textContent = progressMessage(data);
+
+  container.appendChild(banner);
+  return banner;
+}
+
+// Updates the same banner node's text in place - no new DOM node, no
+// re-appending, so the container never accumulates more than one progress
+// banner across the whole fan-out run.
+export function updateProgressBanner(banner: HTMLElement, data: ProgressBannerData): void {
+  banner.textContent = progressMessage(data);
+}
+
+function progressMessage(data: ProgressBannerData): string {
+  return `Capturing work ${data.current} of ${data.total}...`;
+}
+
+// The final report once the fan-out finishes (or is capped/circuit-broken) -
+// plan section 7: "enriched X of M, Y skipped" plus any truncation, so
+// partial success (the normal operating mode under fan-out) is always
+// visible, never silently swallowed. A circuit-broken run is called out
+// distinctly from an ordinary partial-success summary, since it means AO3
+// itself was struggling rather than a handful of individually-skipped works.
+export function renderSummaryBanner(container: HTMLElement, data: SummaryBannerData): HTMLElement {
+  const colors = resolveColorTokens();
+  const banner = document.createElement("div");
+  banner.setAttribute("role", "status");
+  banner.style.cssText = `${bannerBaseStyle(colors)}background:${tintBackground(colors, colors.growth)};border:1px solid ${colors.growth};`;
+
+  const summary = document.createElement("p");
+  summary.textContent = `Enriched ${data.enriched} of ${data.total} works (${data.skipped} skipped).`;
+  summary.style.cssText = MESSAGE_STYLE;
+  banner.appendChild(summary);
+
+  if (data.circuitBroken) {
+    const circuitNotice = document.createElement("p");
+    circuitNotice.textContent =
+      "Stopped early: AO3 appeared to be struggling, so the circuit breaker paused this run.";
+    circuitNotice.style.cssText = MESSAGE_STYLE;
+    banner.appendChild(circuitNotice);
+  }
+
+  if (data.truncatedWorks || data.truncatedBookmarkPagesCount > 0) {
+    const truncationNotice = document.createElement("p");
+    const parts: string[] = [];
+    if (data.truncatedWorks) parts.push("the work count cap was reached");
+    if (data.truncatedBookmarkPagesCount > 0) {
+      parts.push(`${data.truncatedBookmarkPagesCount} work(s) had truncated bookmark pages`);
+    }
+    truncationNotice.textContent = `Truncated: ${parts.join("; ")}.`;
+    truncationNotice.style.cssText = `${MESSAGE_STYLE}font-size:0.8125rem;color:${colors.inkSoft};`;
+    banner.appendChild(truncationNotice);
+  }
 
   container.appendChild(banner);
   return banner;
