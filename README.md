@@ -1,13 +1,72 @@
 # ao3-stats-plus
 
 A longitudinal stats-tracking app for [Archive of Our Own](https://archiveofourown.org/)
-(AO3) authors: it periodically fetches data from an author's own stats page
-(`https://archiveofourown.org/users/{username}/stats`), persists it over
-time, and renders time-based graphs so an author can see how their fic
-stats (hits, kudos, comments, bookmarks, subscriptions, etc.) trend over
-time. This repository currently contains only the project skeleton -
-scraping/fetching logic, the stats data model, and the graphing UI are not
-yet implemented; see `TECH_DEBT.md` and the open question below.
+(AO3) authors: a browser bookmarklet captures data from an author's own
+stats page (and, optionally, each individual work's own page), a Rails/
+GraphQL backend persists it as a daily time series, and a React dashboard
+renders trend/ratio charts so an author can see how their fic stats change
+over time.
+
+## How it works
+
+1. **Install page** (`/install`) offers a `javascript:` bookmarklet loader
+   (drag-to-install, with a keyboard-accessible copy-the-code fallback).
+2. **Capture**: on the author's own AO3 stats page
+   (`https://archiveofourown.org/users/{username}/stats`, All Years view),
+   clicking the bookmarklet runs two phases in one click:
+   - **Phase 1** scrapes the stats page's aggregate totals (hits, kudos,
+     comment *threads*, bookmarks - public + private combined,
+     subscriptions, word count) and a per-work row per tracked work, then
+     `POST`s them to `/ingest`. This is the fast, reliable core path and
+     always completes first.
+   - **Phase 2 (fan-out)** then walks each work's own page
+     (`/works/:id`) and its public bookmarks listing
+     (`/works/:id/bookmarks`, paginated), same-origin, sequentially and
+     throttled (with per-request timeout, a circuit-breaker on repeated
+     failures, and safety caps), showing a live progress banner. It
+     enriches each work with data the stats page doesn't expose: *public*
+     bookmark count (distinct from the stats page's public+private total -
+     the difference is derived, not stored), *total* visible comment count
+     (distinct from the stats page's thread count), posted chapter count/
+     expected total, completion status, series membership, published date,
+     and the list of public bookmark notes (latest-known-state, not
+     historized). Each work is `POST`ed to `/ingest/work` as it finishes,
+     so an interrupted run keeps whatever it already captured.
+3. The backend returns a capability token (`readToken`) the author can
+   paste into the dashboard, or that gets stored automatically in the
+   AO3-origin bookmarklet's own `localStorage` for repeat captures.
+4. **Dashboard** (`/u/:username?token=...`) queries `statsForUser` over
+   GraphQL and renders aggregate hits/kudos/kudos-to-hits-ratio trend
+   charts (with a synthetic zero-basis baseline back to the author's
+   earliest post year) plus a per-work drill-down.
+
+This is a personal, single-user tool by design - see `TECH_DEBT.md` for the
+explicitly accepted scale/security tradeoffs (no `/ingest` auth/rate
+limiting, no multi-tenant claim-recovery flow).
+
+## Data model
+
+- `Ao3User` - one row per AO3 username, with a capability token
+  (`read_token`) and the author's earliest-post year (a synthetic
+  zero-basis baseline for trend charts).
+- `Snapshot` - one row per `(ao3_user, captured_on)` day: aggregate totals
+  as scraped from the stats page.
+- `Work` - one row per tracked work: identity (`ao3_work_id`, `title`,
+  `fandoms`) plus latest-known-state work-page fields (`published_on`,
+  `series`, `complete`, `work_page_captured_at`) - overwritten on each
+  work-page capture, not historized.
+- `WorkStat` - one row per `(snapshot, work)`: the stats page's per-work
+  counters, plus nullable work-page-enrichment time-series columns
+  (`public_bookmarks`, `visible_comments`, `chapter_count`,
+  `chapters_expected` - `NULL` means "not captured this snapshot",
+  distinct from a genuine `0`).
+- `WorkBookmark` - one row per public bookmark on a work (bookmarker name,
+  note text, tags, date, collections), latest-known-state - replaced
+  wholesale on each work-bookmarks capture, not historized.
+
+See `docs/plans/work-page-enrichment-data-model.md` for the full design
+rationale (what's derived vs. stored, NULL-vs-0 semantics, why the fan-out
+mechanism works the way it does).
 
 ## Stack
 
@@ -37,7 +96,7 @@ bin/rails server        # http://localhost:3000, GraphQL at POST /graphql
 Run the test suite and linter:
 
 ```sh
-bundle exec rspec
+bundle exec rspec   # also writes a coverage report (SimpleCov) to coverage/index.html
 bin/rubocop
 ```
 
@@ -71,7 +130,9 @@ The frontend expects the backend GraphQL API to be reachable at the URL in
 The bookmarklet (`bookmarklet.js`, built from `src/bookmarklet/*.ts` as a
 second Vite IIFE library target - see `vite.bookmarklet.config.ts` - and
 served from the frontend's own origin at `/bookmarklet.js`) POSTs captured
-stats to the Rails `/ingest` endpoint directly. Its target origin is baked
+stats to the Rails `/ingest` endpoint directly (Phase 1), then POSTs each
+work's enrichment to `/ingest/work` incrementally as the Phase 2 fan-out
+completes it (see "How it works" above). Its target origin is baked
 in at build time from `VITE_API_ORIGIN`, separately from `VITE_GRAPHQL_URL`,
 since it talks to a REST endpoint rather than GraphQL. Unlike
 `VITE_GRAPHQL_URL` (which has a code-level fallback in `graphqlClient.ts`),
