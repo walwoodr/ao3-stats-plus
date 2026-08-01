@@ -214,3 +214,27 @@
   just misses later pages for a heavily-bookmarked work), but this must be
   confirmed against a live `/works/:id/bookmarks` page before trusting
   multi-page capture in production.
+- [2026-08-01] (stage: Review) `POST /ingest/work` does not rescue
+  `ActiveRecord::RecordInvalid`: a scraped payload that violates a `WorkStat`
+  validation (negative count, or `chapters_expected < chapter_count`) makes
+  `WorkDetailIngestService#update_work_stat!`/`create!` raise `RecordInvalid`,
+  which `IngestController#create_work_detail` does not map, so the request
+  returns HTTP 500 instead of a typed 422. Fan-out degrades acceptably
+  (`postWorkDetail` maps 500 -> networkError -> work tallied as skipped; the
+  per-work transaction rolls back so nothing partial is written) and AO3
+  realistically never renders `chapters_expected < chapter_count` (it forces
+  M>=N or "?"), so probability is low. Consider rescuing RecordInvalid ->
+  InvalidPayload (422) for a clean, typed failure. Deferred: no user-facing
+  impact given the graceful fan-out handling.
+- [2026-08-01] (stage: Review) `work_bookmarks.note_html` is stored verbatim
+  as the raw `innerHTML` scraped from AO3's bookmark-note blockquote
+  (`scrapeWorkBookmarks.ts#parseNoteHtml`) with no sanitization on ingest;
+  it is exposed via GraphQL `WorkBookmarkType.note_html` and currently
+  rendered nowhere (notes-list UI deferred, plan section 8). No active XSS
+  today. AO3 server-sanitizes the note before it reaches the DOM, but relying
+  on AO3's sanitizer for our own render context is fragile. Two mitigations:
+  (a) MANDATORY when the deferred notes-list UI is built - sanitize on render
+  (DOMPurify or equivalent), already flagged in plan section 8; (b)
+  defense-in-depth - sanitize/allowlist on ingest so any future consumer
+  (not just the planned UI) inherits a safe value. Deferred: (a) belongs to
+  the future UI pass, (b) is a nice-to-have hardening.
