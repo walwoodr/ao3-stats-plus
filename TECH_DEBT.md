@@ -194,3 +194,19 @@
   none of it verified against a live AO3 page. Same re-verification need
   as the work-page fixtures above before Implementation trusts
   `scrapeWorkBookmarks.ts` in production.
+- [2026-07-31] (stage: Implementation) **EXTERNAL-UNVERIFIED, still open**:
+  `scrapeWorkPage.ts` and `scrapeWorkBookmarks.ts` (work-page enrichment
+  plan's task 13) were implemented directly against the fixtures described
+  in the two entries immediately above, with no live AO3 access available
+  in this stage either - the outer `dl.work.meta.group`/nested `dl.stats`
+  shape, the "Completed:"/"Updated:" `dt` distinguishing `complete`, the
+  `dd.series > span.series > a` series markup, and the entire
+  `/works/:id/bookmarks` listing shape (byline/note/tags/collections/
+  pagination markup) all remain unverified against a real AO3 page. Every
+  backend/frontend spec targeting these files is green against the
+  fixtures, but that only proves the code matches Testing's modeled markup,
+  not AO3's real one. Must be re-verified against a live AO3 work page and
+  a live `/works/:id/bookmarks` page (same discipline as the 2026-07-31
+  stats-page fandom-nesting fix logged above) before this feature is
+  trusted in production - flagging for Review/Deployment to schedule that
+  check rather than let it silently ship unverified.
