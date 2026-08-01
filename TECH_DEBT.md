@@ -226,6 +226,15 @@
   M>=N or "?"), so probability is low. Consider rescuing RecordInvalid ->
   InvalidPayload (422) for a clean, typed failure. Deferred: no user-facing
   impact given the graceful fan-out handling.
+- [2026-08-01] (stage: Implementation) `frontend/src/bookmarklet/fanOut.test.ts`
+  exceeds CODE_STANDARDS.md's 400-line `.ts` file-length guideline (was
+  already at 422 lines pre-existing before this session's throttle/circuit-
+  breaker fix; now 486 after adding three test cases for the Review-flagged
+  fix in `fanOut.ts`). Not addressed here per "no unrelated refactoring" -
+  splitting this spec file (e.g. by describe-block group) is a reasonable
+  future cleanup but out of scope for a targeted bug fix. Flag for Review/
+  Retrospective to decide whether to split by scenario group (throttle/
+  circuit-breaker/safety-caps/banners) into sibling spec files.
 - [2026-08-01] (stage: Review) `work_bookmarks.note_html` is stored verbatim
   as the raw `innerHTML` scraped from AO3's bookmark-note blockquote
   (`scrapeWorkBookmarks.ts#parseNoteHtml`) with no sanitization on ingest;

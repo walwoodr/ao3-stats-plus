@@ -155,6 +155,44 @@ describe("runFanOut", () => {
 
       expect(sleep).toHaveBeenCalledWith(750);
     });
+
+    it("sleeps before each bookmark-page fetch within a work, not just once at the work boundary", async () => {
+      const runFanOut = await importRunFanOut();
+      const { scrapeWorkPage } = await import("./scrapeWorkPage");
+      const { fetchAllWorkBookmarks } = await import("./scrapeWorkBookmarks");
+      const { postWorkDetail } = await import("./workDetailIngestClient");
+      vi.mocked(scrapeWorkPage).mockReturnValue(scrapedWorkPage(111));
+      vi.mocked(postWorkDetail).mockResolvedValue({ status: "success" } as WorkDetailIngestResult);
+
+      const calls: string[] = [];
+      const sleep = vi.fn().mockImplementation(async () => {
+        calls.push("sleep");
+      });
+      const fetchBookmarksPageDocument = vi.fn().mockImplementation(async () => {
+        calls.push("bookmarkFetch");
+        return new Document();
+      });
+
+      // Simulates fetchAllWorkBookmarks's real pagination-following behavior
+      // (two pages) so we can observe how the injected fetchPage callback
+      // (fetchBookmarksPageOrEmpty in fanOut.ts) interleaves with sleep,
+      // without depending on scrapeWorkBookmarks's real implementation.
+      vi.mocked(fetchAllWorkBookmarks).mockImplementation(async (fetchPage) => {
+        await fetchPage(1);
+        await fetchPage(2);
+        return { bookmarks: [], truncated: false, pagesFetched: 2 };
+      });
+
+      await runFanOut(baseOptions([111], { throttleMs: 750 }), {
+        fetchWorkPageDocument: vi.fn().mockResolvedValue(new Document()),
+        fetchBookmarksPageDocument,
+        sleep,
+      });
+
+      expect(sleep).toHaveBeenCalledTimes(2);
+      expect(sleep).toHaveBeenCalledWith(750);
+      expect(calls).toEqual(["sleep", "bookmarkFetch", "sleep", "bookmarkFetch"]);
+    });
   });
 
   describe("per-work POST persists incrementally", () => {
@@ -279,6 +317,32 @@ describe("runFanOut", () => {
 
       expect(summary.circuitBroken).toBe(false);
       expect(fetchWorkPageDocument).toHaveBeenCalledTimes(5);
+    });
+
+    it("counts a bookmark-page fetch failure toward the consecutive-failure count, same as a work-page failure", async () => {
+      const runFanOut = await importRunFanOut();
+      const { scrapeWorkPage } = await import("./scrapeWorkPage");
+      const { fetchAllWorkBookmarks } = await import("./scrapeWorkBookmarks");
+      const { postWorkDetail } = await import("./workDetailIngestClient");
+      vi.mocked(scrapeWorkPage).mockReturnValue(scrapedWorkPage(111));
+      vi.mocked(postWorkDetail).mockResolvedValue({ status: "success" } as WorkDetailIngestResult);
+
+      // Two bookmark-page fetches resolve null (timed out/failed); the
+      // work-page fetch itself succeeds, so any tripped breaker must be
+      // attributable to the bookmark-page failures.
+      vi.mocked(fetchAllWorkBookmarks).mockImplementation(async (fetchPage) => {
+        await fetchPage(1);
+        await fetchPage(2);
+        return { bookmarks: [], truncated: false, pagesFetched: 2 };
+      });
+
+      const summary = await runFanOut(baseOptions([111], { circuitBreakerThreshold: 2 }), {
+        fetchWorkPageDocument: vi.fn().mockResolvedValue(new Document()),
+        fetchBookmarksPageDocument: vi.fn().mockResolvedValue(null),
+        sleep: vi.fn().mockResolvedValue(undefined),
+      });
+
+      expect(summary.circuitBroken).toBe(true);
     });
 
     it("already-enriched works stay counted even when a later circuit break stops the run", async () => {

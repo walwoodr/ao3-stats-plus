@@ -86,11 +86,18 @@ export async function runFanOut(
   for (let index = 0; index < works.length; index++) {
     const { ao3WorkId } = works[index];
 
-    const enrichedThisWork = await processWork(ao3WorkId, options, deps, maxBookmarkPagesPerWork, {
-      onTruncatedBookmarkPages: () => truncatedBookmarkPagesCount++,
-      onFetchFailure: () => consecutiveFetchFailures++,
-      onFetchSuccess: () => (consecutiveFetchFailures = 0),
-    });
+    const enrichedThisWork = await processWork(
+      ao3WorkId,
+      options,
+      deps,
+      maxBookmarkPagesPerWork,
+      throttleMs,
+      {
+        onTruncatedBookmarkPages: () => truncatedBookmarkPagesCount++,
+        onFetchFailure: () => consecutiveFetchFailures++,
+        onFetchSuccess: () => (consecutiveFetchFailures = 0),
+      },
+    );
 
     if (enrichedThisWork) enriched++;
     else skipped++;
@@ -137,6 +144,7 @@ async function processWork(
   options: FanOutOptions,
   deps: FanOutDependencies,
   maxBookmarkPagesPerWork: number,
+  throttleMs: number,
   hooks: WorkOutcomeHooks,
 ): Promise<boolean> {
   const workPageDocument = await deps.fetchWorkPageDocument(ao3WorkId);
@@ -150,7 +158,7 @@ async function processWork(
   if (!scraped.ok) return false;
 
   const bookmarksResult = await fetchAllWorkBookmarks(
-    (page) => fetchBookmarksPageOrEmpty(ao3WorkId, page, deps),
+    (page) => fetchBookmarksPageOrEmpty(ao3WorkId, page, deps, throttleMs, hooks),
     { maxPages: maxBookmarkPagesPerWork },
   );
   if (bookmarksResult.truncated) hooks.onTruncatedBookmarkPages();
@@ -169,11 +177,29 @@ async function processWork(
 // null) - a timed-out/failed bookmark-page fetch falls back to an empty
 // Document, which parses as zero bookmarks/no next page, so it simply ends
 // that work's pagination early rather than throwing.
+//
+// The throttle is applied here, before every bookmark-page fetch, rather
+// than only between works: this is the single callback fetchAllWorkBookmarks
+// invokes once per page (including the first), so it naturally covers both
+// the gap between a work's work-page fetch and its first bookmark-page
+// fetch, and the gap between successive bookmark-page fetches (plan
+// section 5: throttle "applies to both work-page and bookmark-page
+// fetches").
+//
+// Bookmark-page outcomes also feed the same onFetchFailure/onFetchSuccess
+// hooks the work-page fetch uses, so the circuit breaker sees a struggling
+// AO3 regardless of which kind of request is failing, not just work-page
+// fetches.
 async function fetchBookmarksPageOrEmpty(
   ao3WorkId: number,
   page: number,
   deps: FanOutDependencies,
+  throttleMs: number,
+  hooks: WorkOutcomeHooks,
 ): Promise<Document> {
+  await deps.sleep(throttleMs);
   const doc = await deps.fetchBookmarksPageDocument(ao3WorkId, page);
+  if (doc) hooks.onFetchSuccess();
+  else hooks.onFetchFailure();
   return doc ?? new Document();
 }
