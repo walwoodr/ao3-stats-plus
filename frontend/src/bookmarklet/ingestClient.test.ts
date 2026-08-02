@@ -5,10 +5,14 @@ import { postIngest } from "./ingestClient";
 
 // ingestClient wraps the raw fetch() POST to /ingest and classifies the
 // response into a discriminated IngestResult, so entrypoint.ts never has to
-// reason about HTTP status codes directly. Status mapping per the plan/
-// backend (IngestController): 201/200 -> success, 403 (TokenMismatch) ->
-// tokenMismatch, 426 (UnsupportedSchemaVersion) -> schemaMismatch, 422
-// (InvalidPayload) -> invalid, network failure or 5xx -> networkError.
+// reason about HTTP status codes directly. Status mapping per
+// docs/plans/memorable-token-and-recovery.md section 6/10 (task 11) and the
+// backend (IngestController): 201/200 -> success, 426
+// (UnsupportedSchemaVersion) -> schemaMismatch, 422 (InvalidPayload) ->
+// invalid, network failure or 5xx -> networkError. /ingest is now
+// always-accept and can never return 403, so the old 403 -> tokenMismatch
+// mapping is dropped; a stray 403 (shouldn't happen in practice) falls
+// through to networkError rather than crashing.
 const scrapedData: ScrapedData = {
   username: "someauthor",
   earliestPostYear: null,
@@ -123,13 +127,17 @@ describe("postIngest", () => {
     });
   });
 
-  describe("on 403 Forbidden (token mismatch)", () => {
-    it("returns a tokenMismatch result", async () => {
-      vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { ok: false, error: "token mismatch" }));
+  // /ingest is always-accept now (plan section 3a/6) and can never
+  // legitimately return 403 - but the client must not crash if a stray one
+  // somehow arrives; it falls through to the same networkError bucket as
+  // any other unexpected status.
+  describe("on a stray 403 Forbidden (should not happen under always-accept, but must not crash)", () => {
+    it("returns a networkError result, not a tokenMismatch result", async () => {
+      vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { ok: false, error: "unexpected" }));
 
       const result = await postIngest(API_ORIGIN, payload);
 
-      expect(result).toEqual({ status: "tokenMismatch" });
+      expect(result).toEqual({ status: "networkError" });
     });
   });
 

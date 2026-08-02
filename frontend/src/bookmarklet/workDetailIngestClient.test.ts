@@ -6,11 +6,14 @@ import { postWorkDetail } from "./workDetailIngestClient";
 // workDetailIngestClient wraps the raw fetch() POST to /ingest/work and
 // classifies the response into a discriminated WorkDetailIngestResult,
 // mirroring ingestClient.ts's role for the existing /ingest endpoint.
-// Status mapping per the plan/backend (spec/requests/ingest_work_spec.rb):
-// 200/201 -> success, 403 (TokenMismatch) -> tokenMismatch, 426
-// (UnsupportedSchemaVersion) -> schemaMismatch, 422 (InvalidPayload) ->
-// invalid, 409 (NoSnapshotForToday) -> noSnapshotForToday, network failure
-// or any other/5xx status -> networkError.
+// Status mapping per docs/plans/memorable-token-and-recovery.md section
+// 6/10 (task 11) and the backend (spec/requests/ingest_work_spec.rb):
+// 200/201 -> success, 426 (UnsupportedSchemaVersion) -> schemaMismatch, 422
+// (InvalidPayload) -> invalid, 409 (NoSnapshotForToday) ->
+// noSnapshotForToday, network failure or any other/5xx status ->
+// networkError. /ingest/work no longer checks the token at all and can
+// never return 403, so the old 403 -> tokenMismatch mapping is dropped; a
+// stray 403 falls through to networkError rather than crashing.
 const workPage: ScrapedWorkPage = {
   ao3WorkId: 111,
   publicBookmarks: 6,
@@ -75,13 +78,16 @@ describe("postWorkDetail", () => {
     });
   });
 
-  describe("on 403 Forbidden (token mismatch)", () => {
-    it("returns a tokenMismatch result", async () => {
-      vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { ok: false, error: "token mismatch" }));
+  // /ingest/work no longer checks the token (plan section 3b/6) and can
+  // never legitimately return 403 - but the client must not crash if a
+  // stray one somehow arrives; it falls through to networkError.
+  describe("on a stray 403 Forbidden (should not happen - the token is no longer checked)", () => {
+    it("returns a networkError result, not a tokenMismatch result", async () => {
+      vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { ok: false, error: "unexpected" }));
 
       const result = await postWorkDetail(API_ORIGIN, payload);
 
-      expect(result).toEqual({ status: "tokenMismatch" });
+      expect(result).toEqual({ status: "networkError" });
     });
   });
 
