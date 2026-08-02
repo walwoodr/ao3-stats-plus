@@ -259,7 +259,7 @@ describe("DashboardPage", () => {
       expect(ratioLabel).toMatch(/\b0\b/);
     });
 
-    it("does not pass a leadIn to per-work charts", () => {
+    it("does not pass a leadIn to the per-work comparison charts", () => {
       mockWithEarliestPostYear({
         earliestPostYear: 2020,
         aggregateSeries: TWO_POINT_SERIES,
@@ -278,9 +278,18 @@ describe("DashboardPage", () => {
 
       renderDashboard();
 
-      const perWorkHitsFigure = screen.getByRole("img", { name: /work a hits/i });
-      expect(within(perWorkHitsFigure).getAllByTestId(/trend-point-marker-/)).toHaveLength(2);
-      expect(within(perWorkHitsFigure).queryByText(/estimated baseline/i)).not.toBeInTheDocument();
+      // WorkComparisonSection's comparison charts (title "Hits"/"Kudos", not
+      // "Work A hits" - see WorkComparisonSection.test.tsx) never receive a
+      // leadIn at all (Q5: per-work baseline is a separate, out-of-scope
+      // ROADMAP item) - distinct from the aggregate "Total hits" chart
+      // above, which DOES get one here.
+      const comparisonHitsFigure = screen.getByRole("img", { name: /^hits$/i });
+      expect(within(comparisonHitsFigure).getAllByTestId(/multi-series-point-marker-/)).toHaveLength(
+        2,
+      );
+      expect(
+        within(comparisonHitsFigure).queryByText(/estimated baseline/i),
+      ).not.toBeInTheDocument();
     });
 
     it("renders the charts (not the 'not enough history' message) for a single real snapshot with a valid leadIn", () => {
@@ -342,6 +351,94 @@ describe("DashboardPage", () => {
       const hitsFigure = screen.getByRole("img", { name: /total hits/i });
       expect(within(hitsFigure).getAllByTestId(/trend-point-marker-/)).toHaveLength(1);
       expect(within(hitsFigure).queryByText(/estimated baseline/i)).not.toBeInTheDocument();
+    });
+  });
+
+  // Q1 (resolved: replace, not coexist) - PerWorkTrends' single-work
+  // <select> dropdown is removed entirely; WorkComparisonSection takes its
+  // place, behind the SAME `perWorkSeries.length > 0` guard PerWorkTrends
+  // used. The aggregate section (TrendChart x2 + RatioChart) above is
+  // unchanged by this - none of its own tests were touched.
+  describe("PerWorkTrends replacement (WorkComparisonSection)", () => {
+    const ONE_WORK_PER_WORK_SERIES = [
+      {
+        ao3WorkId: 111,
+        title: "Work A",
+        fandoms: "Fandom One",
+        points: [
+          { capturedOn: "2026-01-01", hits: 5, kudos: 1 },
+          { capturedOn: "2026-01-08", hits: 8, kudos: 2 },
+        ],
+      },
+    ];
+
+    it("renders WorkComparisonSection's grouped checkbox picker, not the old single-work <select>", () => {
+      vi.mocked(useTokenFromUrl).mockReturnValue("tok_valid");
+      mockStats({
+        data: {
+          statsForUser: {
+            kudosToHitsRatio: 0.12,
+            aggregateSeries: [
+              { capturedOn: "2026-01-01", totalHits: 10, totalKudos: 1, kudosToHitsRatio: 0.1 },
+              { capturedOn: "2026-01-08", totalHits: 20, totalKudos: 3, kudosToHitsRatio: 0.15 },
+            ],
+            perWorkSeries: ONE_WORK_PER_WORK_SERIES,
+            earliestPostYear: null,
+          },
+        },
+      });
+
+      renderDashboard();
+
+      expect(screen.getByRole("group", { name: /works to compare/i })).toBeInTheDocument();
+      expect(screen.getByRole("checkbox", { name: "Work A" })).toBeInTheDocument();
+      expect(screen.queryByRole("combobox", { name: /work/i })).not.toBeInTheDocument();
+    });
+
+    it("still guards the section behind perWorkSeries.length > 0 (no picker when there is no per-work history)", () => {
+      vi.mocked(useTokenFromUrl).mockReturnValue("tok_valid");
+      mockStats({
+        data: {
+          statsForUser: {
+            kudosToHitsRatio: 0.12,
+            aggregateSeries: [
+              { capturedOn: "2026-01-01", totalHits: 10, totalKudos: 1, kudosToHitsRatio: 0.1 },
+              { capturedOn: "2026-01-08", totalHits: 20, totalKudos: 3, kudosToHitsRatio: 0.15 },
+            ],
+            perWorkSeries: [],
+            earliestPostYear: null,
+          },
+        },
+      });
+
+      renderDashboard();
+
+      expect(screen.queryByRole("group", { name: /works to compare/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("img", { name: /^hits$/i })).not.toBeInTheDocument();
+    });
+
+    it("still renders the untouched aggregate section (TrendChart x2 + RatioChart) alongside the new comparison section", () => {
+      vi.mocked(useTokenFromUrl).mockReturnValue("tok_valid");
+      mockStats({
+        data: {
+          statsForUser: {
+            kudosToHitsRatio: 0.12,
+            aggregateSeries: [
+              { capturedOn: "2026-01-01", totalHits: 10, totalKudos: 1, kudosToHitsRatio: 0.1 },
+              { capturedOn: "2026-01-08", totalHits: 20, totalKudos: 3, kudosToHitsRatio: 0.15 },
+            ],
+            perWorkSeries: ONE_WORK_PER_WORK_SERIES,
+            earliestPostYear: null,
+          },
+        },
+      });
+
+      renderDashboard();
+
+      expect(screen.getByRole("img", { name: /total hits/i })).toBeInTheDocument();
+      expect(screen.getByRole("img", { name: /total kudos/i })).toBeInTheDocument();
+      expect(screen.getByRole("img", { name: /kudos.to.hits ratio/i })).toBeInTheDocument();
+      expect(screen.getByRole("group", { name: /works to compare/i })).toBeInTheDocument();
     });
   });
 });
