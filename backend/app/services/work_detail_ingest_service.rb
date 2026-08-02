@@ -1,19 +1,24 @@
 # WorkDetailIngestService is the write path for one work's Phase 2
 # enrichment POST (docs/plans/work-page-enrichment-data-model.md section 3):
-# authorize by capability token, locate today's Snapshot + the existing
+# locate the Ao3User by username, locate today's Snapshot + the existing
 # WorkStat for (today's snapshot, work), update its enrichment columns in
 # place, update the Work's latest-state fields, and delete-and-replace that
 # work's work_bookmarks - all in one transaction.
 #
+# Per docs/plans/memorable-token-and-recovery.md section 3b: no token check
+# here at all - /ingest/work is part of the same already-proved page-load
+# fan-out as /ingest, and a token match requirement would break the
+# edit-during-fan-out race (in-flight calls still carrying the *old* token
+# while the user edits it mid-run). Any readToken in the payload is ignored.
+#
 # Snapshot ordering is defensive-only (plan section 3): under the fan-out,
 # Phase 1 always creates today's Snapshot + base WorkStat before Phase 2
 # runs, so the normal path always finds them. NoSnapshotForToday covers the
-# three ways that guarantee can fail (no Snapshot, no Work, no WorkStat) -
-# they all collapse to the same error since the fan-out handles them
-# identically (skip this work, tally it, continue).
+# four ways that guarantee can fail (no Ao3User, no Snapshot, no Work, no
+# WorkStat) - they all collapse to the same error since the fan-out handles
+# them identically (skip this work, tally it, continue).
 class WorkDetailIngestService
   class InvalidPayload < StandardError; end
-  class TokenMismatch < StandardError; end
   class UnsupportedSchemaVersion < StandardError; end
   class NoSnapshotForToday < StandardError; end
 
@@ -27,7 +32,7 @@ class WorkDetailIngestService
 
   def call
     validate_payload!
-    ao3_user = authorize!
+    ao3_user = find_user!
     work_stat = locate_todays_work_stat!(ao3_user)
 
     ActiveRecord::Base.transaction do
@@ -54,10 +59,6 @@ class WorkDetailIngestService
     payload["username"]
   end
 
-  def client_read_token
-    payload["readToken"]
-  end
-
   def ao3_work_id
     payload["ao3WorkId"]
   end
@@ -74,17 +75,12 @@ class WorkDetailIngestService
     payload.fetch("bookmarks", [])
   end
 
-  # No username-enumeration signal: an unknown username and a wrong token
-  # for a known username both raise the same TokenMismatch.
-  def authorize!
+  # Unknown username -> NoSnapshotForToday: there is no token check left to
+  # distinguish "unknown username" from "known username, nothing to attach
+  # to today" - both mean there's nowhere valid to attach this enrichment.
+  def find_user!
     ao3_user = Ao3User.find_by(username: username)
-    raise TokenMismatch, "token mismatch for #{username}" unless ao3_user
-
-    # secure_compare is constant-time but not nil-safe; client_read_token
-    # can genuinely be nil for a malformed payload missing "readToken".
-    unless ActiveSupport::SecurityUtils.secure_compare(ao3_user.read_token, client_read_token.to_s)
-      raise TokenMismatch, "token mismatch for #{username}"
-    end
+    raise NoSnapshotForToday, "no user for username #{username}" unless ao3_user
 
     ao3_user
   end
