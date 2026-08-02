@@ -1,17 +1,23 @@
 require "rails_helper"
 
 # SnapshotIngestService is the single write path for an ingested bookmarklet
-# payload: find-or-create the Ao3User, mint/verify the capability token,
-# dedup same-day snapshots, and transactionally persist snapshot + works +
-# work_stats. See spec/support/ingest_payloads.rb for the payload contract
-# this stage is defining.
+# payload: find-or-create the Ao3User, always accept-and-(re)set the
+# client-supplied read_token (no server minting/verification - a browser
+# successfully scraping real AO3 stats for username X is itself proof it is
+# authenticated as X, per docs/plans/memorable-token-and-recovery.md's
+# "why this is sound"), dedup same-day snapshots, and transactionally
+# persist snapshot + works + work_stats. See spec/support/ingest_payloads.rb
+# for the payload contract this stage is defining.
 #
-# Interface this spec pins down (Planning left the exact shape open):
+# Interface this spec pins down (plan section 3a):
 #   SnapshotIngestService.new(payload: <Hash>).call
 #     => Result#ao3_user, #snapshot, #read_token, #deduped?
-#   raises SnapshotIngestService::TokenMismatch on a wrong token for an
-#     existing username, and SnapshotIngestService::InvalidPayload on
-#     malformed/missing required fields.
+#   raises SnapshotIngestService::InvalidPayload on malformed/missing
+#     required fields, including a missing/blank readToken.
+#   raises SnapshotIngestService::UnsupportedSchemaVersion on an
+#     unsupported schemaVersion.
+#   generate_token and SnapshotIngestService::TokenMismatch no longer exist -
+#     always-accept has no branch between "mint" and "accept-and-reset".
 RSpec.describe SnapshotIngestService do
   describe "#call with a brand-new username" do
     it "creates a new Ao3User" do
@@ -20,19 +26,13 @@ RSpec.describe SnapshotIngestService do
       }.to change(Ao3User, :count).by(1)
     end
 
-    it "mints a fresh read_token and returns it on the result" do
-      result = described_class.new(payload: valid_ingest_payload(username: "tokenmint")).call
-
-      expect(result.read_token).to be_present
-      expect(result.ao3_user.read_token).to eq(result.read_token)
-    end
-
-    it "ignores any client-supplied readToken when the user doesn't exist yet" do
+    it "stores the client-supplied readToken verbatim (no server minting)" do
       result = described_class.new(
-        payload: valid_ingest_payload(username: "ignoretoken", read_token: "client_supplied"),
+        payload: valid_ingest_payload(username: "clienttoken", read_token: "cat-dog"),
       ).call
 
-      expect(result.ao3_user.read_token).not_to eq("client_supplied")
+      expect(result.read_token).to eq("cat-dog")
+      expect(result.ao3_user.read_token).to eq("cat-dog")
     end
 
     it "derives captured_on from server time, not any client-supplied date" do
@@ -83,7 +83,9 @@ RSpec.describe SnapshotIngestService do
   # DB connection infeasible here, so the race is simulated directly: the
   # winner row is persisted for real, but find_by is stubbed to return nil on
   # its first call (this request's own pre-collision lookup) and the real
-  # winner row on the retry after rescuing RecordNotUnique.
+  # winner row on the retry after rescuing RecordNotUnique. Unchanged in
+  # intent from before this plan - it's still a *username* race, not a
+  # read_token one.
   describe "#call when a concurrent first-ingest already created the username" do
     def simulate_race_with(winner)
       allow(Ao3User).to receive(:find_by).with(username: winner.username).and_return(nil, winner)
@@ -98,118 +100,183 @@ RSpec.describe SnapshotIngestService do
 
       expect {
         described_class.new(
-          payload: valid_ingest_payload(username: "raceduser", read_token: winner.read_token),
+          payload: valid_ingest_payload(username: "raceduser", read_token: "retry_token"),
         ).call
       }.not_to raise_error
     end
 
-    it "treats the retry as the existing user once the winner's token matches" do
+    it "treats the retry as the existing user once it re-finds the winner row" do
       winner = Ao3User.create!(username: "raceduser2", read_token: "winner_token")
       simulate_race_with(winner)
 
       result = described_class.new(
-        payload: valid_ingest_payload(username: "raceduser2", read_token: winner.read_token),
+        payload: valid_ingest_payload(username: "raceduser2", read_token: "retry_token"),
       ).call
 
       expect(result.ao3_user).to eq(winner)
     end
 
-    it "raises TokenMismatch (not RecordNotUnique) when the retry's token doesn't match the winner's" do
+    # Always-accept means the retry's own (different) token still wins - no
+    # TokenMismatch branch exists any more to reject it.
+    it "resets the winner's read_token to the retry's client-supplied token rather than raising" do
       winner = Ao3User.create!(username: "raceduser3", read_token: "winner_token")
       simulate_race_with(winner)
 
-      expect {
-        described_class.new(
-          payload: valid_ingest_payload(username: "raceduser3", read_token: "loser_token"),
-        ).call
-      }.to raise_error(SnapshotIngestService::TokenMismatch)
+      result = described_class.new(
+        payload: valid_ingest_payload(username: "raceduser3", read_token: "retry_token"),
+      ).call
+
+      expect(result.read_token).to eq("retry_token")
+      expect(winner.reload.read_token).to eq("retry_token")
     end
   end
 
-  describe "#call with an existing username and a matching token" do
+  describe "#call with an existing username and the same client token" do
     it "reuses the existing Ao3User rather than creating another one" do
-      first = described_class.new(payload: valid_ingest_payload(username: "returning")).call
-      token = first.read_token
+      first = described_class.new(payload: valid_ingest_payload(username: "returning", read_token: "tok_a")).call
 
       expect {
         described_class.new(
-          payload: valid_ingest_payload(username: "returning", read_token: token),
+          payload: valid_ingest_payload(username: "returning", read_token: first.read_token),
         ).call
       }.not_to change(Ao3User, :count)
     end
   end
 
-  describe "#call with an existing username and a mismatched token" do
-    it "raises SnapshotIngestService::TokenMismatch" do
-      described_class.new(payload: valid_ingest_payload(username: "protected")).call
+  # The core behavior change (plan section 3a/decision 2): a different
+  # client-supplied token for an existing username no longer raises
+  # TokenMismatch - it succeeds and (re)sets read_token to the new value.
+  # This is what makes recovery from a lost token possible: re-running the
+  # bookmarklet on your own (real, logged-in) stats page always re-
+  # establishes access.
+  describe "#call with an existing username and a different client token (always-accept-and-reset)" do
+    it "succeeds rather than raising" do
+      described_class.new(payload: valid_ingest_payload(username: "protected", read_token: "original_token")).call
 
       expect {
         described_class.new(
-          payload: valid_ingest_payload(username: "protected", read_token: "wrong_token"),
+          payload: valid_ingest_payload(username: "protected", read_token: "new_token"),
         ).call
-      }.to raise_error(SnapshotIngestService::TokenMismatch)
+      }.not_to raise_error
     end
 
-    it "persists no new snapshot when the token is wrong" do
-      described_class.new(payload: valid_ingest_payload(username: "protected2")).call
+    it "resets read_token to the new client-supplied value" do
+      described_class.new(payload: valid_ingest_payload(username: "protected2", read_token: "original_token")).call
+
+      result = described_class.new(
+        payload: valid_ingest_payload(username: "protected2", read_token: "new_token"),
+      ).call
+
+      expect(result.read_token).to eq("new_token")
+      expect(result.ao3_user.reload.read_token).to eq("new_token")
+    end
+
+    it "does not create a second Ao3User row" do
+      described_class.new(payload: valid_ingest_payload(username: "protected3", read_token: "original_token")).call
+
+      expect {
+        described_class.new(
+          payload: valid_ingest_payload(username: "protected3", read_token: "new_token"),
+        ).call
+      }.not_to change(Ao3User, :count)
+    end
+
+    it "still persists a new snapshot (today's ingest is not rejected)" do
+      described_class.new(payload: valid_ingest_payload(username: "protected4", read_token: "original_token")).call
+
+      travel_to(1.day.from_now) do
+        expect {
+          described_class.new(
+            payload: valid_ingest_payload(username: "protected4", read_token: "new_token"),
+          ).call
+        }.to change(Snapshot, :count).by(1)
+      end
+    end
+  end
+
+  describe "#call with a missing or blank readToken" do
+    it "raises InvalidPayload when readToken is missing from the payload entirely (nil)" do
+      payload = valid_ingest_payload(username: "missingtoken", read_token: nil)
+
+      expect {
+        described_class.new(payload: payload).call
+      }.to raise_error(SnapshotIngestService::InvalidPayload)
+    end
+
+    it "raises InvalidPayload when readToken is an empty string" do
+      payload = valid_ingest_payload(username: "blanktoken", read_token: "")
+
+      expect {
+        described_class.new(payload: payload).call
+      }.to raise_error(SnapshotIngestService::InvalidPayload)
+    end
+
+    it "raises InvalidPayload when readToken is only whitespace" do
+      payload = valid_ingest_payload(username: "whitespacetoken", read_token: "   ")
+
+      expect {
+        described_class.new(payload: payload).call
+      }.to raise_error(SnapshotIngestService::InvalidPayload)
+    end
+
+    it "persists no user and no snapshot when readToken is missing" do
+      payload = valid_ingest_payload(username: "notokenpersist", read_token: nil)
 
       expect {
         begin
-          described_class.new(
-            payload: valid_ingest_payload(username: "protected2", read_token: "wrong_token"),
-          ).call
-        rescue SnapshotIngestService::TokenMismatch
+          described_class.new(payload: payload).call
+        rescue SnapshotIngestService::InvalidPayload
           nil
         end
-      }.not_to change(Snapshot, :count)
-    end
-
-    # A payload missing "readToken" entirely (as opposed to one with a wrong
-    # but present value, covered above) decodes to a nil client_read_token.
-    # ActiveSupport::SecurityUtils.secure_compare is not nil-safe - it raises
-    # NoMethodError on a nil argument rather than returning false - so this
-    # must still surface as an ordinary TokenMismatch, not a 500.
-    it "raises SnapshotIngestService::TokenMismatch (not a NoMethodError) when readToken is missing from the payload" do
-      described_class.new(payload: valid_ingest_payload(username: "protected3")).call
-
-      expect {
-        described_class.new(payload: valid_ingest_payload(username: "protected3", read_token: nil)).call
-      }.to raise_error(SnapshotIngestService::TokenMismatch)
+      }.not_to change(Ao3User, :count)
     end
   end
 
   describe "#call dedup on (ao3_user, captured_on)" do
     it "does not create a second snapshot for the same user on the same server day" do
-      first = described_class.new(payload: valid_ingest_payload(username: "sameday")).call
-      token = first.read_token
+      first = described_class.new(payload: valid_ingest_payload(username: "sameday", read_token: "tok")).call
 
       expect {
         described_class.new(
-          payload: valid_ingest_payload(username: "sameday", read_token: token),
+          payload: valid_ingest_payload(username: "sameday", read_token: first.read_token),
         ).call
       }.not_to change(Snapshot, :count)
     end
 
-    it "returns deduped: true and the original snapshot on a same-day repeat" do
-      first = described_class.new(payload: valid_ingest_payload(username: "sameday2")).call
-      token = first.read_token
+    it "returns deduped: true and the original snapshot on a same-day repeat with the same token" do
+      first = described_class.new(payload: valid_ingest_payload(username: "sameday2", read_token: "tok")).call
 
       second = described_class.new(
-        payload: valid_ingest_payload(username: "sameday2", read_token: token),
+        payload: valid_ingest_payload(username: "sameday2", read_token: first.read_token),
       ).call
 
       expect(second.deduped?).to be(true)
       expect(second.snapshot.id).to eq(first.snapshot.id)
     end
 
+    # Same-day dedup still runs the always-(re)set step first (plan section
+    # 3a: "the token is set in the find-or-create step, before the dedup
+    # check"), so a same-day repeat that also edits the token reflects the
+    # new value on the result, even though no new snapshot is created.
+    it "returns the current (possibly just-reset) token, not the token from the first capture, on a same-day repeat" do
+      first = described_class.new(payload: valid_ingest_payload(username: "sameday3", read_token: "tok_a")).call
+
+      second = described_class.new(
+        payload: valid_ingest_payload(username: "sameday3", read_token: "tok_b"),
+      ).call
+
+      expect(second.deduped?).to be(true)
+      expect(second.read_token).to eq("tok_b")
+      expect(first.ao3_user.reload.read_token).to eq("tok_b")
+    end
+
     it "creates a new snapshot on a later day for the same user" do
-      first = described_class.new(payload: valid_ingest_payload(username: "nextday")).call
-      token = first.read_token
+      first = described_class.new(payload: valid_ingest_payload(username: "nextday", read_token: "tok")).call
 
       travel_to(1.day.from_now) do
         expect {
           described_class.new(
-            payload: valid_ingest_payload(username: "nextday", read_token: token),
+            payload: valid_ingest_payload(username: "nextday", read_token: first.read_token),
           ).call
         }.to change(Snapshot, :count).by(1)
       end
@@ -271,13 +338,12 @@ RSpec.describe SnapshotIngestService do
     end
 
     it "backfills earliest_post_year on a later ingest if the first ingest's scrape came back empty" do
-      first = described_class.new(payload: valid_ingest_payload(username: "backfillyear")).call
-      token = first.read_token
+      first = described_class.new(payload: valid_ingest_payload(username: "backfillyear", read_token: "tok")).call
 
       travel_to(1.day.from_now) do
         described_class.new(
           payload: valid_ingest_payload(
-            username: "backfillyear", read_token: token, earliest_post_year: 2014,
+            username: "backfillyear", read_token: first.read_token, earliest_post_year: 2014,
           ),
         ).call
       end
@@ -287,14 +353,13 @@ RSpec.describe SnapshotIngestService do
 
     it "does not overwrite an already-set earliest_post_year on a later ingest, even with a different value" do
       first = described_class.new(
-        payload: valid_ingest_payload(username: "returningyear", earliest_post_year: 2014),
+        payload: valid_ingest_payload(username: "returningyear", read_token: "tok", earliest_post_year: 2014),
       ).call
-      token = first.read_token
 
       travel_to(1.day.from_now) do
         described_class.new(
           payload: valid_ingest_payload(
-            username: "returningyear", read_token: token, earliest_post_year: 1999,
+            username: "returningyear", read_token: first.read_token, earliest_post_year: 1999,
           ),
         ).call
       end
@@ -304,13 +369,12 @@ RSpec.describe SnapshotIngestService do
 
     it "does not overwrite an already-set earliest_post_year on the same-day dedup path" do
       first = described_class.new(
-        payload: valid_ingest_payload(username: "dedupyear", earliest_post_year: 2014),
+        payload: valid_ingest_payload(username: "dedupyear", read_token: "tok", earliest_post_year: 2014),
       ).call
-      token = first.read_token
 
       second = described_class.new(
         payload: valid_ingest_payload(
-          username: "dedupyear", read_token: token, earliest_post_year: 2020,
+          username: "dedupyear", read_token: first.read_token, earliest_post_year: 2020,
         ),
       ).call
 
@@ -325,12 +389,11 @@ RSpec.describe SnapshotIngestService do
     # kind of thing a user does when troubleshooting, so this path getting
     # it right matters as much as the next day's capture does.
     it "backfills earliest_post_year on a same-day dedup ingest if it was still nil" do
-      first = described_class.new(payload: valid_ingest_payload(username: "dedupbackfill")).call
-      token = first.read_token
+      first = described_class.new(payload: valid_ingest_payload(username: "dedupbackfill", read_token: "tok")).call
 
       second = described_class.new(
         payload: valid_ingest_payload(
-          username: "dedupbackfill", read_token: token, earliest_post_year: 2014,
+          username: "dedupbackfill", read_token: first.read_token, earliest_post_year: 2014,
         ),
       ).call
 
@@ -378,6 +441,24 @@ RSpec.describe SnapshotIngestService do
           nil
         end
       }.not_to change(Snapshot, :count)
+    end
+  end
+
+  # Interface-pinning regression guards (plan section 3a): the old
+  # server-minting/token-verification machinery is deleted outright, not
+  # repurposed - always-accept collapses "mint" and "verify-and-reset" into
+  # a single "store whatever the client sent" step.
+  describe "deleted interface (plan section 3a)" do
+    it "no longer defines a TokenMismatch error class" do
+      expect(described_class.const_defined?(:TokenMismatch)).to be(false)
+    end
+
+    it "no longer defines a private #generate_token method" do
+      expect(described_class.private_instance_methods).not_to include(:generate_token)
+    end
+
+    it "no longer defines a private #authorize_existing_user! method" do
+      expect(described_class.private_instance_methods).not_to include(:authorize_existing_user!)
     end
   end
 end

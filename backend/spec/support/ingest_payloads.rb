@@ -5,10 +5,17 @@
 # Field naming is camelCase because this mirrors the literal JSON body the
 # bookmarklet POSTs (parsed into a plain Hash with string keys by the time it
 # reaches the service, e.g. via ActionController::Parameters#to_unsafe_h).
+#
+# read_token defaults to a present, non-blank string (not nil) - per
+# docs/plans/memorable-token-and-recovery.md section 3a, the client always
+# supplies a readToken now (the server never mints one), so a nil/blank
+# token is itself an InvalidPayload case, not "let the server generate one".
+# Callers exercising that missing-token behavior pass `read_token: nil`
+# explicitly rather than relying on the default.
 module IngestPayloads
   CURRENT_SCHEMA_VERSION = 1
 
-  def valid_ingest_payload(username: "someauthor", read_token: nil, works: nil, earliest_post_year: nil)
+  def valid_ingest_payload(username: "someauthor", read_token: "default_read_token", works: nil, earliest_post_year: nil)
     {
       "schemaVersion" => CURRENT_SCHEMA_VERSION,
       "username" => username,
