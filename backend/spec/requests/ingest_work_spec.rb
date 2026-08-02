@@ -6,6 +6,10 @@ require "rails_helper"
 # only exactly like /ingest (see the CORS describe block below, which
 # mirrors spec/requests/ingest_spec.rb's).
 #
+# Per docs/plans/memorable-token-and-recovery.md section 3b: this endpoint
+# no longer checks readToken at all (any value, right, wrong, or missing,
+# is accepted and ignored), so it can never return 403 any more.
+#
 # Interface this spec pins down: routed via
 # WorkDetailIngestService -> controller action translating its Result/
 # errors into HTTP, same rescue-and-render pattern as IngestController.
@@ -64,17 +68,33 @@ RSpec.describe "POST /ingest/work", type: :request do
     end
   end
 
-  context "with a token mismatch" do
-    it "returns 403 and persists no enrichment" do
-      capture_phase_one(username: "worker_403")
+  # Plan section 3b: /ingest/work drops the token check entirely - a
+  # wrong/missing readToken in the payload no longer 403s, and enrichment
+  # still applies. This keeps an in-flight fan-out working even if the
+  # user edits their token mid-run (corner cases: "Edit during an
+  # in-flight fan-out").
+  context "with a readToken that does not match the user's stored token" do
+    it "returns a 2xx success status rather than 403, and still enriches" do
+      capture_phase_one(username: "worker_mismatched_token")
       work_stat = WorkStat.where(work: Work.find_by(ao3_work_id: 111)).first
 
       expect {
         post_ingest_work(
-          valid_work_detail_payload(username: "worker_403", read_token: "wrong_token"),
+          valid_work_detail_payload(username: "worker_mismatched_token", read_token: "wrong_token"),
         )
-      }.not_to change { work_stat.reload.updated_at }
-      expect(response).to have_http_status(:forbidden)
+      }.to change { work_stat.reload.updated_at }
+
+      expect(response).to have_http_status(:ok).or have_http_status(:created)
+    end
+  end
+
+  context "with no readToken at all in the payload" do
+    it "returns a 2xx success status and still enriches" do
+      capture_phase_one(username: "worker_no_token")
+
+      post_ingest_work(valid_work_detail_payload(username: "worker_no_token", read_token: nil))
+
+      expect(response).to have_http_status(:ok).or have_http_status(:created)
     end
   end
 
