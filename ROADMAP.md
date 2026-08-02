@@ -67,3 +67,20 @@ baseline feature on purpose)
   for mobile (e.g. a share-sheet/shortcut-based capture), or explicitly
   scoping mobile out with a clear in-app message instead of a broken/
   confusing attempt.
+
+## v2 candidates (confirmed 2026-08-02)
+
+- Visual improvements for the bookmarklet's injected UI. The success/
+  failure/progress/summary banners (`frontend/src/bookmarklet/banners.ts`,
+  `bannerStyles.ts`, `successBannerTokenField.ts`) are functional and follow
+  MASTER.md's palette/typography tokens via inline styles, but haven't had
+  a dedicated design pass - they're plainer than the rest of the app's UI.
+- A "don't close this page" block/warning while Phase 2 fan-out capture is
+  in progress. The fan-out (`fanOut.ts`) walks every scraped work
+  sequentially and throttled, which can take a real amount of time for a
+  prolific author (up to `maxWorksPerRun` works, each with up to
+  `maxBookmarkPagesPerWork` bookmark pages) - if the user navigates away or
+  closes the AO3 tab mid-run, only whatever was already incrementally
+  POSTed survives; the rest is silently abandoned rather than resumed or
+  retried. A `beforeunload` prompt (or similar) while a run is active would
+  prevent that data loss from being accidental/unnoticed.
