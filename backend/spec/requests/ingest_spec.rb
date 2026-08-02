@@ -2,6 +2,12 @@ require "rails_helper"
 
 # POST /ingest is a dedicated JSON endpoint (not GraphQL) so AO3-origin
 # scripts can only ever hit this one narrow action, never arbitrary GraphQL.
+#
+# Per docs/plans/memorable-token-and-recovery.md decision 2: this endpoint
+# is always-accept - a client-supplied readToken is stored verbatim (no
+# server minting), and a *different* token for an existing username
+# succeeds and resets it rather than 403ing. There is no 403 path here any
+# more (see the removed "token mismatch" context this file used to have).
 RSpec.describe "POST /ingest", type: :request do
   let(:ao3_origin) { "https://archiveofourown.org" }
 
@@ -69,6 +75,23 @@ RSpec.describe "POST /ingest", type: :request do
       expect { post_ingest(payload) }.not_to change(Snapshot, :count)
       expect(response).to have_http_status(:unprocessable_entity)
     end
+
+    # Plan section 3a: the client always supplies a readToken now (the
+    # server never mints one), so a missing/blank token is itself
+    # malformed, not "let the server generate one".
+    it "returns 422 and persists nothing when readToken is missing" do
+      payload = valid_ingest_payload(username: "no_token_req", read_token: nil)
+
+      expect { post_ingest(payload) }.not_to change(Ao3User, :count)
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it "returns 422 and persists nothing when readToken is blank" do
+      payload = valid_ingest_payload(username: "blank_token_req", read_token: "   ")
+
+      expect { post_ingest(payload) }.not_to change(Ao3User, :count)
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
   end
 
   context "with an unknown or too-old schemaVersion" do
@@ -80,15 +103,34 @@ RSpec.describe "POST /ingest", type: :request do
     end
   end
 
-  context "with a token mismatch for an existing username" do
-    it "returns 403 and persists no new snapshot" do
-      post_ingest(valid_ingest_payload(username: "mismatch_user"))
+  # Decision 2 (plan section 1/3a): a *different* client-supplied token for
+  # an existing username is no longer rejected - it succeeds and resets
+  # read_token to the new value. This is the recovery path: re-running the
+  # bookmarklet on your own real stats page always re-establishes access,
+  # even after losing/forgetting the old token.
+  context "with an existing username and a different client token" do
+    it "returns success (not 403) and echoes the new token" do
+      post_ingest(valid_ingest_payload(username: "resetting_user", read_token: "original_token"))
+
+      post_ingest(valid_ingest_payload(username: "resetting_user", read_token: "new_token"))
+
+      expect(response).to have_http_status(:ok).or have_http_status(:created)
+      expect(response.parsed_body["readToken"]).to eq("new_token")
+    end
+
+    it "resets the stored read_token so a later request must use the new value" do
+      post_ingest(valid_ingest_payload(username: "resetting_user2", read_token: "original_token"))
+      post_ingest(valid_ingest_payload(username: "resetting_user2", read_token: "new_token"))
+
+      expect(Ao3User.find_by(username: "resetting_user2").read_token).to eq("new_token")
+    end
+
+    it "does not create a second Ao3User" do
+      post_ingest(valid_ingest_payload(username: "resetting_user3", read_token: "original_token"))
 
       expect {
-        post_ingest(valid_ingest_payload(username: "mismatch_user", read_token: "wrong_token"))
-      }.not_to change(Snapshot, :count)
-
-      expect(response).to have_http_status(:forbidden)
+        post_ingest(valid_ingest_payload(username: "resetting_user3", read_token: "new_token"))
+      }.not_to change(Ao3User, :count)
     end
   end
 
