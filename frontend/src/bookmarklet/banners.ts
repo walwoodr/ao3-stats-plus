@@ -14,11 +14,14 @@
 // separate set of colors here.
 
 import { DARK_COLOR_TOKENS, LIGHT_COLOR_TOKENS, type ColorTokens } from "../lib/colorTokens";
+import { MESSAGE_STYLE, primaryButtonStyle } from "./bannerStyles";
+import { appendTokenField, type SuccessBannerData } from "./successBannerTokenField";
 
-export interface SuccessBannerData {
-  readToken: string;
-  dashboardUrl: string;
-}
+// SaveTokenResult/SuccessBannerData are defined in successBannerTokenField.ts
+// (split out to keep this file under CODE_STANDARDS.md's .ts line budget -
+// see that file's own header comment) but re-exported here so callers only
+// ever need to import from "./banners".
+export type { SaveTokenResult, SuccessBannerData } from "./successBannerTokenField";
 
 export interface FailureBannerData {
   message: string;
@@ -85,44 +88,7 @@ function bannerBaseStyle(colors: ColorTokens): string {
   );
 }
 
-// Zeroes out the default <p> margin, since spacing between elements is
-// handled by the parent's flex `gap` instead - otherwise the two stack.
-const MESSAGE_STYLE = "margin:0;";
 const HEADING_STYLE = "margin:0;font-weight:600;font-size:1rem;";
-
-// Monospace + background tint makes the token visually distinct from
-// surrounding prose; break-all/pre-wrap ensures a long token wraps instead
-// of overflowing the banner's fixed max-width. 'IBM Plex Mono' first, per
-// MASTER.md's data/figures typography tier - the read token is exactly
-// that, a figure to be copied precisely - falling back to system monospace
-// since there's no font-loading mechanism available on the host AO3 page.
-function tokenStyle(colors: ColorTokens): string {
-  return (
-    "display:block;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas," +
-    "monospace;font-size:0.8125rem;" +
-    `background:color-mix(in srgb, ${colors.ink} 8%, ${colors.card});` +
-    "padding:0.5rem 0.6rem;border-radius:0.375rem;word-break:break-all;white-space:pre-wrap;"
-  );
-}
-
-function primaryButtonStyle(accent: string): string {
-  return (
-    `background:${accent};color:#ffffff;border:none;border-radius:0.375rem;` +
-    "padding:0.5rem 0.9rem;font-size:0.875rem;font-weight:600;line-height:1.25;" +
-    "cursor:pointer;font-family:inherit;align-self:flex-start;"
-  );
-}
-
-// Styled as an outlined "secondary CTA" button rather than a bare
-// underlined link, so it reads as obviously clickable next to the Copy
-// button rather than blending into surrounding text.
-function ctaLinkStyle(accent: string, background: string): string {
-  return (
-    `display:inline-block;align-self:flex-start;color:${accent};background:${background};` +
-    `border:1px solid ${accent};border-radius:0.375rem;padding:0.5rem 0.9rem;` +
-    "font-size:0.875rem;font-weight:600;text-decoration:none;"
-  );
-}
 
 // This product's 7-token design-system palette (design-system/ao3-stats-plus/
 // MASTER.md) has no dedicated "info"/"warning" roles, so each banner
@@ -138,6 +104,10 @@ function tintBackground(colors: ColorTokens, roleColor: string): string {
   return `color-mix(in srgb, ${roleColor} 12%, ${colors.card})`;
 }
 
+// The token field itself (editable input, Copy/Save buttons, live/error
+// regions, dashboard link) is built by successBannerTokenField.ts - see
+// that file's header comment for why it's split out and the full Save
+// interaction contract.
 export function renderSuccessBanner(container: HTMLElement, data: SuccessBannerData): HTMLElement {
   const colors = resolveColorTokens();
   const banner = document.createElement("div");
@@ -146,35 +116,11 @@ export function renderSuccessBanner(container: HTMLElement, data: SuccessBannerD
   banner.style.cssText = `${bannerBaseStyle(colors)}background:${tintBackground(colors, colors.growth)};border:1px solid ${colors.growth};`;
 
   const heading = document.createElement("p");
-  heading.textContent = "Stats captured! Your read token:";
+  heading.textContent = "Stats captured!";
   heading.style.cssText = HEADING_STYLE;
   banner.appendChild(heading);
 
-  const tokenText = document.createElement("code");
-  tokenText.textContent = data.readToken;
-  tokenText.style.cssText = tokenStyle(colors);
-  banner.appendChild(tokenText);
-
-  const copyButton = document.createElement("button");
-  copyButton.type = "button";
-  copyButton.textContent = "Copy";
-  copyButton.style.cssText = primaryButtonStyle(colors.card);
-  copyButton.addEventListener("click", () => {
-    navigator.clipboard.writeText(data.readToken);
-    copyButton.textContent = "Copied!";
-  });
-  banner.appendChild(copyButton);
-  const copyExplainer = document.createElement("p");
-  copyExplainer.textContent =
-    "You may wish to save your read token in a password wallet to guarantee future access to your saved stats.";
-  copyExplainer.style.cssText = MESSAGE_STYLE;
-  banner.appendChild(copyExplainer);
-
-  const link = document.createElement("a");
-  link.href = data.dashboardUrl;
-  link.textContent = "View your dashboard";
-  link.style.cssText = ctaLinkStyle(colors.growth, colors.card);
-  banner.appendChild(link);
+  appendTokenField(banner, colors, data);
 
   container.appendChild(banner);
   banner.focus();

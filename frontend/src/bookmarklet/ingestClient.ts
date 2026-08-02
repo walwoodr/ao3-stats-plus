@@ -3,14 +3,15 @@ import type { IngestPayload } from "./buildIngestPayload";
 // Wraps the raw fetch() POST to /ingest and classifies the response into a
 // discriminated IngestResult, so entrypoint.ts never has to reason about
 // HTTP status codes directly. Status mapping per the plan/backend
-// (IngestController): 201/200 -> success, 403 (TokenMismatch) ->
-// tokenMismatch, 426 (UnsupportedSchemaVersion) -> schemaMismatch, 422
-// (InvalidPayload) -> invalid, network failure or any other/5xx status ->
-// networkError.
+// (IngestController): 201/200 -> success, 426 (UnsupportedSchemaVersion) ->
+// schemaMismatch, 422 (InvalidPayload) -> invalid, network failure or any
+// other/5xx status -> networkError. /ingest is always-accept
+// (memorable-token-and-recovery plan section 3a) and can never return 403 -
+// a stray one falls through to networkError like any other unexpected
+// status.
 
 export type IngestResult =
   | { status: "success"; readToken: string; capturedOn: string; deduped: boolean }
-  | { status: "tokenMismatch" }
   | { status: "schemaMismatch" }
   | { status: "invalid"; message: string }
   | { status: "networkError" };
@@ -48,8 +49,6 @@ export async function postIngest(apiOrigin: string, payload: IngestPayload): Pro
         deduped: body.deduped,
       };
     }
-    case 403:
-      return { status: "tokenMismatch" };
     case 426:
       return { status: "schemaMismatch" };
     case 422: {

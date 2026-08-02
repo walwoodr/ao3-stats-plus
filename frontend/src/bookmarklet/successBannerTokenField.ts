@@ -1,0 +1,182 @@
+// The success banner's editable-token field (docs/plans/memorable-token-and-
+// recovery.md section 4/7/10, task 20): a labeled, editable text input
+// pre-filled with the captured/suggested token, a Copy button (copies the
+// *current* input value), a Save button that rotates the token via a
+// caller-supplied onSaveToken callback, and a dashboard link recomputed
+// (URL-encoded) from the current saved token. Split out of banners.ts to
+// keep that file under CODE_STANDARDS.md's 400-line .ts budget - this is a
+// self-contained "one field's worth" of DOM construction and Save-button
+// state machine, not a general-purpose banners helper.
+//
+// onSaveToken mirrors renderRetryBanner's existing onRetry callback
+// pattern: banners.ts stays decoupled from apiOrigin/fetch/tokenUpdateClient
+// entirely - entrypoint.ts is the one that knows how to turn a token string
+// into an actual POST /ingest/token request (see entrypoint.ts's
+// "onSaveToken wiring").
+import type { ColorTokens } from "../lib/colorTokens";
+import { MESSAGE_STYLE, ctaLinkStyle, primaryButtonStyle } from "./bannerStyles";
+
+export type SaveTokenResult = { ok: true; readToken: string } | { ok: false; message: string };
+
+export interface SuccessBannerData {
+  readToken: string;
+  frontendOrigin: string;
+  username: string;
+  onSaveToken: (newToken: string) => Promise<SaveTokenResult>;
+}
+
+const INPUT_ID = "ao3-stats-plus-token-input";
+
+function buildDashboardUrl(frontendOrigin: string, username: string, token: string): string {
+  return `${frontendOrigin}/u/${encodeURIComponent(username)}?token=${encodeURIComponent(token)}`;
+}
+
+function labelStyle(colors: ColorTokens): string {
+  return `${MESSAGE_STYLE}font-size:0.8125rem;font-weight:600;color:${colors.inkSoft};`;
+}
+
+// MASTER.md's Inputs spec (plan section 4): 16px explicitly (never
+// smaller - avoids iOS Safari auto-zooming the field on focus), monospace
+// value font since the token is a figure to be transcribed precisely, same
+// treatment as the old read-only <code> block it replaces.
+function inputStyle(colors: ColorTokens): string {
+  return (
+    `background:${colors.card};color:${colors.ink};` +
+    `border:1px solid color-mix(in srgb, ${colors.ink} 20%, transparent);border-radius:6px;` +
+    "padding:10px 14px;font-size:16px;width:100%;box-sizing:border-box;" +
+    "font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;"
+  );
+}
+
+// MASTER.md .btn-secondary inline equivalent: transparent background, a
+// soft 1px border, color/border-only transition (no transforms).
+function secondaryButtonStyle(colors: ColorTokens): string {
+  return (
+    `background:transparent;color:${colors.ink};border:1px solid ${colors.inkSoft};` +
+    "border-radius:6px;padding:0.5rem 0.9rem;font-size:0.875rem;font-weight:600;" +
+    "line-height:1.25;cursor:pointer;font-family:inherit;align-self:flex-start;" +
+    "transition:color 0.15s ease,border-color 0.15s ease;"
+  );
+}
+
+function smallTextStyle(color: string): string {
+  return `${MESSAGE_STYLE}font-size:0.8125rem;color:${color};`;
+}
+
+function focusRingListeners(input: HTMLInputElement, colors: ColorTokens): void {
+  const baseBorder = `1px solid color-mix(in srgb, ${colors.ink} 20%, transparent)`;
+  input.addEventListener("focus", () => {
+    input.style.borderColor = colors.accent;
+    input.style.boxShadow = `0 0 0 3px color-mix(in srgb, ${colors.accent} 15%, transparent)`;
+  });
+  input.addEventListener("blur", () => {
+    input.style.border = baseBorder;
+    input.style.boxShadow = "none";
+  });
+}
+
+export function appendTokenField(
+  banner: HTMLElement,
+  colors: ColorTokens,
+  data: SuccessBannerData,
+): void {
+  const label = document.createElement("label");
+  label.setAttribute("for", INPUT_ID);
+  label.textContent = "Your access token - edit to choose your own";
+  label.style.cssText = labelStyle(colors);
+  banner.appendChild(label);
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.id = INPUT_ID;
+  input.value = data.readToken;
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  input.setAttribute("autocapitalize", "off");
+  input.style.cssText = inputStyle(colors);
+  focusRingListeners(input, colors);
+  banner.appendChild(input);
+
+  const explainer = document.createElement("p");
+  explainer.textContent =
+    "You may wish to save this token in a password wallet to guarantee future access to your saved stats.";
+  explainer.style.cssText = smallTextStyle(colors.inkSoft);
+  banner.appendChild(explainer);
+
+  const copyButton = document.createElement("button");
+  copyButton.type = "button";
+  copyButton.textContent = "Copy";
+  copyButton.style.cssText = primaryButtonStyle(colors.card);
+  copyButton.addEventListener("click", () => {
+    navigator.clipboard.writeText(input.value);
+    copyButton.textContent = "Copied!";
+  });
+  banner.appendChild(copyButton);
+
+  const saveButton = document.createElement("button");
+  saveButton.type = "button";
+  saveButton.textContent = "Save";
+  saveButton.style.cssText = secondaryButtonStyle(colors);
+  banner.appendChild(saveButton);
+
+  const savedRegion = document.createElement("p");
+  savedRegion.setAttribute("role", "status");
+  savedRegion.setAttribute("aria-live", "polite");
+  savedRegion.style.cssText = smallTextStyle(colors.inkSoft);
+  banner.appendChild(savedRegion);
+
+  const errorRegion = document.createElement("p");
+  errorRegion.setAttribute("role", "alert");
+  errorRegion.style.cssText = smallTextStyle(colors.destructive);
+  errorRegion.style.display = "none";
+  banner.appendChild(errorRegion);
+
+  const link = document.createElement("a");
+  link.href = buildDashboardUrl(data.frontendOrigin, data.username, data.readToken);
+  link.textContent = "View your dashboard";
+  link.style.cssText = ctaLinkStyle(colors.growth, colors.card);
+  banner.appendChild(link);
+
+  const triggerSave = (): void => {
+    const trimmed = input.value.trim();
+    if (!trimmed) return;
+
+    saveButton.disabled = true;
+    saveButton.textContent = "Save...";
+    errorRegion.textContent = "";
+    errorRegion.style.display = "none";
+
+    data
+      .onSaveToken(trimmed)
+      .then((result) => {
+        if (result.ok) {
+          input.value = result.readToken;
+          link.href = buildDashboardUrl(data.frontendOrigin, data.username, result.readToken);
+          savedRegion.textContent = "Token saved.";
+        } else {
+          errorRegion.textContent = result.message;
+          errorRegion.style.display = "";
+        }
+      })
+      .catch(() => {
+        errorRegion.textContent = "Could not save token - please try again.";
+        errorRegion.style.display = "";
+      })
+      .finally(() => {
+        saveButton.disabled = false;
+        saveButton.textContent = "Save";
+      });
+  };
+
+  saveButton.addEventListener("click", triggerSave);
+  // Belt-and-suspenders, matching renderRetryBanner's Enter-triggers-action
+  // pattern: banners are injected outside our own event-handling stack, so
+  // Enter-in-the-input must be handled explicitly (and prevented from doing
+  // anything form-submission-like) rather than relying on implicit browser
+  // behavior.
+  input.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    triggerSave();
+  });
+}

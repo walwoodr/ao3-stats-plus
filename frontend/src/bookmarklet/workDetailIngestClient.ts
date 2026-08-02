@@ -3,15 +3,15 @@ import type { WorkDetailPayload } from "./buildWorkDetailPayload";
 // Wraps the raw fetch() POST to /ingest/work and classifies the response
 // into a discriminated WorkDetailIngestResult, mirroring ingestClient.ts's
 // role for the existing /ingest endpoint. Status mapping per the plan/
-// backend (spec/requests/ingest_work_spec.rb): 200/201 -> success, 403
-// (TokenMismatch) -> tokenMismatch, 426 (UnsupportedSchemaVersion) ->
-// schemaMismatch, 422 (InvalidPayload) -> invalid, 409
-// (NoSnapshotForToday) -> noSnapshotForToday, network failure or any
-// other/5xx status -> networkError.
+// backend (spec/requests/ingest_work_spec.rb): 200/201 -> success, 426
+// (UnsupportedSchemaVersion) -> schemaMismatch, 422 (InvalidPayload) ->
+// invalid, 409 (NoSnapshotForToday) -> noSnapshotForToday, network failure
+// or any other/5xx status -> networkError. /ingest/work no longer checks
+// the token at all (memorable-token-and-recovery plan section 3b) and can
+// never return 403 - a stray one falls through to networkError.
 
 export type WorkDetailIngestResult =
   | { status: "success" }
-  | { status: "tokenMismatch" }
   | { status: "schemaMismatch" }
   | { status: "invalid"; message: string }
   | { status: "noSnapshotForToday" }
@@ -40,8 +40,6 @@ export async function postWorkDetail(
     case 200:
     case 201:
       return { status: "success" };
-    case 403:
-      return { status: "tokenMismatch" };
     case 426:
       return { status: "schemaMismatch" };
     case 409:

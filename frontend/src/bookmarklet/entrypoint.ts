@@ -12,12 +12,14 @@ import { scrapeStats, type ScrapeFailureReason } from "./scrapeStats";
 import { buildIngestPayload, type IngestPayload } from "./buildIngestPayload";
 import { postIngest, type IngestResult } from "./ingestClient";
 import { getStoredReadToken, setStoredReadToken } from "./tokenStorage";
+import { generateTokenSuggestion } from "./tokenSuggestion";
+import { postTokenUpdate } from "./tokenUpdateClient";
 import {
   renderFailureBanner,
   renderInfoBanner,
   renderRetryBanner,
   renderSuccessBanner,
-  renderUnauthorizedBanner,
+  type SaveTokenResult,
 } from "./banners";
 import { SCHEMA_VERSION } from "./constants";
 import { runFanOut } from "./fanOut";
@@ -64,9 +66,43 @@ function setGuardBanner(banner: HTMLElement): void {
   if (window.__ao3StatsPlus) window.__ao3StatsPlus.banner = banner;
 }
 
+// Adapts tokenUpdateClient's four-state TokenUpdateResult down to
+// banners.ts's simpler two-state SaveTokenResult, so banners.ts never has
+// to know about apiOrigin/fetch/tokenUpdateClient directly (mirrors the
+// existing onRetry callback pattern used by renderRetryBanner). This is the
+// "Save token" button's actual POST /ingest/token call.
+function buildOnSaveToken(
+  apiOrigin: string,
+  username: string,
+): (newToken: string) => Promise<SaveTokenResult> {
+  return async (newToken: string) => {
+    const result = await postTokenUpdate(apiOrigin, {
+      schemaVersion: SCHEMA_VERSION,
+      username,
+      readToken: newToken,
+    });
+
+    switch (result.status) {
+      case "success":
+        setStoredReadToken(username, result.readToken);
+        return { ok: true, readToken: result.readToken };
+      case "invalid":
+        return { ok: false, message: result.message };
+      case "schemaMismatch":
+        return { ok: false, message: "This bookmarklet is out of date - please reinstall it." };
+      case "networkError":
+        return {
+          ok: false,
+          message: "Couldn't reach the server - check your connection and try again.",
+        };
+    }
+  };
+}
+
 function routeResult(
   result: IngestResult,
   frontendOrigin: string,
+  apiOrigin: string,
   username: string,
   retry: () => void,
 ): void {
@@ -76,14 +112,9 @@ function routeResult(
       setGuardBanner(
         renderSuccessBanner(document.body, {
           readToken: result.readToken,
-          dashboardUrl: `${frontendOrigin}/u/${encodeURIComponent(username)}?token=${result.readToken}`,
-        }),
-      );
-      return;
-    case "tokenMismatch":
-      setGuardBanner(
-        renderUnauthorizedBanner(document.body, {
-          message: "This bookmarklet's token is out of date - please reinstall it and try again.",
+          frontendOrigin,
+          username,
+          onSaveToken: buildOnSaveToken(apiOrigin, username),
         }),
       );
       return;
@@ -154,7 +185,7 @@ async function submit(
   payload: IngestPayload,
 ): Promise<void> {
   const result = await postIngest(apiOrigin, payload);
-  routeResult(result, frontendOrigin, username, () => {
+  routeResult(result, frontendOrigin, apiOrigin, username, () => {
     void submit(apiOrigin, frontendOrigin, username, payload);
   });
 
@@ -176,7 +207,12 @@ async function main(): Promise<void> {
   }
 
   const { username } = scraped.data;
-  const readToken = getStoredReadToken(username);
+  // Stored-or-generate (plan section 1): a repeat capture replays whatever
+  // token is already on file; a first-ever capture has nothing to replay,
+  // so it mints a fresh word-pair suggestion client-side instead of sending
+  // null and letting the server mint one (the server no longer does that -
+  // see SnapshotIngestService section 3a).
+  const readToken = getStoredReadToken(username) ?? generateTokenSuggestion();
   const payload = buildIngestPayload(scraped.data, { schemaVersion: SCHEMA_VERSION, readToken });
 
   await submit(apiOrigin, frontendOrigin, username, payload);
