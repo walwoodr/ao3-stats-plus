@@ -156,9 +156,12 @@ describe("bookmarklet banners", () => {
     });
 
     describe("Save token", () => {
+      // /sav/i (not /save/i) so this still finds the button once its own
+      // text changes to "Saving..." while a save is in flight - "saving"
+      // has no "save" substring ("sav" + "ing", not "sav" + "e").
       function saveButton() {
         return Array.from(container.querySelectorAll("button")).find((b) =>
-          /save/i.test(b.textContent ?? ""),
+          /sav/i.test(b.textContent ?? ""),
         );
       }
 

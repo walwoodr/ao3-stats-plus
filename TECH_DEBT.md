@@ -270,3 +270,16 @@
   if an attacker also knows the exact AO3 username. Candidate mitigation
   (not built): a `statsForUser`/`/ingest` rate limit. Deferred: accepted at
   personal-tool scale, explicitly signed off by the user during Planning.
+- [2026-08-02] (stage: Review) The read_token index-drop migration
+  (backend/db/migrate/..._remove_unique_index_from_ao3_users_read_token.rb)
+  uses `remove_index :ao3_users, name: "..."` inside `change`; with no column
+  given, Rails cannot recreate the index on rollback, so `rails db:rollback`
+  raises `ActiveRecord::IrreversibleMigration`. Forward deploy is unaffected.
+  Deferred: matches the plan verbatim and rolling back a dropped index is
+  unlikely; would be tidier as explicit `up`/`down` or with the column named.
+- [2026-08-02] (stage: Review) `generateTokenSuggestion` (frontend/src/
+  bookmarklet/tokenSuggestion.ts) uses unbounded reject-and-retry to enforce
+  distinct words; a pathological injected `rng` that returns a constant would
+  loop forever. Not reachable via the `Math.random` default in production
+  (measure-zero); only an adversarial/buggy injected rng. Deferred: cosmetic
+  robustness only.

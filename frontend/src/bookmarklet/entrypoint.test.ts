@@ -334,6 +334,33 @@ describe("bookmarklet entrypoint", () => {
       expect(result).toEqual({ ok: true, readToken: "fox-owl" });
     });
 
+    // Without this, a later repeat capture would replay the stale
+    // pre-edit token from AO3-origin localStorage instead of the one the
+    // user just saved server-side, silently undoing the edit on next use.
+    it("updates AO3-origin localStorage with the new token on a successful save", async () => {
+      const { postTokenUpdate } = await import("./tokenUpdateClient");
+      const { setStoredReadToken } = await import("./tokenStorage");
+      vi.mocked(postTokenUpdate).mockResolvedValue({ status: "success", readToken: "fox-owl" });
+      const onSaveToken = await captureOnSaveToken();
+      vi.mocked(setStoredReadToken).mockClear();
+
+      await onSaveToken("fox-owl");
+
+      expect(setStoredReadToken).toHaveBeenCalledWith("someauthor", "fox-owl");
+    });
+
+    it("does not update AO3-origin localStorage when the save fails", async () => {
+      const { postTokenUpdate } = await import("./tokenUpdateClient");
+      const { setStoredReadToken } = await import("./tokenStorage");
+      vi.mocked(postTokenUpdate).mockResolvedValue({ status: "networkError" });
+      const onSaveToken = await captureOnSaveToken();
+      vi.mocked(setStoredReadToken).mockClear();
+
+      await onSaveToken("fox-owl");
+
+      expect(setStoredReadToken).not.toHaveBeenCalled();
+    });
+
     it("adapts an invalid (422) result to a failure with the server's message", async () => {
       const { postTokenUpdate } = await import("./tokenUpdateClient");
       vi.mocked(postTokenUpdate).mockResolvedValue({

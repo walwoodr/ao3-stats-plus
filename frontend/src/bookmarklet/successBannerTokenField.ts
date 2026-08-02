@@ -142,7 +142,7 @@ export function appendTokenField(
     if (!trimmed) return;
 
     saveButton.disabled = true;
-    saveButton.textContent = "Save...";
+    saveButton.textContent = "Saving...";
     errorRegion.textContent = "";
     errorRegion.style.display = "none";
 
