@@ -23,15 +23,20 @@ declare global {
 // stored on `window`, since a classic <script> re-execution has no module
 // cache to rely on) is exercised the same way it would be for real.
 //
-// scrapeStats, ingestClient, tokenStorage, tokenSuggestion, and banners are
-// all mocked so this spec is a pure test of entrypoint's
-// orchestration/wiring, not of their individual implementations (each
-// already has, or will have, its own unit spec).
+// scrapeStats, ingestClient, tokenStorage, tokenSuggestion,
+// tokenUpdateClient, and banners are all mocked so this spec is a pure test
+// of entrypoint's orchestration/wiring, not of their individual
+// implementations (each already has, or will have, its own unit spec).
 //
 // Per docs/plans/memorable-token-and-recovery.md section 1/10 (task 13):
 // on a first-ever capture (no stored token), entrypoint picks the token to
 // send by generating a fresh word-pair via generateTokenSuggestion() -
-// replacing the old "send null and let the server mint one" behavior.
+// replacing the old "send null and let the server mint one" behavior. The
+// success banner's onSaveToken callback (banners.ts's new editable-token
+// Save action) is entrypoint's adapter from tokenUpdateClient's four-state
+// TokenUpdateResult (success/invalid/schemaMismatch/networkError) down to
+// banners.ts's simpler two-state SaveTokenResult ({ok:true,readToken} |
+// {ok:false,message}) - see "onSaveToken wiring" below.
 vi.mock("./scrapeStats", () => ({ scrapeStats: vi.fn() }));
 vi.mock("./ingestClient", () => ({ postIngest: vi.fn() }));
 vi.mock("./tokenStorage", () => ({
@@ -39,6 +44,7 @@ vi.mock("./tokenStorage", () => ({
   setStoredReadToken: vi.fn(),
 }));
 vi.mock("./tokenSuggestion", () => ({ generateTokenSuggestion: vi.fn() }));
+vi.mock("./tokenUpdateClient", () => ({ postTokenUpdate: vi.fn() }));
 vi.mock("./banners", () => ({
   renderSuccessBanner: vi.fn(),
   renderInfoBanner: vi.fn(),
@@ -149,9 +155,16 @@ describe("bookmarklet entrypoint", () => {
         expect.objectContaining({ schemaVersion: 1, username: "someauthor", readToken: "cat-dog" }),
       );
       expect(setStoredReadToken).toHaveBeenCalledWith("someauthor", "cat-dog");
+      // Per banners.ts's new interface (memorable-token-and-recovery plan
+      // section 4/10 task 14), renderSuccessBanner takes frontendOrigin +
+      // username + an onSaveToken callback rather than a pre-built
+      // dashboardUrl, so it can recompute the link after a Save - see
+      // "onSaveToken wiring" below for that callback's own behavior.
       expect(renderSuccessBanner).toHaveBeenCalledWith(document.body, {
         readToken: "cat-dog",
-        dashboardUrl: `${FRONTEND_ORIGIN}/u/someauthor?token=cat-dog`,
+        frontendOrigin: FRONTEND_ORIGIN,
+        username: "someauthor",
+        onSaveToken: expect.any(Function),
       });
     });
 
@@ -184,9 +197,15 @@ describe("bookmarklet entrypoint", () => {
       // character (e.g. "&", "/") corrupt the path segment or query string.
       expect(getStoredReadToken).toHaveBeenCalledWith(weirdUsername);
       expect(setStoredReadToken).toHaveBeenCalledWith(weirdUsername, "tok_new");
+      // Username encoding for the dashboard link is banners.ts's own concern
+      // now (it builds the URL from frontendOrigin + username + token) - see
+      // banners.test.ts's "links to the dashboard URL..." case for that
+      // coverage. entrypoint's job is just to pass the raw username through.
       expect(renderSuccessBanner).toHaveBeenCalledWith(document.body, {
         readToken: "tok_new",
-        dashboardUrl: `${FRONTEND_ORIGIN}/u/${encodeURIComponent(weirdUsername)}?token=tok_new`,
+        frontendOrigin: FRONTEND_ORIGIN,
+        username: weirdUsername,
+        onSaveToken: expect.any(Function),
       });
     });
 
@@ -264,6 +283,90 @@ describe("bookmarklet entrypoint", () => {
       expect(renderFailureBanner).not.toHaveBeenCalled();
       expect(renderRetryBanner).not.toHaveBeenCalled();
       expect(renderUnauthorizedBanner).not.toHaveBeenCalled();
+    });
+  });
+
+  // The onSaveToken callback passed to renderSuccessBanner (see "happy
+  // path" above) is entrypoint's own adapter from tokenUpdateClient's
+  // TokenUpdateResult (success/invalid/schemaMismatch/networkError) down to
+  // banners.ts's simpler SaveTokenResult ({ok:true,readToken} |
+  // {ok:false,message}) - banners.ts deliberately knows nothing about
+  // apiOrigin/fetch/tokenUpdateClient, per its own "mirrors the existing
+  // onRetry callback pattern" design (memorable-token-and-recovery plan
+  // section 4). These tests capture the real callback entrypoint builds and
+  // invoke it directly, rather than re-asserting banners.ts's own Save-button
+  // behavior (already covered by banners.test.ts).
+  describe("onSaveToken wiring (the success banner's Save action)", () => {
+    async function captureOnSaveToken() {
+      const { scrapeStats } = await import("./scrapeStats");
+      const { postIngest } = await import("./ingestClient");
+      const { getStoredReadToken } = await import("./tokenStorage");
+      const { generateTokenSuggestion } = await import("./tokenSuggestion");
+      const { renderSuccessBanner } = await import("./banners");
+      vi.mocked(scrapeStats).mockReturnValue({ ok: true, data: scrapedData } as ScrapeResult);
+      vi.mocked(getStoredReadToken).mockReturnValue(undefined);
+      vi.mocked(generateTokenSuggestion).mockReturnValue("cat-dog");
+      vi.mocked(postIngest).mockResolvedValue({
+        status: "success",
+        readToken: "cat-dog",
+        capturedOn: "2026-07-23",
+        deduped: false,
+      } as IngestResult);
+
+      await import("./entrypoint");
+      await vi.waitFor(() => expect(renderSuccessBanner).toHaveBeenCalled());
+
+      const onSaveToken = vi.mocked(renderSuccessBanner).mock.calls[0][1].onSaveToken;
+      return onSaveToken;
+    }
+
+    it("POSTs the new token via postTokenUpdate and adapts a success result", async () => {
+      const { postTokenUpdate } = await import("./tokenUpdateClient");
+      vi.mocked(postTokenUpdate).mockResolvedValue({ status: "success", readToken: "fox-owl" });
+      const onSaveToken = await captureOnSaveToken();
+
+      const result = await onSaveToken("fox-owl");
+
+      expect(postTokenUpdate).toHaveBeenCalledWith(
+        API_ORIGIN,
+        expect.objectContaining({ schemaVersion: 1, username: "someauthor", readToken: "fox-owl" }),
+      );
+      expect(result).toEqual({ ok: true, readToken: "fox-owl" });
+    });
+
+    it("adapts an invalid (422) result to a failure with the server's message", async () => {
+      const { postTokenUpdate } = await import("./tokenUpdateClient");
+      vi.mocked(postTokenUpdate).mockResolvedValue({
+        status: "invalid",
+        message: "username is required",
+      });
+      const onSaveToken = await captureOnSaveToken();
+
+      const result = await onSaveToken("fox-owl");
+
+      expect(result).toEqual({ ok: false, message: "username is required" });
+    });
+
+    it("adapts a schemaMismatch (426) result to a failure with a friendly message", async () => {
+      const { postTokenUpdate } = await import("./tokenUpdateClient");
+      vi.mocked(postTokenUpdate).mockResolvedValue({ status: "schemaMismatch" });
+      const onSaveToken = await captureOnSaveToken();
+
+      const result = await onSaveToken("fox-owl");
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.message).toMatch(/out of date|reinstall/i);
+    });
+
+    it("adapts a networkError result to a failure with a friendly message", async () => {
+      const { postTokenUpdate } = await import("./tokenUpdateClient");
+      vi.mocked(postTokenUpdate).mockResolvedValue({ status: "networkError" });
+      const onSaveToken = await captureOnSaveToken();
+
+      const result = await onSaveToken("fox-owl");
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.message).toMatch(/network|connection|reach/i);
     });
   });
 
