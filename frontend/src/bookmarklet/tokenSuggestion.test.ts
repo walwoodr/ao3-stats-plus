@@ -12,7 +12,11 @@ import { generateTokenSuggestion } from "./tokenSuggestion";
 // exclude-the-first-pick approach are both valid implementations - these
 // tests only assert the externally observable contract: format + always
 // distinct + deterministic under a given rng).
-const MOCK_WORDLIST = ["aaaa", "bbbb", "cccc", "dddd", "eeee"] as const;
+// vi.mock factories are hoisted above all top-level code, including const
+// declarations - referencing MOCK_WORDLIST directly here would throw
+// "Cannot access before initialization". vi.hoisted runs alongside vi.mock
+// itself, so the value exists by the time the factory needs it.
+const MOCK_WORDLIST = vi.hoisted(() => ["aaaa", "bbbb", "cccc", "dddd", "eeee"] as const);
 vi.mock("./wordlist", () => ({ WORDLIST: MOCK_WORDLIST }));
 
 // Returns the sequence's values in order, clamping to (repeating) the last
@@ -75,10 +79,7 @@ describe("generateTokenSuggestion", () => {
 
   describe("default rng", () => {
     beforeEach(() => {
-      vi.spyOn(Math, "random")
-        .mockReturnValueOnce(0)
-        .mockReturnValueOnce(0.9)
-        .mockReturnValue(0.9);
+      vi.spyOn(Math, "random").mockReturnValueOnce(0).mockReturnValueOnce(0.9).mockReturnValue(0.9);
     });
 
     it("uses Math.random when no rng is provided", () => {

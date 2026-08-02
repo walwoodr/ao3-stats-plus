@@ -39,17 +39,20 @@ describe("bookmarklet banners", () => {
   // unlike today's unencoded hex, a user-typed word-pair (or anything else
   // a user types) can contain URL-significant characters.
   describe("renderSuccessBanner", () => {
-    function successBannerData(overrides: {
-      readToken?: string;
-      frontendOrigin?: string;
-      username?: string;
-      onSaveToken?: (newToken: string) => Promise<SaveTokenResult>;
-    } = {}) {
+    function successBannerData(
+      overrides: {
+        readToken?: string;
+        frontendOrigin?: string;
+        username?: string;
+        onSaveToken?: (newToken: string) => Promise<SaveTokenResult>;
+      } = {},
+    ) {
       return {
         readToken: overrides.readToken ?? "cat-dog",
         frontendOrigin: overrides.frontendOrigin ?? "https://app.example.com",
         username: overrides.username ?? "someauthor",
-        onSaveToken: overrides.onSaveToken ?? vi.fn().mockResolvedValue({ ok: true, readToken: "cat-dog" }),
+        onSaveToken:
+          overrides.onSaveToken ?? vi.fn().mockResolvedValue({ ok: true, readToken: "cat-dog" }),
       };
     }
 
@@ -154,11 +157,15 @@ describe("bookmarklet banners", () => {
 
     describe("Save token", () => {
       function saveButton() {
-        return Array.from(container.querySelectorAll("button")).find((b) => /save/i.test(b.textContent ?? ""));
+        return Array.from(container.querySelectorAll("button")).find((b) =>
+          /save/i.test(b.textContent ?? ""),
+        );
       }
 
       it("calls onSaveToken with the current (trimmed) input value when clicked", async () => {
-        const onSaveToken = vi.fn().mockResolvedValue({ ok: true, readToken: "fox-owl" } satisfies SaveTokenResult);
+        const onSaveToken = vi
+          .fn()
+          .mockResolvedValue({ ok: true, readToken: "fox-owl" } satisfies SaveTokenResult);
         renderSuccessBanner(container, successBannerData({ onSaveToken }));
         const input = container.querySelector("input[type='text']") as HTMLInputElement;
         input.value = "  fox-owl  ";
@@ -183,7 +190,10 @@ describe("bookmarklet banners", () => {
       it("disables the Save button while the request is in flight", async () => {
         let resolveSave!: (value: SaveTokenResult) => void;
         const onSaveToken = vi.fn(
-          () => new Promise<SaveTokenResult>((resolve) => { resolveSave = resolve; }),
+          () =>
+            new Promise<SaveTokenResult>((resolve) => {
+              resolveSave = resolve;
+            }),
         );
         renderSuccessBanner(container, successBannerData({ onSaveToken }));
 
@@ -194,7 +204,9 @@ describe("bookmarklet banners", () => {
       });
 
       it("re-enables the Save button and announces 'Token saved' via a polite live region on success", async () => {
-        const onSaveToken = vi.fn().mockResolvedValue({ ok: true, readToken: "fox-owl" } satisfies SaveTokenResult);
+        const onSaveToken = vi
+          .fn()
+          .mockResolvedValue({ ok: true, readToken: "fox-owl" } satisfies SaveTokenResult);
         renderSuccessBanner(container, successBannerData({ onSaveToken }));
         const input = container.querySelector("input[type='text']") as HTMLInputElement;
         input.value = "fox-owl";
@@ -212,7 +224,11 @@ describe("bookmarklet banners", () => {
           .mockResolvedValue({ ok: true, readToken: "new token" } satisfies SaveTokenResult);
         renderSuccessBanner(
           container,
-          successBannerData({ onSaveToken, frontendOrigin: "https://app.example.com", username: "someauthor" }),
+          successBannerData({
+            onSaveToken,
+            frontendOrigin: "https://app.example.com",
+            username: "someauthor",
+          }),
         );
         const input = container.querySelector("input[type='text']") as HTMLInputElement;
         input.value = "new token";
@@ -227,9 +243,10 @@ describe("bookmarklet banners", () => {
       });
 
       it("shows an assertive role=alert error, preserves the typed value, and re-enables Save on failure", async () => {
-        const onSaveToken = vi
-          .fn()
-          .mockResolvedValue({ ok: false, message: "Could not save token" } satisfies SaveTokenResult);
+        const onSaveToken = vi.fn().mockResolvedValue({
+          ok: false,
+          message: "Could not save token",
+        } satisfies SaveTokenResult);
         renderSuccessBanner(container, successBannerData({ onSaveToken }));
         const input = container.querySelector("input[type='text']") as HTMLInputElement;
         input.value = "attempted-token";
@@ -244,12 +261,18 @@ describe("bookmarklet banners", () => {
       });
 
       it("triggers Save when Enter is pressed inside the input, without navigating", async () => {
-        const onSaveToken = vi.fn().mockResolvedValue({ ok: true, readToken: "fox-owl" } satisfies SaveTokenResult);
+        const onSaveToken = vi
+          .fn()
+          .mockResolvedValue({ ok: true, readToken: "fox-owl" } satisfies SaveTokenResult);
         renderSuccessBanner(container, successBannerData({ onSaveToken }));
         const input = container.querySelector("input[type='text']") as HTMLInputElement;
         input.value = "fox-owl";
 
-        const event = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+        const event = new KeyboardEvent("keydown", {
+          key: "Enter",
+          bubbles: true,
+          cancelable: true,
+        });
         input.dispatchEvent(event);
         await vi.waitFor(() => expect(onSaveToken).toHaveBeenCalled());
 
@@ -263,7 +286,7 @@ describe("bookmarklet banners", () => {
       const focusable = Array.from(container.querySelectorAll("input, button, a"));
       const tagOrder = focusable.map((el) => el.tagName);
 
-      expect(tagOrder).toEqual([ "INPUT", "BUTTON", "BUTTON", "A" ]);
+      expect(tagOrder).toEqual(["INPUT", "BUTTON", "BUTTON", "A"]);
       // None of these should be pulled out of the natural tab order via a
       // positive tabindex, and none should be hidden from it via -1 either
       // (only the outer banner itself uses tabindex="-1", to move focus
@@ -505,7 +528,10 @@ describe("bookmarklet banners", () => {
           readToken: "tok_visible_123",
           frontendOrigin: "https://app.example.com",
           username: "someauthor",
-          onSaveToken: vi.fn().mockResolvedValue({ ok: true, readToken: "tok_visible_123" } satisfies SaveTokenResult),
+          onSaveToken: vi.fn().mockResolvedValue({
+            ok: true,
+            readToken: "tok_visible_123",
+          } satisfies SaveTokenResult),
         }),
         renderFailureBanner(container, { message: "failure", schemaVersion: 1 }),
         renderInfoBanner(container, { message: "info" }),
@@ -533,7 +559,9 @@ describe("bookmarklet banners", () => {
         readToken: "tok_visible_123",
         frontendOrigin: "https://app.example.com",
         username: "someauthor",
-        onSaveToken: vi.fn().mockResolvedValue({ ok: true, readToken: "tok_visible_123" } satisfies SaveTokenResult),
+        onSaveToken: vi
+          .fn()
+          .mockResolvedValue({ ok: true, readToken: "tok_visible_123" } satisfies SaveTokenResult),
       });
 
       const input = container.querySelector("input[type='text']") as HTMLInputElement;
@@ -546,7 +574,9 @@ describe("bookmarklet banners", () => {
         readToken: "tok_visible_123",
         frontendOrigin: "https://app.example.com",
         username: "someauthor",
-        onSaveToken: vi.fn().mockResolvedValue({ ok: true, readToken: "tok_visible_123" } satisfies SaveTokenResult),
+        onSaveToken: vi
+          .fn()
+          .mockResolvedValue({ ok: true, readToken: "tok_visible_123" } satisfies SaveTokenResult),
       });
 
       const buttons = container.querySelectorAll("button");

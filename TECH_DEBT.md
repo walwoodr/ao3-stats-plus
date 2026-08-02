@@ -270,19 +270,3 @@
   if an attacker also knows the exact AO3 username. Candidate mitigation
   (not built): a `statsForUser`/`/ingest` rate limit. Deferred: accepted at
   personal-tool scale, explicitly signed off by the user during Planning.
-- [2026-08-02] (stage: Implementation) `frontend/src/bookmarklet/
-  tokenSuggestion.test.ts` fails at the whole-file level due to a Vitest
-  mock-hoisting bug in the test itself, unrelated to any implementation
-  choice: `vi.mock("./wordlist", () => ({ WORDLIST: MOCK_WORDLIST }))`
-  references a `const MOCK_WORDLIST` declared later in the same file, but
-  `vi.mock` factories are hoisted above all other top-level code (including
-  local `const` declarations), so evaluating the factory throws
-  "Cannot access 'MOCK_WORDLIST' before initialization" the moment
-  `tokenSuggestion.ts` (or anything importing it) is loaded - confirmed via
-  an isolated minimal repro outside this repo with the same Vitest version,
-  independent of `tokenSuggestion.ts`'s actual implementation. Not fixed
-  during Implementation per process (test files aren't edited without
-  explicit sign-off); the fix is mechanical and assertion-preserving
-  (wrap `MOCK_WORDLIST` in `vi.hoisted(() => [...])`, Vitest's documented
-  API for exactly this situation) but left for the user/Review to
-  authorize. All other bookmarklet/frontend suites are green.
