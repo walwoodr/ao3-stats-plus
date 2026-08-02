@@ -23,16 +23,22 @@ declare global {
 // stored on `window`, since a classic <script> re-execution has no module
 // cache to rely on) is exercised the same way it would be for real.
 //
-// scrapeStats, ingestClient, tokenStorage, and banners are all mocked so
-// this spec is a pure test of entrypoint's orchestration/wiring, not of
-// their individual implementations (each already has, or will have, its
-// own unit spec).
+// scrapeStats, ingestClient, tokenStorage, tokenSuggestion, and banners are
+// all mocked so this spec is a pure test of entrypoint's
+// orchestration/wiring, not of their individual implementations (each
+// already has, or will have, its own unit spec).
+//
+// Per docs/plans/memorable-token-and-recovery.md section 1/10 (task 13):
+// on a first-ever capture (no stored token), entrypoint picks the token to
+// send by generating a fresh word-pair via generateTokenSuggestion() -
+// replacing the old "send null and let the server mint one" behavior.
 vi.mock("./scrapeStats", () => ({ scrapeStats: vi.fn() }));
 vi.mock("./ingestClient", () => ({ postIngest: vi.fn() }));
 vi.mock("./tokenStorage", () => ({
   getStoredReadToken: vi.fn(),
   setStoredReadToken: vi.fn(),
 }));
+vi.mock("./tokenSuggestion", () => ({ generateTokenSuggestion: vi.fn() }));
 vi.mock("./banners", () => ({
   renderSuccessBanner: vi.fn(),
   renderInfoBanner: vi.fn(),
@@ -116,16 +122,18 @@ describe("bookmarklet entrypoint", () => {
   });
 
   describe("happy path", () => {
-    it("scrapes, builds a schemaVersion 1 payload with no stored token on a first-ever capture, and shows the success banner", async () => {
+    it("scrapes, generates a fresh word-pair token on a first-ever capture, builds a schemaVersion 1 payload with it, and shows the success banner", async () => {
       const { scrapeStats } = await import("./scrapeStats");
       const { postIngest } = await import("./ingestClient");
       const { getStoredReadToken, setStoredReadToken } = await import("./tokenStorage");
+      const { generateTokenSuggestion } = await import("./tokenSuggestion");
       const { renderSuccessBanner } = await import("./banners");
       vi.mocked(scrapeStats).mockReturnValue({ ok: true, data: scrapedData } as ScrapeResult);
       vi.mocked(getStoredReadToken).mockReturnValue(undefined);
+      vi.mocked(generateTokenSuggestion).mockReturnValue("cat-dog");
       vi.mocked(postIngest).mockResolvedValue({
         status: "success",
-        readToken: "tok_new",
+        readToken: "cat-dog",
         capturedOn: "2026-07-23",
         deduped: false,
       } as IngestResult);
@@ -135,14 +143,15 @@ describe("bookmarklet entrypoint", () => {
 
       expect(scrapeStats).toHaveBeenCalledWith(document, AO3_PATHNAME);
       expect(getStoredReadToken).toHaveBeenCalledWith("someauthor");
+      expect(generateTokenSuggestion).toHaveBeenCalled();
       expect(postIngest).toHaveBeenCalledWith(
         API_ORIGIN,
-        expect.objectContaining({ schemaVersion: 1, username: "someauthor", readToken: null }),
+        expect.objectContaining({ schemaVersion: 1, username: "someauthor", readToken: "cat-dog" }),
       );
-      expect(setStoredReadToken).toHaveBeenCalledWith("someauthor", "tok_new");
+      expect(setStoredReadToken).toHaveBeenCalledWith("someauthor", "cat-dog");
       expect(renderSuccessBanner).toHaveBeenCalledWith(document.body, {
-        readToken: "tok_new",
-        dashboardUrl: `${FRONTEND_ORIGIN}/u/someauthor?token=tok_new`,
+        readToken: "cat-dog",
+        dashboardUrl: `${FRONTEND_ORIGIN}/u/someauthor?token=cat-dog`,
       });
     });
 
@@ -150,6 +159,7 @@ describe("bookmarklet entrypoint", () => {
       const { scrapeStats } = await import("./scrapeStats");
       const { postIngest } = await import("./ingestClient");
       const { getStoredReadToken, setStoredReadToken } = await import("./tokenStorage");
+      const { generateTokenSuggestion } = await import("./tokenSuggestion");
       const { renderSuccessBanner } = await import("./banners");
       const weirdUsername = "weird/name&value";
       vi.mocked(scrapeStats).mockReturnValue({
@@ -157,6 +167,7 @@ describe("bookmarklet entrypoint", () => {
         data: { ...scrapedData, username: weirdUsername },
       } as ScrapeResult);
       vi.mocked(getStoredReadToken).mockReturnValue(undefined);
+      vi.mocked(generateTokenSuggestion).mockReturnValue("cat-dog");
       vi.mocked(postIngest).mockResolvedValue({
         status: "success",
         readToken: "tok_new",
@@ -179,10 +190,36 @@ describe("bookmarklet entrypoint", () => {
       });
     });
 
-    it("replays a previously stored token in the payload on a repeat capture", async () => {
+    it("generates a fresh word-pair via generateTokenSuggestion() when no token is stored", async () => {
       const { scrapeStats } = await import("./scrapeStats");
       const { postIngest } = await import("./ingestClient");
       const { getStoredReadToken } = await import("./tokenStorage");
+      const { generateTokenSuggestion } = await import("./tokenSuggestion");
+      vi.mocked(scrapeStats).mockReturnValue({ ok: true, data: scrapedData } as ScrapeResult);
+      vi.mocked(getStoredReadToken).mockReturnValue(undefined);
+      vi.mocked(generateTokenSuggestion).mockReturnValue("fox-owl");
+      vi.mocked(postIngest).mockResolvedValue({
+        status: "success",
+        readToken: "fox-owl",
+        capturedOn: "2026-07-23",
+        deduped: false,
+      } as IngestResult);
+
+      await import("./entrypoint");
+      await vi.waitFor(() => expect(postIngest).toHaveBeenCalled());
+
+      expect(generateTokenSuggestion).toHaveBeenCalledOnce();
+      expect(postIngest).toHaveBeenCalledWith(
+        API_ORIGIN,
+        expect.objectContaining({ readToken: "fox-owl" }),
+      );
+    });
+
+    it("replays a previously stored token in the payload on a repeat capture, without generating a new one", async () => {
+      const { scrapeStats } = await import("./scrapeStats");
+      const { postIngest } = await import("./ingestClient");
+      const { getStoredReadToken } = await import("./tokenStorage");
+      const { generateTokenSuggestion } = await import("./tokenSuggestion");
       vi.mocked(scrapeStats).mockReturnValue({ ok: true, data: scrapedData } as ScrapeResult);
       vi.mocked(getStoredReadToken).mockReturnValue("tok_prev");
       vi.mocked(postIngest).mockResolvedValue({
@@ -199,6 +236,7 @@ describe("bookmarklet entrypoint", () => {
         API_ORIGIN,
         expect.objectContaining({ readToken: "tok_prev" }),
       );
+      expect(generateTokenSuggestion).not.toHaveBeenCalled();
     });
 
     it("still treats a same-day dedup response (200, deduped: true) as success", async () => {
@@ -255,22 +293,12 @@ describe("bookmarklet entrypoint", () => {
   });
 
   describe("HTTP error responses", () => {
-    it("renders the unauthorized banner on a tokenMismatch (403) result", async () => {
-      const { scrapeStats } = await import("./scrapeStats");
-      const { postIngest } = await import("./ingestClient");
-      const { renderUnauthorizedBanner } = await import("./banners");
-      vi.mocked(scrapeStats).mockReturnValue({ ok: true, data: scrapedData } as ScrapeResult);
-      vi.mocked(postIngest).mockResolvedValue({ status: "tokenMismatch" } as IngestResult);
-
-      await import("./entrypoint");
-      await vi.waitFor(() => expect(renderUnauthorizedBanner).toHaveBeenCalled());
-
-      expect(renderUnauthorizedBanner).toHaveBeenCalledWith(
-        document.body,
-        expect.objectContaining({ message: expect.any(String) }),
-      );
-    });
-
+    // tokenMismatch is gone entirely (plan section 6/10 task 13): /ingest is
+    // always-accept and can never return that result any more, so
+    // routeResult no longer has a case for it, and renderUnauthorizedBanner
+    // is no longer reachable from the ingest flow at all - the old
+    // "renders the unauthorized banner on a tokenMismatch (403) result"
+    // test that used to live here is deliberately removed, not replaced.
     it("renders a failure banner explaining the bookmarklet is out of date on a schemaMismatch (426) result", async () => {
       const { scrapeStats } = await import("./scrapeStats");
       const { postIngest } = await import("./ingestClient");

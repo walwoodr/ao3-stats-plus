@@ -167,7 +167,11 @@ describe("bookmarklet entrypoint - Phase 1 -> Phase 2 handoff", () => {
     await vi.waitFor(() => expect(runFanOut).toHaveBeenCalled());
   });
 
-  it.each(["tokenMismatch", "schemaMismatch", "networkError"] as const)(
+  // tokenMismatch is deliberately absent here: per
+  // docs/plans/memorable-token-and-recovery.md section 6, /ingest is now
+  // always-accept and can never return that result any more (see
+  // entrypoint.test.ts's "HTTP error responses" describe block).
+  it.each(["schemaMismatch", "networkError"] as const)(
     "does not start the fan-out when Phase 1's POST result is %s",
     async (status) => {
       const { scrapeStats } = await import("./scrapeStats");
