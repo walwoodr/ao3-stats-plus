@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_31_090003) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_02_135916) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -20,7 +20,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_31_090003) do
     t.string "read_token", null: false
     t.datetime "updated_at", null: false
     t.string "username", null: false
-    t.index ["read_token"], name: "index_ao3_users_on_read_token", unique: true
     t.index ["username"], name: "index_ao3_users_on_username", unique: true
   end
 
