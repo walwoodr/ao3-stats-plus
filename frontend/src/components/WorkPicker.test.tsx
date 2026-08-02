@@ -142,10 +142,17 @@ describe("WorkPicker", () => {
       await user.click(screen.getByRole("button", { name: /select all.*fandom one/i }));
       await user.click(screen.getByRole("button", { name: /select all.*fandom two/i }));
 
-      // All three works end up selected exactly once each - provable via
-      // every checkbox for the underlying 3 unique works being checked.
+      // All three underlying works end up selected exactly once each. Beta/
+      // Gamma are single-fandom, so one checkbox apiece; Crossover Fic
+      // renders in both fandom groups (see "appears under every fandom
+      // group it belongs to" above), so its selected state must be checked
+      // on both physical checkboxes, not asserted via a singular unscoped
+      // query (which would throw "found multiple elements" given the same
+      // two-DOM-node requirement that test establishes).
       expect(screen.getByRole("checkbox", { name: "Beta" })).toBeChecked();
-      expect(screen.getByRole("checkbox", { name: "Crossover Fic" })).toBeChecked();
+      const crossoverCheckboxes = screen.getAllByRole("checkbox", { name: "Crossover Fic" });
+      expect(crossoverCheckboxes).toHaveLength(2);
+      crossoverCheckboxes.forEach((checkbox) => expect(checkbox).toBeChecked());
       expect(screen.getByRole("checkbox", { name: "Gamma" })).toBeChecked();
     });
   });
