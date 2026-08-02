@@ -62,9 +62,7 @@ describe("WorkComparisonSection", () => {
 
       await user.click(screen.getByRole("checkbox", { name: "Work One" }));
 
-      expect(screen.getAllByText(/select at least one work to compare/i).length).toBeGreaterThan(
-        0,
-      );
+      expect(screen.getAllByText(/select at least one work to compare/i).length).toBeGreaterThan(0);
     });
 
     it("hides the date-range slider with nothing selected", async () => {

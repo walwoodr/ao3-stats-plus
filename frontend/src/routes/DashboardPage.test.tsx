@@ -284,9 +284,9 @@ describe("DashboardPage", () => {
       // ROADMAP item) - distinct from the aggregate "Total hits" chart
       // above, which DOES get one here.
       const comparisonHitsFigure = screen.getByRole("img", { name: /^hits$/i });
-      expect(within(comparisonHitsFigure).getAllByTestId(/multi-series-point-marker-/)).toHaveLength(
-        2,
-      );
+      expect(
+        within(comparisonHitsFigure).getAllByTestId(/multi-series-point-marker-/),
+      ).toHaveLength(2);
       expect(
         within(comparisonHitsFigure).queryByText(/estimated baseline/i),
       ).not.toBeInTheDocument();

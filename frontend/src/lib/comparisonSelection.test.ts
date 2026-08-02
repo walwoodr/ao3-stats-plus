@@ -147,9 +147,9 @@ describe("shouldShowRangeSlider (the >2 union-points gate)", () => {
   });
 
   it("is true for more than 3 union dates", () => {
-    expect(
-      shouldShowRangeSlider(["2026-01-01", "2026-01-08", "2026-01-15", "2026-01-22"]),
-    ).toBe(true);
+    expect(shouldShowRangeSlider(["2026-01-01", "2026-01-08", "2026-01-15", "2026-01-22"])).toBe(
+      true,
+    );
   });
 });
 

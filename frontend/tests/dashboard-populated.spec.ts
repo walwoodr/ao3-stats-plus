@@ -14,9 +14,7 @@ test.describe("dashboard with a seeded snapshot history", () => {
   // Q1 (resolved: replace, not coexist) - the old single-work <select>
   // dropdown is gone; WorkComparisonSection's grouped checkbox picker
   // takes its place, defaulting to exactly the first work selected.
-  test("renders the per-work comparison chart with a grouped checkbox picker", async ({
-    page,
-  }) => {
+  test("renders the per-work comparison chart with a grouped checkbox picker", async ({ page }) => {
     await mockStatsForUser(page, POPULATED_STATS_RESPONSE);
 
     await page.goto("/u/testauthor?token=tok_valid123");

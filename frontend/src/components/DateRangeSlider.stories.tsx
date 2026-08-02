@@ -19,7 +19,13 @@ export const Default: Story = {
   render: function Render() {
     const [value, setValue] = useState<[number, number]>([2018, 2026]);
     return (
-      <DateRangeSlider min={2018} max={2026} value={value} onChange={setValue} unionPointCount={8} />
+      <DateRangeSlider
+        min={2018}
+        max={2026}
+        value={value}
+        onChange={setValue}
+        unionPointCount={8}
+      />
     );
   },
 };
@@ -28,7 +34,13 @@ export const NarrowedWindow: Story = {
   render: function Render() {
     const [value, setValue] = useState<[number, number]>([2020, 2023]);
     return (
-      <DateRangeSlider min={2014} max={2026} value={value} onChange={setValue} unionPointCount={10} />
+      <DateRangeSlider
+        min={2014}
+        max={2026}
+        value={value}
+        onChange={setValue}
+        unionPointCount={10}
+      />
     );
   },
 };
@@ -38,7 +50,13 @@ export const HiddenBelowGate: Story = {
   render: function Render() {
     const [value, setValue] = useState<[number, number]>([2018, 2026]);
     return (
-      <DateRangeSlider min={2018} max={2026} value={value} onChange={setValue} unionPointCount={2} />
+      <DateRangeSlider
+        min={2018}
+        max={2026}
+        value={value}
+        onChange={setValue}
+        unionPointCount={2}
+      />
     );
   },
 };

@@ -13,9 +13,7 @@ import type { PerWorkSeries } from "../queries/useStatsForUser";
 // work in one group reflects as checked in the other").
 function ControlledWorkPicker(props: Omit<WorkPickerProps, "selectedWorkIds" | "onChange">) {
   const [selectedWorkIds, setSelectedWorkIds] = useState<number[]>([]);
-  return (
-    <WorkPicker {...props} selectedWorkIds={selectedWorkIds} onChange={setSelectedWorkIds} />
-  );
+  return <WorkPicker {...props} selectedWorkIds={selectedWorkIds} onChange={setSelectedWorkIds} />;
 }
 
 function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWorkSeries {
@@ -75,11 +73,7 @@ describe("WorkPicker", () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(
-      <WorkPicker
-        perWorkSeries={TWO_FANDOM_WORKS}
-        selectedWorkIds={[1, 2]}
-        onChange={onChange}
-      />,
+      <WorkPicker perWorkSeries={TWO_FANDOM_WORKS} selectedWorkIds={[1, 2]} onChange={onChange} />,
     );
 
     await user.click(screen.getByRole("checkbox", { name: "Alpha" }));
@@ -90,23 +84,15 @@ describe("WorkPicker", () => {
   it("renders a 'select all in fandom' control per fandom group naming that fandom", () => {
     render(<WorkPicker perWorkSeries={TWO_FANDOM_WORKS} selectedWorkIds={[]} onChange={vi.fn()} />);
 
-    expect(
-      screen.getByRole("button", { name: /select all.*fandom one/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /select all.*fandom two/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /select all.*fandom one/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /select all.*fandom two/i })).toBeInTheDocument();
   });
 
   it("select-all-in-fandom adds every work in that fandom, additively (not replacing the current selection)", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(
-      <WorkPicker
-        perWorkSeries={TWO_FANDOM_WORKS}
-        selectedWorkIds={[3]}
-        onChange={onChange}
-      />,
+      <WorkPicker perWorkSeries={TWO_FANDOM_WORKS} selectedWorkIds={[3]} onChange={onChange} />,
     );
 
     await user.click(screen.getByRole("button", { name: /select all.*fandom one/i }));
@@ -130,8 +116,12 @@ describe("WorkPicker", () => {
       const fandomOneGroup = screen.getByRole("group", { name: "Fandom One" });
       const fandomTwoGroup = screen.getByRole("group", { name: "Fandom Two" });
 
-      expect(within(fandomOneGroup).getByRole("checkbox", { name: "Crossover Fic" })).toBeInTheDocument();
-      expect(within(fandomTwoGroup).getByRole("checkbox", { name: "Crossover Fic" })).toBeInTheDocument();
+      expect(
+        within(fandomOneGroup).getByRole("checkbox", { name: "Crossover Fic" }),
+      ).toBeInTheDocument();
+      expect(
+        within(fandomTwoGroup).getByRole("checkbox", { name: "Crossover Fic" }),
+      ).toBeInTheDocument();
     });
 
     it("checking it in one group reflects as checked in every group it appears in (one underlying work)", async () => {
@@ -230,10 +220,14 @@ describe("WorkPicker", () => {
     it("is grouped under a 'No fandom' fieldset rather than dropped", () => {
       const worksWithNoFandom = [work({ ao3WorkId: 1, title: "Standalone", fandoms: "" })];
 
-      render(<WorkPicker perWorkSeries={worksWithNoFandom} selectedWorkIds={[]} onChange={vi.fn()} />);
+      render(
+        <WorkPicker perWorkSeries={worksWithNoFandom} selectedWorkIds={[]} onChange={vi.fn()} />,
+      );
 
       const noFandomGroup = screen.getByRole("group", { name: /no fandom/i });
-      expect(within(noFandomGroup).getByRole("checkbox", { name: "Standalone" })).toBeInTheDocument();
+      expect(
+        within(noFandomGroup).getByRole("checkbox", { name: "Standalone" }),
+      ).toBeInTheDocument();
     });
   });
 });

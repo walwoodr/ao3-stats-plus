@@ -171,7 +171,12 @@ describe("DateRangeSlider", () => {
     it("increases the start thumb's year via the ArrowRight key", async () => {
       const user = userEvent.setup();
       render(
-        <ControlledDateRangeSlider min={2018} max={2026} initialValue={[2018, 2026]} unionPointCount={5} />,
+        <ControlledDateRangeSlider
+          min={2018}
+          max={2026}
+          initialValue={[2018, 2026]}
+          unionPointCount={5}
+        />,
       );
 
       const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
@@ -187,7 +192,12 @@ describe("DateRangeSlider", () => {
     it("decreases the end thumb's year via the ArrowLeft key", async () => {
       const user = userEvent.setup();
       render(
-        <ControlledDateRangeSlider min={2018} max={2026} initialValue={[2018, 2026]} unionPointCount={5} />,
+        <ControlledDateRangeSlider
+          min={2018}
+          max={2026}
+          initialValue={[2018, 2026]}
+          unionPointCount={5}
+        />,
       );
 
       const endThumb = screen.getByRole("slider", { name: /range end \(year\)/i });
@@ -203,7 +213,12 @@ describe("DateRangeSlider", () => {
     it("clamps crossover - the start thumb cannot be pushed past the end thumb's value", async () => {
       const user = userEvent.setup();
       render(
-        <ControlledDateRangeSlider min={2018} max={2026} initialValue={[2025, 2025]} unionPointCount={5} />,
+        <ControlledDateRangeSlider
+          min={2018}
+          max={2026}
+          initialValue={[2025, 2025]}
+          unionPointCount={5}
+        />,
       );
 
       const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
@@ -222,7 +237,12 @@ describe("DateRangeSlider", () => {
     it("clamps the end thumb to min/max domain bounds", async () => {
       const user = userEvent.setup();
       render(
-        <ControlledDateRangeSlider min={2018} max={2026} initialValue={[2018, 2026]} unionPointCount={5} />,
+        <ControlledDateRangeSlider
+          min={2018}
+          max={2026}
+          initialValue={[2018, 2026]}
+          unionPointCount={5}
+        />,
       );
 
       const endThumb = screen.getByRole("slider", { name: /range end \(year\)/i });

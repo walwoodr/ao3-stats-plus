@@ -41,9 +41,7 @@ const WORK_B: SeriesDatum = {
 
 describe("MultiSeriesTrendChart", () => {
   it("renders a chart region labeled with the title", () => {
-    render(
-      <MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />,
-    );
+    render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />);
 
     expect(screen.getByRole("img", { name: /^hits$/i })).toBeInTheDocument();
   });
@@ -58,9 +56,7 @@ describe("MultiSeriesTrendChart", () => {
 
   describe("visible legend", () => {
     it("renders one legend entry per selected work, mapping title to its worded glyph", () => {
-      render(
-        <MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />,
-      );
+      render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />);
 
       expect(
         screen.getByText(new RegExp(`Work A.*${legendDescription(0)}`, "i")),
@@ -71,9 +67,7 @@ describe("MultiSeriesTrendChart", () => {
     });
 
     it("gives each work a distinct worded style description", () => {
-      render(
-        <MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />,
-      );
+      render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />);
 
       expect(legendDescription(WORK_A.styleIndex)).not.toBe(legendDescription(WORK_B.styleIndex));
     });
@@ -81,9 +75,7 @@ describe("MultiSeriesTrendChart", () => {
 
   describe("sr-only per-work markers", () => {
     it("labels each real point '<title> — <capturedOn>: <value> <metric>'", () => {
-      render(
-        <MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />,
-      );
+      render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />);
 
       const markers = screen.getAllByTestId(/multi-series-point-marker-/);
       const texts = markers.map((m) => m.textContent);
@@ -94,9 +86,7 @@ describe("MultiSeriesTrendChart", () => {
     });
 
     it("does not render a marker for a work's missing date (no fabricated zero point)", () => {
-      render(
-        <MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />,
-      );
+      render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />);
 
       const markers = screen.getAllByTestId(/multi-series-point-marker-/);
       expect(markers.some((m) => m.textContent?.includes("Work B — 2026-01-01"))).toBe(false);
@@ -105,9 +95,7 @@ describe("MultiSeriesTrendChart", () => {
 
   describe("sr-only wide accessible data table", () => {
     it("has one date column plus one column per selected work", () => {
-      render(
-        <MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />,
-      );
+      render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />);
 
       const table = screen.getByRole("table", { name: /hits/i });
       const headerCells = within(table).getAllByRole("columnheader");
@@ -116,9 +104,7 @@ describe("MultiSeriesTrendChart", () => {
     });
 
     it("has one row per union date across all selected works", () => {
-      render(
-        <MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />,
-      );
+      render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />);
 
       const table = screen.getByRole("table", { name: /hits/i });
       // header + 2 union dates (2026-01-01, 2026-01-08)
@@ -126,9 +112,7 @@ describe("MultiSeriesTrendChart", () => {
     });
 
     it("renders an explicit '—' for a work with no point at a given union date, not a blank cell", () => {
-      render(
-        <MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />,
-      );
+      render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />);
 
       const table = screen.getByRole("table", { name: /hits/i });
       const rows = within(table).getAllByRole("row");
@@ -140,9 +124,7 @@ describe("MultiSeriesTrendChart", () => {
     });
 
     it("renders real values for every work that has a point at a given date", () => {
-      render(
-        <MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />,
-      );
+      render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />);
 
       const table = screen.getByRole("table", { name: /hits/i });
       const rows = within(table).getAllByRole("row");
@@ -178,9 +160,7 @@ describe("MultiSeriesTrendChart", () => {
         points: [{ capturedOn: "2026-02-01", value: 7 }],
       };
 
-      render(
-        <MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[singlePointWork]} />,
-      );
+      render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[singlePointWork]} />);
 
       expect(screen.getByText("Work C — 2026-02-01: 7 Hits")).toBeInTheDocument();
     });
