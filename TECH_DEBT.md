@@ -283,3 +283,20 @@
   loop forever. Not reachable via the `Math.random` default in production
   (measure-zero); only an adversarial/buggy injected rng. Deferred: cosmetic
   robustness only.
+- [2026-08-02] (stage: Review) `InstallPage.tsx`'s open-source disclosure
+  link ("view it on GitHub") fails WCAG 1.4.1 (link-in-text-block):
+  `text-accent` (`#9F1239`) on the surrounding `text-ink-soft` (`#7A6B72`)
+  paragraph is only 1.59:1 contrast (needs 3:1), and the link has no
+  non-color distinguishing style (underline is `hover:` only, not visible at
+  rest) - confirmed failing two real axe scans in `accessibility.spec.ts`
+  ("the install page has no detectable a11y violations",
+  "...revealed code fallback..."), independently reproduced against `main`
+  via `git stash` before any of this session's comparison-graph work, so
+  it's pre-existing, not a regression from that feature. Found incidentally
+  while verifying an unrelated Testing pass's e2e/a11y coverage. Fix: give
+  the link a persistent (not hover-only) underline, and/or a higher-contrast
+  color for inline body-text links specifically (MASTER.md may need a
+  dedicated "inline link in prose" token distinct from standalone CTA links
+  like the dashboard link's `.btn`-style treatment, which doesn't have this
+  problem since it's not sitting inside a paragraph of contrasting body
+  text).
