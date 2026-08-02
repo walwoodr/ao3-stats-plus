@@ -8,6 +8,7 @@ import {
   renderSummaryBanner,
   renderUnauthorizedBanner,
   updateProgressBanner,
+  type SaveTokenResult,
 } from "./banners";
 
 // The bookmarklet's confirmation/failure banners are injected into the AO3
@@ -27,80 +28,249 @@ describe("bookmarklet banners", () => {
     container.remove();
   });
 
+  // Per docs/plans/memorable-token-and-recovery.md section 4/7/10 (task 14):
+  // the token is now an editable text input (not a read-only <code> block),
+  // with a Save action that rotates the token via a caller-supplied
+  // onSaveToken callback - mirroring the existing onRetry callback pattern
+  // used by renderRetryBanner, so banners.ts stays decoupled from knowing
+  // about apiOrigin/fetch/tokenUpdateClient directly. The dashboard URL is
+  // built from frontendOrigin + username + the *current* token (initially,
+  // then recomputed after a successful Save), URL-encoding the token -
+  // unlike today's unencoded hex, a user-typed word-pair (or anything else
+  // a user types) can contain URL-significant characters.
   describe("renderSuccessBanner", () => {
-    it("displays the read token as visible, copyable text", () => {
-      renderSuccessBanner(container, {
-        readToken: "tok_visible_123",
-        dashboardUrl: "https://app.example.com/u/someauthor",
-      });
+    function successBannerData(overrides: {
+      readToken?: string;
+      frontendOrigin?: string;
+      username?: string;
+      onSaveToken?: (newToken: string) => Promise<SaveTokenResult>;
+    } = {}) {
+      return {
+        readToken: overrides.readToken ?? "cat-dog",
+        frontendOrigin: overrides.frontendOrigin ?? "https://app.example.com",
+        username: overrides.username ?? "someauthor",
+        onSaveToken: overrides.onSaveToken ?? vi.fn().mockResolvedValue({ ok: true, readToken: "cat-dog" }),
+      };
+    }
 
-      expect(container.textContent).toContain("tok_visible_123");
+    it("displays the read token as visible, editable text (not a read-only <code> block)", () => {
+      renderSuccessBanner(container, successBannerData({ readToken: "tok_visible_123" }));
+
+      expect(container.querySelector("code")).toBeNull();
+      const input = container.querySelector("input[type='text']") as HTMLInputElement | null;
+      expect(input).not.toBeNull();
+      expect(input?.value).toBe("tok_visible_123");
+      expect(input?.readOnly).toBe(false);
+      expect(input?.disabled).toBe(false);
     });
 
-    it("links to the dashboard URL for this username", () => {
-      renderSuccessBanner(container, {
-        readToken: "tok_visible_123",
-        dashboardUrl: "https://app.example.com/u/someauthor",
-      });
+    it("associates a real <label> with the input via label[for]/input#id", () => {
+      renderSuccessBanner(container, successBannerData());
+
+      const input = container.querySelector("input[type='text']") as HTMLInputElement;
+      const label = container.querySelector("label");
+
+      expect(input.id).toBeTruthy();
+      expect(label?.getAttribute("for")).toBe(input.id);
+      expect(label?.textContent).toMatch(/token/i);
+    });
+
+    it("sets token-appropriate input semantics (not treated as prose)", () => {
+      renderSuccessBanner(container, successBannerData());
+
+      const input = container.querySelector("input[type='text']") as HTMLInputElement;
+
+      expect(input.autocomplete).toBe("off");
+      expect(input.spellcheck).toBe(false);
+      expect(input.getAttribute("autocapitalize")).toBe("off");
+    });
+
+    it("links to the dashboard URL built from frontendOrigin, username, and the current token (URL-encoded)", () => {
+      renderSuccessBanner(
+        container,
+        successBannerData({
+          readToken: "cat dog", // contains a URL-significant character
+          frontendOrigin: "https://app.example.com",
+          username: "someauthor",
+        }),
+      );
 
       const link = container.querySelector("a");
-      expect(link?.getAttribute("href")).toBe("https://app.example.com/u/someauthor");
+      expect(link?.getAttribute("href")).toBe(
+        `https://app.example.com/u/someauthor?token=${encodeURIComponent("cat dog")}`,
+      );
     });
 
     it("provides a keyboard-operable Copy button", () => {
-      renderSuccessBanner(container, {
-        readToken: "tok_visible_123",
-        dashboardUrl: "https://app.example.com/u/someauthor",
-      });
+      renderSuccessBanner(container, successBannerData());
 
-      const copyButton = container.querySelector("button");
+      const copyButton = Array.from(container.querySelectorAll("button")).find((b) =>
+        /copy/i.test(b.textContent ?? ""),
+      );
       expect(copyButton?.tagName).toBe("BUTTON");
       expect(copyButton?.getAttribute("tabindex")).not.toBe("-1");
     });
 
-    it("copies the token to the clipboard when the Copy button is activated", async () => {
+    it("copies the CURRENT input value to the clipboard, not the original prop, once the user has edited it", async () => {
       const writeText = vi.fn().mockResolvedValue(undefined);
       Object.assign(navigator, { clipboard: { writeText } });
 
-      renderSuccessBanner(container, {
-        readToken: "tok_visible_123",
-        dashboardUrl: "https://app.example.com/u/someauthor",
-      });
-      container.querySelector("button")?.click();
+      renderSuccessBanner(container, successBannerData({ readToken: "tok_visible_123" }));
+      const input = container.querySelector("input[type='text']") as HTMLInputElement;
+      input.value = "fox-owl";
+      const copyButton = Array.from(container.querySelectorAll("button")).find((b) =>
+        /copy/i.test(b.textContent ?? ""),
+      );
+      copyButton?.click();
 
-      expect(writeText).toHaveBeenCalledWith("tok_visible_123");
+      expect(writeText).toHaveBeenCalledWith("fox-owl");
+      expect(writeText).not.toHaveBeenCalledWith("tok_visible_123");
     });
 
     it("confirms the copy visibly rather than leaving the button unchanged", () => {
       const writeText = vi.fn().mockResolvedValue(undefined);
       Object.assign(navigator, { clipboard: { writeText } });
 
-      renderSuccessBanner(container, {
-        readToken: "tok_visible_123",
-        dashboardUrl: "https://app.example.com/u/someauthor",
-      });
-      const copyButton = container.querySelector("button");
+      renderSuccessBanner(container, successBannerData());
+      const copyButton = Array.from(container.querySelectorAll("button")).find((b) =>
+        /copy/i.test(b.textContent ?? ""),
+      );
       copyButton?.click();
 
       expect(copyButton?.textContent).toMatch(/copied/i);
     });
 
     it("uses an accessible status role so screen readers announce success", () => {
-      const banner = renderSuccessBanner(container, {
-        readToken: "tok_visible_123",
-        dashboardUrl: "https://app.example.com/u/someauthor",
-      });
+      const banner = renderSuccessBanner(container, successBannerData());
 
       expect(banner.getAttribute("role")).toBe("status");
     });
 
     it("moves focus to the banner so keyboard/screen-reader users notice it", () => {
-      const banner = renderSuccessBanner(container, {
-        readToken: "tok_visible_123",
-        dashboardUrl: "https://app.example.com/u/someauthor",
-      });
+      const banner = renderSuccessBanner(container, successBannerData());
 
       expect(document.activeElement).toBe(banner);
+    });
+
+    describe("Save token", () => {
+      function saveButton() {
+        return Array.from(container.querySelectorAll("button")).find((b) => /save/i.test(b.textContent ?? ""));
+      }
+
+      it("calls onSaveToken with the current (trimmed) input value when clicked", async () => {
+        const onSaveToken = vi.fn().mockResolvedValue({ ok: true, readToken: "fox-owl" } satisfies SaveTokenResult);
+        renderSuccessBanner(container, successBannerData({ onSaveToken }));
+        const input = container.querySelector("input[type='text']") as HTMLInputElement;
+        input.value = "  fox-owl  ";
+
+        saveButton()?.click();
+        await vi.waitFor(() => expect(onSaveToken).toHaveBeenCalled());
+
+        expect(onSaveToken).toHaveBeenCalledWith("fox-owl");
+      });
+
+      it("does not call onSaveToken when the input is blank or whitespace-only", () => {
+        const onSaveToken = vi.fn();
+        renderSuccessBanner(container, successBannerData({ onSaveToken }));
+        const input = container.querySelector("input[type='text']") as HTMLInputElement;
+        input.value = "   ";
+
+        saveButton()?.click();
+
+        expect(onSaveToken).not.toHaveBeenCalled();
+      });
+
+      it("disables the Save button while the request is in flight", async () => {
+        let resolveSave!: (value: SaveTokenResult) => void;
+        const onSaveToken = vi.fn(
+          () => new Promise<SaveTokenResult>((resolve) => { resolveSave = resolve; }),
+        );
+        renderSuccessBanner(container, successBannerData({ onSaveToken }));
+
+        saveButton()?.click();
+        await vi.waitFor(() => expect(saveButton()?.disabled).toBe(true));
+
+        resolveSave({ ok: true, readToken: "cat-dog" });
+      });
+
+      it("re-enables the Save button and announces 'Token saved' via a polite live region on success", async () => {
+        const onSaveToken = vi.fn().mockResolvedValue({ ok: true, readToken: "fox-owl" } satisfies SaveTokenResult);
+        renderSuccessBanner(container, successBannerData({ onSaveToken }));
+        const input = container.querySelector("input[type='text']") as HTMLInputElement;
+        input.value = "fox-owl";
+
+        saveButton()?.click();
+        await vi.waitFor(() => expect(saveButton()?.disabled).toBe(false));
+
+        const liveRegion = container.querySelector("[aria-live='polite']");
+        expect(liveRegion?.textContent).toMatch(/token saved/i);
+      });
+
+      it("updates the dashboard link's ?token= param (URL-encoded) to the newly saved token on success", async () => {
+        const onSaveToken = vi
+          .fn()
+          .mockResolvedValue({ ok: true, readToken: "new token" } satisfies SaveTokenResult);
+        renderSuccessBanner(
+          container,
+          successBannerData({ onSaveToken, frontendOrigin: "https://app.example.com", username: "someauthor" }),
+        );
+        const input = container.querySelector("input[type='text']") as HTMLInputElement;
+        input.value = "new token";
+
+        saveButton()?.click();
+        await vi.waitFor(() => expect(saveButton()?.disabled).toBe(false));
+
+        const link = container.querySelector("a");
+        expect(link?.getAttribute("href")).toBe(
+          `https://app.example.com/u/someauthor?token=${encodeURIComponent("new token")}`,
+        );
+      });
+
+      it("shows an assertive role=alert error, preserves the typed value, and re-enables Save on failure", async () => {
+        const onSaveToken = vi
+          .fn()
+          .mockResolvedValue({ ok: false, message: "Could not save token" } satisfies SaveTokenResult);
+        renderSuccessBanner(container, successBannerData({ onSaveToken }));
+        const input = container.querySelector("input[type='text']") as HTMLInputElement;
+        input.value = "attempted-token";
+
+        saveButton()?.click();
+        await vi.waitFor(() => expect(saveButton()?.disabled).toBe(false));
+
+        const alert = container.querySelector("[role='alert']");
+        expect(alert?.textContent).toMatch(/could not save token/i);
+        expect(input.value).toBe("attempted-token");
+        expect(saveButton()?.disabled).toBe(false);
+      });
+
+      it("triggers Save when Enter is pressed inside the input, without navigating", async () => {
+        const onSaveToken = vi.fn().mockResolvedValue({ ok: true, readToken: "fox-owl" } satisfies SaveTokenResult);
+        renderSuccessBanner(container, successBannerData({ onSaveToken }));
+        const input = container.querySelector("input[type='text']") as HTMLInputElement;
+        input.value = "fox-owl";
+
+        const event = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+        input.dispatchEvent(event);
+        await vi.waitFor(() => expect(onSaveToken).toHaveBeenCalled());
+
+        expect(event.defaultPrevented).toBe(true);
+      });
+    });
+
+    it("keeps the input, Copy, Save, and dashboard link in a sensible (natural DOM) tab order", () => {
+      renderSuccessBanner(container, successBannerData());
+
+      const focusable = Array.from(container.querySelectorAll("input, button, a"));
+      const tagOrder = focusable.map((el) => el.tagName);
+
+      expect(tagOrder).toEqual([ "INPUT", "BUTTON", "BUTTON", "A" ]);
+      // None of these should be pulled out of the natural tab order via a
+      // positive tabindex, and none should be hidden from it via -1 either
+      // (only the outer banner itself uses tabindex="-1", to move focus
+      // there programmatically without adding it to the Tab sequence).
+      for (const el of focusable) {
+        expect(el.getAttribute("tabindex")).not.toBe("-1");
+      }
     });
   });
 
@@ -333,7 +503,9 @@ describe("bookmarklet banners", () => {
       const banners = [
         renderSuccessBanner(container, {
           readToken: "tok_visible_123",
-          dashboardUrl: "https://app.example.com/u/someauthor",
+          frontendOrigin: "https://app.example.com",
+          username: "someauthor",
+          onSaveToken: vi.fn().mockResolvedValue({ ok: true, readToken: "tok_visible_123" } satisfies SaveTokenResult),
         }),
         renderFailureBanner(container, { message: "failure", schemaVersion: 1 }),
         renderInfoBanner(container, { message: "info" }),
@@ -352,27 +524,38 @@ describe("bookmarklet banners", () => {
   });
 
   describe("renderSuccessBanner visual treatment", () => {
-    it("gives the token a monospace, break-all treatment so a long token can't overflow the fixed-width banner", () => {
+    // MASTER.md's Inputs spec (plan section 4): monospace value font (the
+    // token is a figure to be transcribed precisely) and font-size 16px
+    // explicitly - MASTER.md calls this out as "never smaller", to avoid
+    // iOS Safari auto-zooming into the field on focus.
+    it("gives the token input a monospace font at 16px so it never triggers iOS auto-zoom", () => {
       renderSuccessBanner(container, {
         readToken: "tok_visible_123",
-        dashboardUrl: "https://app.example.com/u/someauthor",
+        frontendOrigin: "https://app.example.com",
+        username: "someauthor",
+        onSaveToken: vi.fn().mockResolvedValue({ ok: true, readToken: "tok_visible_123" } satisfies SaveTokenResult),
       });
 
-      const token = container.querySelector("code");
-      expect(token?.style.wordBreak).toBe("break-all");
-      expect(token?.style.fontFamily).toMatch(/mono/i);
+      const input = container.querySelector("input[type='text']") as HTMLInputElement;
+      expect(input.style.fontFamily).toMatch(/mono/i);
+      expect(input.style.fontSize).toBe("16px");
     });
 
-    it("styles the Copy button and dashboard link as clearly clickable, not bare browser defaults", () => {
+    it("styles the Copy button, Save button, and dashboard link as clearly clickable, not bare browser defaults", () => {
       renderSuccessBanner(container, {
         readToken: "tok_visible_123",
-        dashboardUrl: "https://app.example.com/u/someauthor",
+        frontendOrigin: "https://app.example.com",
+        username: "someauthor",
+        onSaveToken: vi.fn().mockResolvedValue({ ok: true, readToken: "tok_visible_123" } satisfies SaveTokenResult),
       });
 
-      const button = container.querySelector("button");
+      const buttons = container.querySelectorAll("button");
       const link = container.querySelector("a");
 
-      expect(button?.style.backgroundColor).not.toBe("");
+      for (const button of buttons) {
+        const styled = button.style.backgroundColor !== "" || button.style.border !== "";
+        expect(styled).toBe(true);
+      }
       expect(link?.style.textDecoration).toBe("none");
       expect(link?.style.border).not.toBe("");
     });
