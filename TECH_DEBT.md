@@ -247,3 +247,42 @@
   defense-in-depth - sanitize/allowlist on ingest so any future consumer
   (not just the planned UI) inherits a safe value. Deferred: (a) belongs to
   the future UI pass, (b) is a nice-to-have hardening.
+- [2026-08-02] (stage: Implementation) Broadened curl/non-browser overwrite
+  surface (`docs/plans/memorable-token-and-recovery.md` section 9/Q4): the
+  always-accept-and-reset model on `/ingest`, `/ingest/work`, and the new
+  `/ingest/token` means a non-browser client (not bound by CORS) can now
+  overwrite a *claimed* username's token/snapshot, not just claim an
+  unclaimed one - a direct, user-confirmed entailment of decision 2 (a
+  successful stats-page capture is itself proof of ownership), not a new
+  decision made during Implementation. Genuine widening of the existing,
+  separately-accepted Tier-3 "personal tool, CORS-gates-browsers" posture.
+  Candidate mitigations (not built): a Rack::Attack throttle on `/ingest*`;
+  binding a claim to something only the real author can produce. Deferred:
+  explicitly signed off by the user during Planning; not closed here.
+- [2026-08-02] (stage: Implementation) Token entropy (~16.5 bits) as the
+  read path's only remaining secret strength (`docs/plans/memorable-token-
+  and-recovery.md` section 9/Q1): 300 words, two distinct ordered picks =
+  89,700 combinations. Deliberately weak as a *secret* per the user's
+  explicit memorability choice - under decision 2 the capture path's
+  security no longer rests on token unguessability, so the token's
+  remaining job is gating `statsForUser` (GraphQL read path, unchanged/
+  still enforced). ~16 bits gates read access to a personal stats dashboard
+  if an attacker also knows the exact AO3 username. Candidate mitigation
+  (not built): a `statsForUser`/`/ingest` rate limit. Deferred: accepted at
+  personal-tool scale, explicitly signed off by the user during Planning.
+- [2026-08-02] (stage: Implementation) `frontend/src/bookmarklet/
+  tokenSuggestion.test.ts` fails at the whole-file level due to a Vitest
+  mock-hoisting bug in the test itself, unrelated to any implementation
+  choice: `vi.mock("./wordlist", () => ({ WORDLIST: MOCK_WORDLIST }))`
+  references a `const MOCK_WORDLIST` declared later in the same file, but
+  `vi.mock` factories are hoisted above all other top-level code (including
+  local `const` declarations), so evaluating the factory throws
+  "Cannot access 'MOCK_WORDLIST' before initialization" the moment
+  `tokenSuggestion.ts` (or anything importing it) is loaded - confirmed via
+  an isolated minimal repro outside this repo with the same Vitest version,
+  independent of `tokenSuggestion.ts`'s actual implementation. Not fixed
+  during Implementation per process (test files aren't edited without
+  explicit sign-off); the fix is mechanical and assertion-preserving
+  (wrap `MOCK_WORDLIST` in `vi.hoisted(() => [...])`, Vitest's documented
+  API for exactly this situation) but left for the user/Review to
+  authorize. All other bookmarklet/frontend suites are green.
