@@ -1,37 +1,44 @@
 require "rails_helper"
 
 # WorkDetailIngestService is the write path for one work's Phase 2
-# enrichment POST (docs/plans/work-page-enrichment-data-model.md section 3):
-# authorize by capability token, locate today's Snapshot, find-or-update the
-# WorkStat for (today's snapshot, work) with the new time-series fields,
-# update the Work's latest-state fields, and delete-and-replace that work's
-# work_bookmarks - all in one transaction. See
-# spec/support/work_detail_payloads.rb for the payload contract this stage
-# is defining.
+# enrichment POST (docs/plans/work-page-enrichment-data-model.md section 3).
+# Per docs/plans/memorable-token-and-recovery.md section 3b: the token
+# check is dropped entirely here - /ingest/work is part of the same
+# already-proved page-load fan-out as /ingest, and requiring a token match
+# would break the edit-during-fan-out race (in-flight calls carrying the
+# *old* token while the user edits it mid-run). It locates today's
+# Snapshot, find-or-updates the WorkStat for (today's snapshot, work) with
+# the new time-series fields, updates the Work's latest-state fields, and
+# delete-and-replaces that work's work_bookmarks - all in one transaction.
+# See spec/support/work_detail_payloads.rb for the payload contract this
+# stage is defining.
 #
-# Interface this spec pins down (Planning left the exact shape open):
+# Interface this spec pins down:
 #   WorkDetailIngestService.new(payload: <Hash>).call
 #     => Result#ao3_user, #work, #work_stat
-#   raises WorkDetailIngestService::TokenMismatch on a wrong/missing token,
-#     or an unknown username (never distinguished from a wrong token, so a
-#     probing client can't use this endpoint to enumerate usernames).
 #   raises WorkDetailIngestService::InvalidPayload on malformed/missing
 #     required fields.
 #   raises WorkDetailIngestService::UnsupportedSchemaVersion on an
 #     unsupported schemaVersion (own constant, independent of
 #     SnapshotIngestService::CURRENT_SCHEMA_VERSION per the plan).
 #   raises WorkDetailIngestService::NoSnapshotForToday - the defensive-only
-#     guard (plan section 3): no Snapshot for the user today, no Work for
-#     (user, ao3WorkId), or no existing WorkStat for (today's snapshot,
-#     work) - all three collapse to the same "nowhere valid to attach this
+#     guard (plan section 3): no Ao3User for the username (nothing to
+#     attach to - there is no token check left to reject an unknown
+#     username with), no Snapshot for the user today, no Work for (user,
+#     ao3WorkId), or no existing WorkStat for (today's snapshot, work) -
+#     all four collapse to the same "nowhere valid to attach this
 #     enrichment" error, since the fan-out's handling is identical either
 #     way (skip this work, tally it, continue).
+#   WorkDetailIngestService::TokenMismatch no longer exists - any readToken
+#     in the payload is accepted and ignored (memorable-token-and-recovery
+#     plan section 3b).
 RSpec.describe WorkDetailIngestService do
-  # Phase 1 (SnapshotIngestService, unchanged) always runs before Phase 2 in
-  # the real fan-out and is what creates the Snapshot + Work + base WorkStat
-  # this service enriches - reused here rather than hand-building those rows,
-  # so these specs exercise the same attach point Phase 2 really sees.
-  def capture_phase_one!(username:, read_token: nil, ao3_work_id: 111)
+  # Phase 1 (SnapshotIngestService, unchanged apart from its own
+  # always-accept token model) always runs before Phase 2 in the real
+  # fan-out and is what creates the Snapshot + Work + base WorkStat this
+  # service enriches - reused here rather than hand-building those rows, so
+  # these specs exercise the same attach point Phase 2 really sees.
+  def capture_phase_one!(username:, read_token: "phase_one_token", ao3_work_id: 111)
     SnapshotIngestService.new(
       payload: valid_ingest_payload(
         username: username,
@@ -47,7 +54,7 @@ RSpec.describe WorkDetailIngestService do
     ).call
   end
 
-  describe "#call with a valid token" do
+  describe "#call with any readToken (no longer checked)" do
     it "returns a Result exposing ao3_user, work, and work_stat" do
       phase_one = capture_phase_one!(username: "worker_valid")
 
@@ -61,53 +68,66 @@ RSpec.describe WorkDetailIngestService do
     end
   end
 
-  describe "#call token authorization (reuses the secure_compare pattern)" do
-    it "raises TokenMismatch for a wrong token on a known username" do
-      capture_phase_one!(username: "worker_wrong_token")
+  # Plan section 3b: the token check is dropped entirely for this endpoint -
+  # any readToken value (right, wrong, or absent) in the payload is ignored,
+  # so enrichment always applies as long as the username is known and
+  # today's Snapshot/Work/WorkStat exist. This is what keeps an in-flight
+  # fan-out working even if the user edits their token mid-run (3d/corner
+  # cases: "Edit during an in-flight fan-out").
+  describe "#call ignores readToken entirely (plan section 3b, always-accept)" do
+    it "still succeeds and enriches when readToken does not match the user's stored token" do
+      phase_one = capture_phase_one!(username: "worker_wrong_token")
 
-      expect {
-        described_class.new(
-          payload: valid_work_detail_payload(username: "worker_wrong_token", read_token: "not_the_token"),
-        ).call
-      }.to raise_error(WorkDetailIngestService::TokenMismatch)
+      result = described_class.new(
+        payload: valid_work_detail_payload(username: "worker_wrong_token", read_token: "not_the_token"),
+      ).call
+
+      expect(result.work_stat.snapshot).to eq(phase_one.snapshot)
     end
 
-    # secure_compare is constant-time but not nil-safe - a payload missing
-    # readToken entirely must still surface as an ordinary TokenMismatch,
-    # not a 500-causing NoMethodError (mirrors SnapshotIngestService's
-    # equivalent guard).
-    it "raises TokenMismatch (not a NoMethodError) when readToken is missing from the payload" do
+    it "still succeeds and enriches when readToken is missing from the payload entirely (nil)" do
       capture_phase_one!(username: "worker_missing_token")
 
       expect {
         described_class.new(
           payload: valid_work_detail_payload(username: "worker_missing_token", read_token: nil),
         ).call
-      }.to raise_error(WorkDetailIngestService::TokenMismatch)
+      }.not_to raise_error
     end
 
-    it "raises TokenMismatch for an unknown username rather than a distinct not-found error" do
+    # Unknown username maps to NoSnapshotForToday now, not TokenMismatch -
+    # there is no user to attach the enrichment to, which is a different
+    # cause than "wrong token for a known user" (there's no token check
+    # left to distinguish that case from at all).
+    it "raises NoSnapshotForToday for an unknown username (nothing to attach the enrichment to)" do
       expect {
         described_class.new(
           payload: valid_work_detail_payload(username: "no_such_worker", read_token: "anything"),
         ).call
-      }.to raise_error(WorkDetailIngestService::TokenMismatch)
+      }.to raise_error(WorkDetailIngestService::NoSnapshotForToday)
     end
 
-    it "persists no changes when the token is wrong" do
-      phase_one = capture_phase_one!(username: "worker_no_write_on_mismatch")
+    it "persists the enrichment even when the readToken is wrong" do
+      phase_one = capture_phase_one!(username: "worker_write_despite_mismatch")
 
       expect {
-        begin
-          described_class.new(
-            payload: valid_work_detail_payload(
-              username: "worker_no_write_on_mismatch", read_token: "wrong",
-            ),
-          ).call
-        rescue WorkDetailIngestService::TokenMismatch
-          nil
-        end
-      }.not_to change { phase_one.snapshot.work_stats.first.reload.updated_at }
+        described_class.new(
+          payload: valid_work_detail_payload(
+            username: "worker_write_despite_mismatch", read_token: "wrong",
+            work_stats: { "publicBookmarks" => 9, "visibleComments" => 1, "chapterCount" => 1, "chaptersExpected" => 1 },
+          ),
+        ).call
+      }.to change { phase_one.snapshot.work_stats.first.reload.updated_at }
+    end
+  end
+
+  describe "deleted interface (memorable-token-and-recovery plan section 3b)" do
+    it "no longer defines a TokenMismatch error class" do
+      expect(described_class.const_defined?(:TokenMismatch)).to be(false)
+    end
+
+    it "no longer defines a private #authorize! method" do
+      expect(described_class.private_instance_methods).not_to include(:authorize!)
     end
   end
 
