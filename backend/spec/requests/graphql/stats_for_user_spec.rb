@@ -132,6 +132,34 @@ RSpec.describe "statsForUser query", type: :request do
     end
   end
 
+  # Regression guard for docs/plans/memorable-token-and-recovery.md section
+  # 3e/9: the read path is explicitly UNCHANGED by this plan - it still
+  # looks up by username first and secure_compares against *that* row's own
+  # read_token, so dropping the global unique index on ao3_users.read_token
+  # (word-pairs now collide across users by design) must never let two
+  # users who happen to share a token read each other's stats. A naive
+  # "find the user by token" implementation would be a real cross-user
+  # data leak; this pins the correct "find by username, then compare"
+  # contract instead.
+  context "with a token that happens to be shared with another user (dropped unique index)" do
+    let!(:other_user) { Ao3User.create!(username: "otheruser", read_token: "valid_token") }
+
+    it "still only ever returns the queried username's own stats, not the other user's" do
+      create_snapshot(captured_on: Date.current, total_hits: 999, total_kudos: 99)
+      Snapshot.create!(
+        ao3_user: other_user, captured_on: Date.current, captured_at: Time.current,
+        total_hits: 1, total_kudos: 1, total_comments: 0, total_bookmarks: 0,
+        total_subscriptions: 0, total_user_subscriptions: 0, total_word_count: 0, works_count: 0,
+      )
+
+      graphql_post(variables: { username: "otheruser", token: "valid_token" })
+
+      expect(response.parsed_body["errors"]).to be_blank
+      series = response.parsed_body.dig("data", "statsForUser", "aggregateSeries")
+      expect(series.map { |p| p["totalHits"] }).to eq([ 1 ])
+    end
+  end
+
   # earliestPostYear is the synthetic zero-point baseline fact - a
   # dedicated query (rather than reusing the shared `query` above) so a
   # missing field doesn't turn the whole shared query invalid and cascade
