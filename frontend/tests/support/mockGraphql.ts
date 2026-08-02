@@ -43,3 +43,32 @@ export const POPULATED_STATS_RESPONSE = {
 export const TOKEN_MISMATCH_RESPONSE = {
   errors: [{ message: "That token does not match this username." }],
 };
+
+// EXTERNAL-UNVERIFIED: not tied to any external system - this is purely
+// synthetic fixture data for the new per-work comparison feature
+// (WorkComparisonSection). Seven works sharing one fandom, so a single
+// "select all in fandom" click reaches the 6-work cap, and each work has 3+
+// distinct capturedOn dates so the union across even 2 selected works
+// clears the DateRangeSlider's ">2" visibility gate.
+export const MULTI_WORK_STATS_RESPONSE = {
+  data: {
+    statsForUser: {
+      kudosToHitsRatio: 0.12,
+      aggregateSeries: [
+        { capturedOn: "2026-01-01", totalHits: 100, totalKudos: 10, kudosToHitsRatio: 0.1 },
+        { capturedOn: "2026-01-08", totalHits: 220, totalKudos: 30, kudosToHitsRatio: 0.136 },
+      ],
+      perWorkSeries: Array.from({ length: 7 }, (_, i) => ({
+        ao3WorkId: 100 + i,
+        title: `Comparison Work ${i + 1}`,
+        fandoms: "Shared Fandom",
+        points: [
+          { capturedOn: "2024-01-01", hits: (i + 1) * 10, kudos: i + 1 },
+          { capturedOn: "2025-01-01", hits: (i + 1) * 20, kudos: (i + 1) * 2 },
+          { capturedOn: "2026-01-01", hits: (i + 1) * 30, kudos: (i + 1) * 3 },
+        ],
+      })),
+      earliestPostYear: 2024,
+    },
+  },
+};

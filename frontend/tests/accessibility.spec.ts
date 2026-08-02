@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import {
   mockStatsForUser,
+  MULTI_WORK_STATS_RESPONSE,
   POPULATED_STATS_RESPONSE,
   TOKEN_MISMATCH_RESPONSE,
 } from "./support/mockGraphql";
@@ -78,6 +79,46 @@ test.describe("accessibility - keyboard nav, focus order, ARIA", () => {
     const submitButton = page.getByRole("button", { name: /use this token|submit/i });
     await expect(submitButton).toBeFocused();
   });
+
+  // Full keyboard walkthrough of the new per-work comparison surface: tab
+  // into the grouped picker, toggle a work on via the keyboard, select an
+  // entire fandom (reaching the 6-work cap), then operate both
+  // DateRangeSlider thumbs via arrow keys. Requires @mui/material +
+  // emotion peers to be installed (Implementation task 6) - fails until
+  // then, same as the rest of the DateRangeSlider coverage.
+  test("keyboard walkthrough: toggle works in the picker, select-all to the cap, and operate both slider thumbs", async ({
+    page,
+  }) => {
+    await mockStatsForUser(page, MULTI_WORK_STATS_RESPONSE);
+    await page.goto("/u/testauthor?token=tok_valid123");
+    await expect(page.getByRole("checkbox", { name: "Comparison Work 1" })).toBeChecked();
+
+    const secondWorkCheckbox = page.getByRole("checkbox", { name: "Comparison Work 2" });
+    await secondWorkCheckbox.focus();
+    await expect(secondWorkCheckbox).toBeFocused();
+    await page.keyboard.press("Space");
+    await expect(secondWorkCheckbox).toBeChecked();
+
+    const selectAllButton = page.getByRole("button", { name: /select all.*shared fandom/i });
+    await selectAllButton.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("status")).toContainText(/maximum of 6 works reached/i);
+    await expect(page.getByRole("checkbox", { name: "Comparison Work 7" })).toBeDisabled();
+
+    const startThumb = page.getByRole("slider", { name: /range start \(year\)/i });
+    await startThumb.focus();
+    await expect(startThumb).toBeFocused();
+    const startBefore = await startThumb.getAttribute("aria-valuenow");
+    await page.keyboard.press("ArrowRight");
+    await expect(startThumb).not.toHaveAttribute("aria-valuenow", startBefore ?? "");
+
+    const endThumb = page.getByRole("slider", { name: /range end \(year\)/i });
+    await endThumb.focus();
+    await expect(endThumb).toBeFocused();
+    const endBefore = await endThumb.getAttribute("aria-valuenow");
+    await page.keyboard.press("ArrowLeft");
+    await expect(endThumb).not.toHaveAttribute("aria-valuenow", endBefore ?? "");
+  });
 });
 
 test.describe("accessibility - automated axe scans", () => {
@@ -134,6 +175,41 @@ test.describe("accessibility - automated axe scans", () => {
     await mockStatsForUser(page, TOKEN_MISMATCH_RESPONSE);
     await page.goto("/u/testauthor?token=tok_wrong");
     await expect(page.getByText(/doesn't match|invalid token|not authorized/i)).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).analyze();
+
+    expect(results.violations).toEqual([]);
+  });
+
+  // The three new populated-comparison-view states called out by the plan's
+  // Accessibility section: multi-select active (2+ works checked, slider
+  // visible), and the 6-work cap (disabled checkboxes + role=status
+  // announcement). Distinct from the single-default-work populated state
+  // already covered above.
+  test("the comparison view with multiple works selected (slider visible) has no detectable a11y violations", async ({
+    page,
+  }) => {
+    await mockStatsForUser(page, MULTI_WORK_STATS_RESPONSE);
+    await page.goto("/u/testauthor?token=tok_valid123");
+    await expect(page.getByRole("checkbox", { name: "Comparison Work 1" })).toBeChecked();
+
+    await page.getByRole("checkbox", { name: "Comparison Work 2" }).check();
+    await expect(page.getByRole("slider", { name: /range start \(year\)/i })).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).analyze();
+
+    expect(results.violations).toEqual([]);
+  });
+
+  test("the comparison view at the 6-work selection cap has no detectable a11y violations", async ({
+    page,
+  }) => {
+    await mockStatsForUser(page, MULTI_WORK_STATS_RESPONSE);
+    await page.goto("/u/testauthor?token=tok_valid123");
+
+    await page.getByRole("button", { name: /select all.*shared fandom/i }).click();
+    await expect(page.getByRole("status")).toContainText(/maximum of 6 works reached/i);
+    await expect(page.getByRole("checkbox", { name: "Comparison Work 7" })).toBeDisabled();
 
     const results = await new AxeBuilder({ page }).analyze();
 
