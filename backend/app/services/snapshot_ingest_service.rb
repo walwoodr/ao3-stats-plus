@@ -1,10 +1,12 @@
 # SnapshotIngestService is the single write path for an ingested bookmarklet
-# payload: find-or-create the Ao3User, mint/verify the capability token,
-# dedup same-day snapshots, and transactionally persist snapshot + works +
-# work_stats. See spec/support/ingest_payloads.rb for the payload contract.
+# payload: find-or-create the Ao3User, always accept-and-(re)set the
+# client-supplied read_token (a successful scrape of real AO3 stats for
+# username X is itself proof of being logged in as X - see
+# docs/plans/memorable-token-and-recovery.md), dedup same-day snapshots, and
+# transactionally persist snapshot + works + work_stats. See
+# spec/support/ingest_payloads.rb for the payload contract.
 class SnapshotIngestService
   class InvalidPayload < StandardError; end
-  class TokenMismatch < StandardError; end
   class UnsupportedSchemaVersion < StandardError; end
 
   CURRENT_SCHEMA_VERSION = 1
@@ -49,6 +51,7 @@ class SnapshotIngestService
 
   def validate_payload!
     raise InvalidPayload, "username is required" if username.blank?
+    raise InvalidPayload, "readToken is required" if client_read_token.blank?
     raise InvalidPayload, "aggregate is required" unless payload["aggregate"].is_a?(Hash)
     raise UnsupportedSchemaVersion, "unsupported schemaVersion" unless payload["schemaVersion"] == CURRENT_SCHEMA_VERSION
   end
@@ -71,34 +74,27 @@ class SnapshotIngestService
 
   def find_or_create_user!
     ao3_user = Ao3User.find_by(username: username)
-    return authorize_existing_user!(ao3_user) if ao3_user
+    return reset_read_token!(ao3_user) if ao3_user
 
     begin
-      Ao3User.create!(username: username, read_token: generate_token)
+      Ao3User.create!(username: username, read_token: client_read_token)
     rescue ActiveRecord::RecordNotUnique
       # Two concurrent first-ingests for the same brand-new username: this
       # request's find_by above ran before the other request committed, so
       # it saw no row and lost the race to the unique index on username.
       # The other request's row now exists - fall back to it exactly like
-      # the existing-user path above, rather than letting RecordNotUnique
-      # propagate into a 500.
-      authorize_existing_user!(Ao3User.find_by(username: username))
+      # the existing-user path above (always-accept-and-reset), rather than
+      # letting RecordNotUnique propagate into a 500.
+      reset_read_token!(Ao3User.find_by(username: username))
     end
   end
 
-  def authorize_existing_user!(ao3_user)
-    # secure_compare is constant-time but not nil-safe (raises on a nil
-    # argument); client_read_token can genuinely be nil for a malformed
-    # payload missing "readToken" entirely, so it's coerced to a string
-    # first - "" still safely fails the comparison rather than matching.
-    unless ActiveSupport::SecurityUtils.secure_compare(ao3_user.read_token, client_read_token.to_s)
-      raise TokenMismatch, "token mismatch for #{username}"
-    end
+  # Always-accept-and-reset (plan section 3a, decision 2): no proof of the
+  # *current* token is required - a replayed identical token is a harmless
+  # no-op update.
+  def reset_read_token!(ao3_user)
+    ao3_user.update!(read_token: client_read_token)
     ao3_user
-  end
-
-  def generate_token
-    SecureRandom.hex(24)
   end
 
   def build_snapshot!(ao3_user)
