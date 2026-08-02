@@ -36,12 +36,24 @@ RSpec.describe Ao3User, type: :model do
       expect(ao3_user).not_to be_valid
     end
 
-    it "requires the read_token to be unique" do
+    # Per docs/plans/memorable-token-and-recovery.md section 2: word-pairs
+    # collide across users by design (per-username scoping only), so
+    # uniqueness is deliberately no longer validated - two rows may share a
+    # read_token value.
+    it "no longer validates read_token uniqueness - two rows may share a read_token" do
       described_class.create!(username: "userone", read_token: "shared_token")
       dup = described_class.new(username: "usertwo", read_token: "shared_token")
 
-      expect(dup).not_to be_valid
-      expect(dup.errors[:read_token]).to be_present
+      expect(dup).to be_valid
+      expect(dup.errors[:read_token]).to be_empty
+    end
+
+    it "persists two rows with the same read_token without raising" do
+      described_class.create!(username: "userthree", read_token: "shared_token_2")
+
+      expect {
+        described_class.create!(username: "userfour", read_token: "shared_token_2")
+      }.not_to raise_error
     end
   end
 
