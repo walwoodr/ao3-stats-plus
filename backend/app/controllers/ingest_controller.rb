@@ -14,8 +14,6 @@ class IngestController < ApplicationController
     }, status: result.deduped? ? :ok : :created
   rescue SnapshotIngestService::InvalidPayload => e
     render json: { ok: false, error: e.message }, status: :unprocessable_entity
-  rescue SnapshotIngestService::TokenMismatch => e
-    render json: { ok: false, error: e.message }, status: :forbidden
   rescue SnapshotIngestService::UnsupportedSchemaVersion => e
     render json: { ok: false, error: e.message }, status: :upgrade_required
   end
@@ -31,12 +29,23 @@ class IngestController < ApplicationController
     render json: { ok: true, ao3WorkId: result.work.ao3_work_id }, status: :created
   rescue WorkDetailIngestService::InvalidPayload => e
     render json: { ok: false, error: e.message }, status: :unprocessable_entity
-  rescue WorkDetailIngestService::TokenMismatch => e
-    render json: { ok: false, error: e.message }, status: :forbidden
   rescue WorkDetailIngestService::UnsupportedSchemaVersion => e
     render json: { ok: false, error: e.message }, status: :upgrade_required
   rescue WorkDetailIngestService::NoSnapshotForToday => e
     render json: { ok: false, error: e.message }, status: :conflict
+  end
+
+  # POST /ingest/token is the "edit my token" action (plan section 3c):
+  # same rescue-and-render pattern as the two actions above, backed by
+  # TokenUpdateService. Always-accept - never returns 403.
+  def update_token
+    result = TokenUpdateService.new(payload: ingest_params).call
+
+    render json: { ok: true, readToken: result.read_token }, status: :ok
+  rescue TokenUpdateService::InvalidPayload => e
+    render json: { ok: false, error: e.message }, status: :unprocessable_entity
+  rescue TokenUpdateService::UnsupportedSchemaVersion => e
+    render json: { ok: false, error: e.message }, status: :upgrade_required
   end
 
   private

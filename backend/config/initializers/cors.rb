@@ -69,6 +69,14 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
     resource "/ingest/work",
       headers: :any,
       methods: %i[post options]
+
+    # /ingest/token (the "edit my token" action, memorable-token-and-recovery
+    # plan section 3c) is likewise AO3-bookmarklet-only, not reachable from
+    # our own frontend origin - the "Save token" action runs on the AO3 page,
+    # not our dashboard.
+    resource "/ingest/token",
+      headers: :any,
+      methods: %i[post options]
   end
 
   allow do
