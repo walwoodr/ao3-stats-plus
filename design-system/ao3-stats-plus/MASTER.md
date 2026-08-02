@@ -101,6 +101,14 @@ by less than 0.3, which is enough margin for hex values exactly as specified but
 little room for drift if these colors get adjusted later — re-verify if any of the three change.
 No hex value needed to change to hit the bar as originally chosen.
 
+**Series palette (multi-series chart color, JS-only — no CSS variable):** unlike the tokens
+above, the six-swatch categorical `series` palette (wine/teal/amber/indigo/green/purple) added
+for the per-work comparison charts is never consumed as a static Tailwind utility class, so it
+has no `--color-series-*` custom property in index.css — it lives only in
+`frontend/src/lib/colorTokens.ts`'s `ColorTokens.series` array, read by index straight into
+Recharts props. See "Multi-series categorical palette" below for the full slot table and
+contrast verification.
+
 ### Typography
 
 Three-tier system, identical in both modes — only color tokens change between light and dark,
