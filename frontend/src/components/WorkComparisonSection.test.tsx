@@ -50,8 +50,13 @@ describe("WorkComparisonSection", () => {
   it("shows only the default work's data in both charts' legends", () => {
     render(<WorkComparisonSection perWorkSeries={TWO_WORKS} earliestPostYear={null} />);
 
+    // MultiSeriesTrendChart renders a work's title in three places (visible
+    // legend, sr-only per-point markers, sr-only table header) - see its own
+    // test file's "renders a visible legend" case - so a loose match must
+    // use getAllByText (>=1), not the singular getByText which throws on
+    // multiple matches.
     const hitsFigure = screen.getByRole("img", { name: /^hits$/i });
-    expect(within(hitsFigure).getByText(/work one/i)).toBeInTheDocument();
+    expect(within(hitsFigure).getAllByText(/work one/i).length).toBeGreaterThan(0);
     expect(within(hitsFigure).queryByText(/work two/i)).not.toBeInTheDocument();
   });
 
@@ -110,7 +115,9 @@ describe("WorkComparisonSection", () => {
       ).map((w) => w.title);
 
       checkedTitles.forEach((title) => {
-        expect(within(hitsFigure).getByText(new RegExp(title, "i"))).toBeInTheDocument();
+        // Same multi-occurrence reality as above - a work's title legitimately
+        // appears 3x per figure (legend, sr-only markers, sr-only table).
+        expect(within(hitsFigure).getAllByText(new RegExp(title, "i")).length).toBeGreaterThan(0);
       });
     });
   });

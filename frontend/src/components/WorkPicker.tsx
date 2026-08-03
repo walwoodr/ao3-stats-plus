@@ -12,6 +12,13 @@ export interface WorkPickerProps {
   perWorkSeries: PerWorkSeries[];
   selectedWorkIds: number[];
   onChange: (selectedWorkIds: number[]) => void;
+  // An additional message merged into this component's OWN role="status"
+  // live region (rather than WorkComparisonSection rendering a second,
+  // separate region) - keeps exactly one status region in the combined
+  // tree, e.g. for the "Comparing N works, START to END." summary
+  // announcement (see WorkComparisonSection.tsx). Undefined/omitted by
+  // every WorkPicker-only test, so default behavior is unaffected.
+  extraStatusMessage?: string;
 }
 
 // Grouped-by-fandom checkbox picker (Q4: one shared, additive selection set
@@ -22,11 +29,23 @@ export interface WorkPickerProps {
 // management" section). The one piece of genuinely local state here is the
 // cap-truncation announcement text, which is an ephemeral reaction to the
 // LAST select-all click, not something derivable from props alone.
-export function WorkPicker({ perWorkSeries, selectedWorkIds, onChange }: WorkPickerProps) {
+export function WorkPicker({
+  perWorkSeries,
+  selectedWorkIds,
+  onChange,
+  extraStatusMessage,
+}: WorkPickerProps) {
   const [truncationMessage, setTruncationMessage] = useState<string | null>(null);
   const groups = groupWorksByFandom(perWorkSeries);
   const atCap = selectedWorkIds.length >= MAX_SELECTED_WORKS;
-  const statusText = truncationMessage ?? (atCap ? "Maximum of 6 works reached." : "");
+  // Both pieces can be true at once (a select-all that truncates usually
+  // also lands the selection exactly at the cap) - the generic "reached"
+  // statement and the specific "N of M" truncation detail are additive,
+  // not alternatives, so both are announced together when applicable.
+  const genericCapMessage = atCap ? "Maximum of 6 works reached." : "";
+  const statusText = [genericCapMessage, truncationMessage, extraStatusMessage]
+    .filter(Boolean)
+    .join(" ");
 
   function handleToggle(workId: number, checked: boolean) {
     setTruncationMessage(null);
