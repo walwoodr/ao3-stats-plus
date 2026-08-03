@@ -52,7 +52,7 @@ function internalInputStyle(colors: ColorTokens): string {
     `background:${colors.card};color:${colors.ink};` +
     "padding:10px 14px;font-size:16px;width:100%;box-sizing:border-box;" +
     "font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;" +
-    "border:none;border-radius:6px;"
+    "border:none;border-radius:6px;box-shadow: none;"
   );
 }
 
