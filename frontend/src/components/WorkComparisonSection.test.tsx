@@ -226,4 +226,73 @@ describe("WorkComparisonSection", () => {
 
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
+
+  // Regression for TECH_DEBT.md (2026-08-03): `range` was only ever reset
+  // to null when the selection dropped *below* the >2 union-points gate -
+  // never reconciled against a live `domain` that shifts while staying
+  // *above* the gate. This drives the selection through exactly that path
+  // (never dipping to <= 2 union points, so the old gate-based reset never
+  // fires) and asserts the newly-selected work's own points actually reach
+  // the chart, rather than being silently filtered out by a stale window.
+  describe("stale range window across a selection swap (regression)", () => {
+    it("re-clamps the window against the live domain instead of leaving a stale narrowed range applied", async () => {
+      const user = userEvent.setup();
+      const worksWithDisjointRanges: PerWorkSeries[] = [
+        work({
+          ao3WorkId: 1,
+          title: "Work Early",
+          fandoms: "Fandom A",
+          points: [
+            { capturedOn: "2018-01-01", hits: 10, kudos: 1 },
+            { capturedOn: "2018-06-01", hits: 20, kudos: 2 },
+            { capturedOn: "2019-01-01", hits: 30, kudos: 3 },
+          ],
+        }),
+        work({
+          ao3WorkId: 2,
+          title: "Work Late",
+          fandoms: "Fandom A",
+          points: [
+            { capturedOn: "2023-01-01", hits: 100, kudos: 10 },
+            { capturedOn: "2024-01-01", hits: 200, kudos: 20 },
+            { capturedOn: "2025-01-01", hits: 300, kudos: 30 },
+          ],
+        }),
+      ];
+
+      render(
+        <WorkComparisonSection perWorkSeries={worksWithDisjointRanges} earliestPostYear={null} />,
+      );
+
+      // "Work Early" alone already clears the >2 union-points gate (3
+      // points), so the slider is mounted from the default 1-selected state.
+      expect(screen.getAllByRole("slider").length).toBeGreaterThan(0);
+
+      // Narrow the window down to Work Early's own span - excludes Work
+      // Late's 2023-2025 points entirely.
+      const endThumb = screen.getByRole("slider", { name: /range end \(year\)/i });
+      const initialEnd = Number(endThumb.getAttribute("aria-valuenow"));
+      endThumb.focus();
+      for (let year = initialEnd; year > 2019; year--) {
+        await user.keyboard("{ArrowLeft}");
+      }
+      expect(screen.getByText(/2018\s*[–-]\s*2019/)).toBeInTheDocument();
+
+      // Add Work Late (union points stay well above the gate throughout),
+      // then drop Work Early - leaving only Work Late selected. Work Late
+      // alone still clears the gate (3 points), so the slider stays mounted
+      // and the selection never dips to <= 2 union points, meaning the old
+      // gate-drop reset never fires even though the domain has shifted.
+      await user.click(screen.getByRole("checkbox", { name: "Work Late" }));
+      await user.click(screen.getByRole("checkbox", { name: "Work Early" }));
+
+      expect(screen.getAllByRole("slider").length).toBeGreaterThan(0);
+
+      const hitsFigure = screen.getByRole("img", { name: /^hits$/i });
+      // Without a live re-clamp against the current domain, Work Late's
+      // 2023-2025 points are all silently filtered out by the stale
+      // [2018, 2019] window - this should not happen.
+      expect(within(hitsFigure).queryByText(/work late.*2024-01-01/i)).toBeInTheDocument();
+    });
+  });
 });

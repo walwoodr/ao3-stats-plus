@@ -315,3 +315,35 @@
   a backend change here - the proper fix is storing fandoms as an
   array/jsonb column on `Work`, a data-model change explicitly deferred by
   the plan as out of scope for this feature.
+- [2026-08-03] (stage: Review, resolved 2026-08-03 stage: Implementation)
+  ~~`WorkComparisonSection.tsx`'s date `range` state was only reset when the
+  selection dropped below the `>2` union-points gate, never reconciled to
+  the live slider `domain` when the domain shifted while staying above the
+  gate, so a stale narrowed window could silently exclude a newly-selected
+  work's points~~ — fixed: `buildSeries`/`sliderValue` now derive an
+  `effectiveRange` that re-clamps `range` against the *live* `domain` on
+  every render (falling back to the full domain when the stored window no
+  longer overlaps the domain at all, rather than collapsing to a
+  degenerate single-point clamp), matching the plan's Error-states
+  invariant. Regression test:
+  `WorkComparisonSection.test.tsx` > "stale range window across a selection
+  swap (regression)".
+- [2026-08-03] (stage: Review) `WorkComparisonSection.tsx`'s `role="status"`
+  summary announcement ("Comparing N works, START to END.") derives its year
+  span from the full unfiltered `unionDates` of the selected works, not from
+  the currently-applied slider window. Narrowing the date range does not
+  change the announced years, so a screen-reader user who narrows the window
+  hears a span that doesn't match what the charts now show. Minor a11y/UX
+  inconsistency; the plan's example is ambiguous about whether the summary
+  should report the data span or the active window. Deferred: decide intended
+  semantics, then either feed the windowed range into the summary or document
+  that it intentionally reports the full selection span.
+- [2026-08-03] (stage: Review) `frontend/src/lib/markerShapes.tsx` trips a
+  single ESLint `react-refresh/only-export-components` *warning* (not error):
+  it exports both a component (`MarkerGlyph`) and a plain helper
+  (`renderMarkerShape`) from one file. The colocation is deliberate - both
+  the Recharts custom dot and the legend glyph call `renderMarkerShape` so
+  the two never drift - and the rule only affects Fast Refresh DX in dev, not
+  production or correctness. Fine to leave as a warning; if a clean lint run
+  is wanted, move `renderMarkerShape` (and `starPoints`) into a sibling
+  `markerPaths.ts` and re-export, leaving `markerShapes.tsx` component-only.

@@ -81,8 +81,24 @@ export function WorkComparisonSection({
   const earliestUnionYear = unionDates.length > 0 ? yearOf(unionDates[0]) : currentYear;
   const domainStart = Math.min(earliestPostYear ?? earliestUnionYear, currentYear);
   const domain: YearWindow = { start: domainStart, end: currentYear };
-  const sliderValue: [number, number] = range
-    ? [range.start, range.end]
+
+  // Range state invariants (plan's Error states): re-clamp `range` against
+  // the *live* `domain` at derivation time, not just against the
+  // then-current domain back when `handleRangeChange` set it. A selection
+  // change can shift the domain (e.g. swapping to a work with a disjoint
+  // date range) while staying above the >2 gate, so the gate-drop reset
+  // below never fires for it - `range` alone can't be trusted raw here. If
+  // the stored window no longer overlaps the domain at all, treat it as
+  // fully stale and fall back to the full domain rather than collapsing it
+  // to a degenerate single-point clamp; otherwise preserve the overlapping
+  // portion of the user's chosen window.
+  const effectiveRange: YearWindow | null =
+    range === null || range.end < domain.start || range.start > domain.end
+      ? null
+      : clampWindow(range, domain);
+
+  const sliderValue: [number, number] = effectiveRange
+    ? [effectiveRange.start, effectiveRange.end]
     : [domain.start, domain.end];
 
   function handleRangeChange(nextValue: [number, number]) {
@@ -91,7 +107,9 @@ export function WorkComparisonSection({
 
   function buildSeries(metric: "hits" | "kudos"): SeriesDatum[] {
     return orderedSelectedWorks.map((work) => {
-      const points = range ? filterPointsInWindow(work.points, range) : work.points;
+      const points = effectiveRange
+        ? filterPointsInWindow(work.points, effectiveRange)
+        : work.points;
       return {
         workId: work.ao3WorkId,
         title: work.title,
