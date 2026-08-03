@@ -180,7 +180,7 @@ export function renderRetryBanner(container: HTMLElement, data: RetryBannerData)
   const retryButton = document.createElement("button");
   retryButton.type = "button";
   retryButton.textContent = "Retry";
-  retryButton.style.cssText = primaryButtonStyle(colors.destructive);
+  retryButton.style.cssText = primaryButtonStyle(colors.destructive, colors.card);
   retryButton.addEventListener("click", () => data.onRetry());
   // Belt-and-suspenders: real browsers already turn an Enter keydown on a
   // focused <button> into a click, but this banner is injected into an
@@ -245,7 +245,7 @@ function progressMessage(data: ProgressBannerData): string {
 }
 
 // The final report once the fan-out finishes (or is capped/circuit-broken) -
-// plan section 7: "enriched X of M, Y skipped" plus any truncation, so
+// plan section 7: "Saved further data for X of M, Y skipped" plus any truncation, so
 // partial success (the normal operating mode under fan-out) is always
 // visible, never silently swallowed. A circuit-broken run is called out
 // distinctly from an ordinary partial-success summary, since it means AO3
@@ -257,7 +257,7 @@ export function renderSummaryBanner(container: HTMLElement, data: SummaryBannerD
   banner.style.cssText = `${bannerBaseStyle(colors)}background:${tintBackground(colors, colors.growth)};border:1px solid ${colors.growth};`;
 
   const summary = document.createElement("p");
-  summary.textContent = `Enriched ${data.enriched} of ${data.total} works (${data.skipped} skipped).`;
+  summary.textContent = `Saved further data for ${data.enriched} of ${data.total} works (${data.skipped} skipped).`;
   summary.style.cssText = MESSAGE_STYLE;
   banner.appendChild(summary);
 

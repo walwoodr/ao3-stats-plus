@@ -104,11 +104,14 @@ describe("bookmarklet banners", () => {
       );
     });
 
+    // The Copy button is an icon glyph ("⧉"), not a text label, so it's
+    // looked up by its title attribute (still "Copy") rather than
+    // textContent - the title is also what a screen reader/tooltip exposes.
     it("provides a keyboard-operable Copy button", () => {
       renderSuccessBanner(container, successBannerData());
 
-      const copyButton = Array.from(container.querySelectorAll("button")).find((b) =>
-        /copy/i.test(b.textContent ?? ""),
+      const copyButton = Array.from(container.querySelectorAll("button")).find(
+        (b) => b.getAttribute("title") === "Copy",
       );
       expect(copyButton?.tagName).toBe("BUTTON");
       expect(copyButton?.getAttribute("tabindex")).not.toBe("-1");
@@ -121,8 +124,8 @@ describe("bookmarklet banners", () => {
       renderSuccessBanner(container, successBannerData({ readToken: "tok_visible_123" }));
       const input = container.querySelector("input[type='text']") as HTMLInputElement;
       input.value = "fox-owl";
-      const copyButton = Array.from(container.querySelectorAll("button")).find((b) =>
-        /copy/i.test(b.textContent ?? ""),
+      const copyButton = Array.from(container.querySelectorAll("button")).find(
+        (b) => b.getAttribute("title") === "Copy",
       );
       copyButton?.click();
 
@@ -135,12 +138,12 @@ describe("bookmarklet banners", () => {
       Object.assign(navigator, { clipboard: { writeText } });
 
       renderSuccessBanner(container, successBannerData());
-      const copyButton = Array.from(container.querySelectorAll("button")).find((b) =>
-        /copy/i.test(b.textContent ?? ""),
+      const copyButton = Array.from(container.querySelectorAll("button")).find(
+        (b) => b.getAttribute("title") === "Copy",
       );
       copyButton?.click();
 
-      expect(copyButton?.textContent).toMatch(/copied/i);
+      expect(copyButton?.getAttribute("title")).toMatch(/copied/i);
     });
 
     it("uses an accessible status role so screen readers announce success", () => {
@@ -462,7 +465,7 @@ describe("bookmarklet banners", () => {
   });
 
   // renderSummaryBanner is the final report once the fan-out finishes (or
-  // is capped/circuit-broken) - plan section 7: "enriched X of M, Y
+  // is capped/circuit-broken) - plan section 7: "Saved further data for X of M, Y
   // skipped" plus any truncation, so partial success (the normal operating
   // mode under fan-out) is always visible, never silently swallowed.
   describe("renderSummaryBanner (Phase 2 fan-out final report)", () => {

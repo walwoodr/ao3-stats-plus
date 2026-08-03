@@ -14,7 +14,7 @@
 // into an actual POST /ingest/token request (see entrypoint.ts's
 // "onSaveToken wiring").
 import type { ColorTokens } from "../lib/colorTokens";
-import { MESSAGE_STYLE, ctaLinkStyle, primaryButtonStyle } from "./bannerStyles";
+import { MESSAGE_STYLE, ctaLinkStyle, inputButton, primaryButtonStyle } from "./bannerStyles";
 
 export type SaveTokenResult = { ok: true; readToken: string } | { ok: false; message: string };
 
@@ -42,20 +42,17 @@ function labelStyle(colors: ColorTokens): string {
 function inputStyle(colors: ColorTokens): string {
   return (
     `background:${colors.card};color:${colors.ink};` +
+    "display:flex;gap:0.5rem;flex-direction:row;align-items:center;" +
     `border:1px solid color-mix(in srgb, ${colors.ink} 20%, transparent);border-radius:6px;` +
-    "padding:10px 14px;font-size:16px;width:100%;box-sizing:border-box;" +
-    "font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;"
+    "font-size:16px;width:100%;box-sizing:border-box;"
   );
 }
-
-// MASTER.md .btn-secondary inline equivalent: transparent background, a
-// soft 1px border, color/border-only transition (no transforms).
-function secondaryButtonStyle(colors: ColorTokens): string {
+function internalInputStyle(colors: ColorTokens): string {
   return (
-    `background:transparent;color:${colors.ink};border:1px solid ${colors.inkSoft};` +
-    "border-radius:6px;padding:0.5rem 0.9rem;font-size:0.875rem;font-weight:600;" +
-    "line-height:1.25;cursor:pointer;font-family:inherit;align-self:flex-start;" +
-    "transition:color 0.15s ease,border-color 0.15s ease;"
+    `background:${colors.card};color:${colors.ink};` +
+    "padding:10px 14px;font-size:16px;width:100%;box-sizing:border-box;" +
+    "font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;" +
+    "border:none;border-radius:6px;"
   );
 }
 
@@ -82,9 +79,17 @@ export function appendTokenField(
 ): void {
   const label = document.createElement("label");
   label.setAttribute("for", INPUT_ID);
-  label.textContent = "Your access token - edit to choose your own";
+  label.textContent = "Your access token - type a new one to choose your own:";
   label.style.cssText = labelStyle(colors);
   banner.appendChild(label);
+
+  const inputActionArea = document.createElement("div");
+  inputActionArea.style.cssText = "display:flex;gap:0.5rem;";
+  banner.appendChild(inputActionArea);
+
+  const inputArea = document.createElement("div");
+  inputArea.style.cssText = inputStyle(colors);
+  inputActionArea.appendChild(inputArea);
 
   const input = document.createElement("input");
   input.type = "text";
@@ -93,9 +98,27 @@ export function appendTokenField(
   input.autocomplete = "off";
   input.spellcheck = false;
   input.setAttribute("autocapitalize", "off");
-  input.style.cssText = inputStyle(colors);
+  input.style.cssText = internalInputStyle(colors);
   focusRingListeners(input, colors);
-  banner.appendChild(input);
+  inputArea.appendChild(input);
+
+  const copyButton = document.createElement("button");
+  copyButton.type = "button";
+  copyButton.textContent = "⧉";
+  copyButton.setAttribute("title", "Copy");
+  copyButton.style.cssText = inputButton(colors.card, colors.inkSoft);
+  copyButton.addEventListener("click", () => {
+    navigator.clipboard.writeText(input.value);
+    copyButton.textContent = "☑";
+    copyButton.setAttribute("title", "Copied!");
+  });
+  inputArea.appendChild(copyButton);
+
+  const saveButton = document.createElement("button");
+  saveButton.type = "button";
+  saveButton.textContent = "Save";
+  saveButton.style.cssText = primaryButtonStyle(colors.card, colors.inkSoft);
+  inputActionArea.appendChild(saveButton);
 
   const explainer = document.createElement("p");
   explainer.textContent =
@@ -103,21 +126,9 @@ export function appendTokenField(
   explainer.style.cssText = smallTextStyle(colors.inkSoft);
   banner.appendChild(explainer);
 
-  const copyButton = document.createElement("button");
-  copyButton.type = "button";
-  copyButton.textContent = "Copy";
-  copyButton.style.cssText = primaryButtonStyle(colors.card);
-  copyButton.addEventListener("click", () => {
-    navigator.clipboard.writeText(input.value);
-    copyButton.textContent = "Copied!";
-  });
-  banner.appendChild(copyButton);
-
-  const saveButton = document.createElement("button");
-  saveButton.type = "button";
-  saveButton.textContent = "Save";
-  saveButton.style.cssText = secondaryButtonStyle(colors);
-  banner.appendChild(saveButton);
+  const continueActionRegion = document.createElement("div");
+  continueActionRegion.style.cssText = "display:flex;gap:0.5rem;flex-direction:row-reverse;";
+  banner.appendChild(continueActionRegion);
 
   const savedRegion = document.createElement("p");
   savedRegion.setAttribute("role", "status");
@@ -129,13 +140,13 @@ export function appendTokenField(
   errorRegion.setAttribute("role", "alert");
   errorRegion.style.cssText = smallTextStyle(colors.destructive);
   errorRegion.style.display = "none";
-  banner.appendChild(errorRegion);
+  continueActionRegion.appendChild(errorRegion);
 
   const link = document.createElement("a");
   link.href = buildDashboardUrl(data.frontendOrigin, data.username, data.readToken);
   link.textContent = "View your dashboard";
   link.style.cssText = ctaLinkStyle(colors.growth, colors.card);
-  banner.appendChild(link);
+  continueActionRegion.appendChild(link);
 
   const triggerSave = (): void => {
     const trimmed = input.value.trim();

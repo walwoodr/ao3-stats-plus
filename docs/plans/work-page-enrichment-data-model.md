@@ -329,7 +329,7 @@ success is now the *normal* operating mode, not an edge case.
 - **Partial-success handling is the normal path.** Each work either succeeds
   (enrichment POSTed) or is tallied as skipped/failed with a reason class
   (fetch error / timeout / parse failure / deleted work / no snapshot). The
-  final banner reports "enriched X of M, Y skipped," and the read API simply
+  final banner reports "Saved further data for X of M, Y skipped," and the read API simply
   reflects whatever was captured (NULL for the rest — never fabricated zeros).
 - **Safety caps.** A maximum number of works processed per run and a maximum
   bookmark-page depth per work bound worst-case runtime and request volume;

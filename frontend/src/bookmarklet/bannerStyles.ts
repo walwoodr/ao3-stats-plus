@@ -10,11 +10,20 @@
 // handled by the parent's flex `gap` instead - otherwise the two stack.
 export const MESSAGE_STYLE = "margin:0;";
 
-export function primaryButtonStyle(accent: string): string {
+export function primaryButtonStyle(background: string, color: string): string {
   return (
-    `background:${accent};color:#ffffff;border:none;border-radius:0.375rem;` +
+    `background:${background};color:${color};border:1px solid ${color};border-radius:0.375rem;` +
     "padding:0.5rem 0.9rem;font-size:0.875rem;font-weight:600;line-height:1.25;" +
-    "cursor:pointer;font-family:inherit;align-self:flex-start;"
+    "cursor:pointer;font-family:inherit;align-self:center;" +
+    "box-shadow:none;"
+  );
+}
+export function inputButton(background: string, color: string): string {
+  return (
+    `background:${background};color:${color};border-radius:0.375rem;` +
+    "font-size:1rem;font-weight:600;border:none;" +
+    "cursor:pointer;font-family:inherit;align-self:center;" +
+    "box-shadow:none;"
   );
 }
 
