@@ -347,3 +347,37 @@
   production or correctness. Fine to leave as a warning; if a clean lint run
   is wanted, move `renderMarkerShape` (and `starPoints`) into a sibling
   `markerPaths.ts` and re-export, leaving `markerShapes.tsx` component-only.
+- [2026-08-03] (stage: Maintenance) **Resolved, but the root cause is a
+  process gap worth recording.** `npm run build` failed with 12 real
+  TypeScript errors (6 in `DateRangeSlider.stories.tsx`/`WorkPicker.stories.tsx` -
+  Storybook's CSF3 `Story` type requires `args` whenever a component has
+  required props, even when a custom `render` supplies its own local
+  `useState` and never reads `args`; 6 in `seriesStyles.test.ts` - a fixture
+  typed as the full `SeriesStyleSlot[]` was missing `dashLabel`, a field
+  Implementation added to the real interface after Testing wrote this local
+  fixture, for a `toMatchObject` partial-match test that never needed the
+  full shape). Both classes fixed: the two stories files now supply a
+  static `args` object alongside `render` (matching each render's initial
+  values); the test fixture's type annotation changed to
+  `Partial<SeriesStyleSlot>[]`, matching what `toMatchObject` actually
+  checks.
+
+  **The root cause every "tsc clean" check this project ran throughout the
+  per-work-comparison-graph feature (Testing, Implementation, Review, and
+  the main thread's own verification) missed these entirely - confirmed via
+  `git stash` that `npx tsc --noEmit -p .` reports 0 errors against the
+  exact same broken files that `npm run build` correctly fails on with 12.**
+  `tsconfig.json` at the repo root is a solution-style file
+  (`"files": [], "references": [...]`) - `tsc -p .` in plain `--noEmit` mode
+  does not traverse into referenced projects (`tsconfig.app.json`,
+  `tsconfig.node.json`); only `tsc -b` (build mode, what `npm run build`
+  actually runs) does. So `npx tsc --noEmit -p .` has been a **false-green
+  no-op** the entire time it was used as this project's ad hoc typecheck
+  verification step - the same "check runs, returns exit 0, but isn't
+  actually checking what it claims to" shape as the `staticSites:` and
+  fandom-nesting false-greens logged earlier in this file. Going forward,
+  use `npx tsc -b` (or just `npm run build`) for any ad hoc frontend
+  typecheck verification, never bare `tsc --noEmit -p .` - this project's
+  own CI (`.github/workflows/ci.yml`) already runs the real `npm run build`
+  step, so CI itself was never fooled by this; only ad hoc local/agent
+  verification was.

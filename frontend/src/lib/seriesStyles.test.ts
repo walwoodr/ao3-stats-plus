@@ -21,7 +21,12 @@ describe("SERIES_STYLE_SLOTS", () => {
   // empty string, so a solid line is an explicit choice, not a missing
   // value.
   it("matches the plan's Q3 table exactly, in order", () => {
-    const expected: SeriesStyleSlot[] = [
+    // Partial on purpose: toMatchObject below only checks these three
+    // fields (shape/dash/colorRole per the plan's Q3 table) and
+    // deliberately ignores dashLabel (added later, for the legend's
+    // worded style description - see seriesStyles.ts) and any other
+    // fields the real slot shape may gain.
+    const expected: Partial<SeriesStyleSlot>[] = [
       { shape: "circle", dash: null, colorRole: "wine" },
       { shape: "square", dash: "6 4", colorRole: "teal" },
       { shape: "triangle", dash: "2 3", colorRole: "amber" },

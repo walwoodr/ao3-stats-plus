@@ -29,6 +29,10 @@ const GROUPED_WORKS: PerWorkSeries[] = [
 ];
 
 export const Default: Story = {
+  // args is required by Storybook's CSF3 types whenever the component has
+  // required props, even though this story's own `render` builds its
+  // interactive state from local useState rather than reading `args`.
+  args: { perWorkSeries: GROUPED_WORKS, selectedWorkIds: [], onChange: () => {} },
   render: function Render() {
     const [selectedWorkIds, setSelectedWorkIds] = useState<number[]>([]);
     return (
@@ -42,6 +46,7 @@ export const Default: Story = {
 };
 
 export const WithOneSelected: Story = {
+  args: { perWorkSeries: GROUPED_WORKS, selectedWorkIds: [1], onChange: () => {} },
   render: function Render() {
     const [selectedWorkIds, setSelectedWorkIds] = useState<number[]>([1]);
     return (
@@ -59,6 +64,7 @@ const SEVEN_WORKS: PerWorkSeries[] = Array.from({ length: 7 }, (_, i) =>
 );
 
 export const AtCap: Story = {
+  args: { perWorkSeries: SEVEN_WORKS, selectedWorkIds: [1, 2, 3, 4, 5, 6], onChange: () => {} },
   render: function Render() {
     const [selectedWorkIds, setSelectedWorkIds] = useState<number[]>([1, 2, 3, 4, 5, 6]);
     return (
