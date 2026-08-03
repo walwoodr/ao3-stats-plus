@@ -274,6 +274,87 @@ extend, not a rewrite.)
 
 ---
 
+## Multi-Series Comparison Charts (per-work comparison)
+
+Added for the per-work comparison graph feature (`docs/plans/per-work-comparison-graph.md`) —
+this project's first *multi*-series chart context. MASTER.md previously had no multi-select,
+range-slider, or categorical-palette spec; this section extends the single-series Chart
+Guidance above (which stays correct and unchanged for the aggregate TrendChart/RatioChart
+section) rather than replacing it.
+
+### The 6-slot shape/dash/color scheme
+
+Each work selected for comparison gets a stable triple of (marker shape, `stroke-dasharray`,
+categorical color) — shape + dash is the accessibility-guaranteed, non-color channel (a
+colorblind or grayscale user still gets a unique marker shape and line texture per work); color
+is a **redundant reinforcement channel only**, never the sole differentiator — this extends,
+rather than contradicts, the existing "differentiated by line style, never color alone" rule
+above. Six is the cap: the count of unambiguously distinct simple marker shapes at chart scale.
+
+| slot | marker | stroke-dasharray | color role | light hex | dark hex |
+|---|---|---|---|---|---|
+| 1 | circle | solid | wine (brand accent) | `#9F1239` | `#E8879E` |
+| 2 | square | `6 4` | teal | `#0F766E` | `#5EEAD4` |
+| 3 | triangle | `2 3` | amber | `#B45309` | `#FBBF24` |
+| 4 | diamond | `9 3 2 3` | indigo | `#4338CA` | `#A5B4FC` |
+| 5 | plus | `4 4` | green (growth family) | `#4D7C5F` | `#8FBFA0` |
+| 6 | star | `1 3` | purple | `#7E22CE` | `#D8B4FE` |
+
+**Contrast — verified** (WCAG relative-luminance formula, against `--color-card`: light
+`#FFFFFF`, dark `#2B232A`). As a *graphical object* (a chart line/marker, not body text), the
+bar is WCAG 2.1 SC 1.4.11 (non-text contrast, ≥3:1), not the 4.5:1 body-text bar:
+
+| slot | light hex | CR vs light card | dark hex | CR vs dark card |
+|---|---|---|---|---|
+| 1 wine | `#9F1239` | 8.02:1 | `#E8879E` | 6.10:1 |
+| 2 teal | `#0F766E` | 5.47:1 | `#5EEAD4` | 10.32:1 |
+| 3 amber | `#B45309` | 5.02:1 | `#FBBF24` | 9.14:1 |
+| 4 indigo | `#4338CA` | 7.90:1 | `#A5B4FC` | 7.66:1 |
+| 5 green | `#4D7C5F` | 4.81:1 | `#8FBFA0` | 7.36:1 |
+| 6 purple | `#7E22CE` | 6.98:1 | `#D8B4FE` | 8.63:1 |
+
+All twelve clear 3:1 with comfortable margin (lowest 4.81:1). Style assignment is **stable**: a
+`workId → styleIndex` map assigns the lowest free index on add and releases it on remove
+(`frontend/src/lib/seriesStyles.ts`), so a work keeps its full (shape, dash, color) identity
+while other works are toggled in/out of the comparison. The palette lives in `colorTokens.ts`'s
+`series` field — unlike every other token above, it has **no** `--color-series-*` CSS custom
+property in index.css, since it's only ever consumed dynamically (by index) into Recharts
+props/legend glyphs, never as a static Tailwind utility class. A visible legend maps each
+work's title to its glyph and spells out the style in words ("solid wine line, circle
+marker") so the mapping survives into the accessible data table and for screen-reader users.
+
+### Grouped picker pattern (multi-select + fandom bulk-select)
+
+The work-selection control (`WorkPicker`) is an outer `<fieldset>`/`<legend>` ("Works to
+compare") containing one nested `<fieldset>`/`<legend>` per fandom group, each with native
+`<input type="checkbox">` + `<label>` per work (free keyboard operability, correct roles) and a
+real `<button>` naming its fandom ("Select all in Fandom One") that *adds* that fandom's works
+to one shared selection set — additive, never a replace/filter — up to the 6-work cap. At-cap
+checkboxes get `disabled` + `aria-disabled`; cap/truncation messages go to a single `role=
+"status"` polite live region shared with any other dynamic announcement for the same section
+(e.g. a "Comparing N works, START to END" summary), rather than one live region per sub-
+component, so assistive tech doesn't have to track multiple simultaneous regions for one
+logical update.
+
+### MUI Slider themed to tokens
+
+The date-range filter uses MUI `Slider` in range mode (TECH_STACK.md's carve-out for "complex
+components ... where building from scratch isn't worth it" — a dual-thumb range slider with
+correct ARIA + keyboard + crossover handling is a textbook fit). MUI components don't take
+Tailwind utility classes, so `DateRangeSlider` themes the `sx` prop explicitly rather than
+inheriting tokens automatically: track/thumb/active-rail in `--color-accent`, rail at low
+opacity in `--color-ink`, a focus ring approximating the `.input` pattern above (MUI needs a
+real rgba value, not `color-mix()`, so the accent hex is converted to rgba at 15% alpha rather
+than reusing the CSS custom property directly), mono-font (`--font-mono`) value labels/readout.
+Colors are resolved via `useChartColors()` (the same seam the charts already use), not read
+from CSS variables directly, since MUI's emotion cache doesn't reliably re-resolve custom
+properties. Per-thumb `getAriaLabel`/`getAriaValueText` props supply "Range start/end (year)"
+names and plain-year spoken values; `disableSwap` gives thumb-crossover clamping instead of the
+default swap-on-cross behavior, which would otherwise make a thumb's aria label misleadingly
+jump between roles mid-drag.
+
+---
+
 ## Anti-Patterns (do NOT use)
 
 - ❌ Emojis as icons — SVG only (Heroicons, already the closest fit for this stack)
