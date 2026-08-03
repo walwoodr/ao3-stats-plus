@@ -3,10 +3,11 @@ import { useParams } from "react-router-dom";
 import { ClientError } from "graphql-request";
 import { useTokenFromUrl } from "../store/useTokenFromUrl";
 import { useTokenStore } from "../store/useTokenStore";
-import { useStatsForUser, type PerWorkSeries } from "../queries/useStatsForUser";
+import { useStatsForUser } from "../queries/useStatsForUser";
 import { TokenEntryForm } from "../components/TokenEntryForm";
 import { TrendChart } from "../components/charts/TrendChart";
 import { RatioChart } from "../components/charts/RatioChart";
+import { WorkComparisonSection } from "../components/WorkComparisonSection";
 
 // graphql-request throws a ClientError (with a `.response` carrying the
 // GraphQL `errors` array) for a real, backend-confirmed rejection - e.g. an
@@ -186,61 +187,8 @@ export function DashboardPage() {
         </div>
       )}
 
-      {perWorkSeries.length > 0 && <PerWorkTrends perWorkSeries={perWorkSeries} />}
-    </div>
-  );
-}
-
-function PerWorkTrends({ perWorkSeries }: { perWorkSeries: PerWorkSeries[] }) {
-  const [selectedWorkId, setSelectedWorkId] = useState(perWorkSeries[0]?.ao3WorkId);
-  const selectedWork =
-    perWorkSeries.find((work) => work.ao3WorkId === selectedWorkId) ?? perWorkSeries[0];
-
-  return (
-    <div className="mt-10 flex flex-col gap-6">
-      <h2 className="font-display text-xl font-semibold text-ink">Per-work trends</h2>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor="per-work-select" className="text-sm font-medium text-ink">
-          Work
-        </label>
-        <select
-          id="per-work-select"
-          value={selectedWork?.ao3WorkId}
-          onChange={(event) => setSelectedWorkId(Number(event.target.value))}
-          className="w-fit rounded-md border border-ink/20 bg-card px-3 py-2 text-sm text-ink outline-none transition-colors duration-200 focus:border-accent focus:ring-[3px] focus:ring-accent/15"
-        >
-          {perWorkSeries.map((work) => (
-            // label (not child text) sets the option's display/accessible
-            // name here so the work's title has exactly one visible,
-            // unhidden occurrence on the page - the heading below - rather
-            // than colliding with this collapsed (and therefore
-            // not-visible) <option>.
-            <option key={work.ao3WorkId} value={work.ao3WorkId} label={work.title} />
-          ))}
-        </select>
-      </div>
-
-      {selectedWork && (
-        <div className="flex flex-col gap-8">
-          <h3 className="font-display text-lg font-medium text-ink">{selectedWork.title}</h3>
-          <TrendChart
-            title={`${selectedWork.title} hits`}
-            valueLabel="Hits"
-            points={selectedWork.points.map((point) => ({
-              capturedOn: point.capturedOn,
-              value: point.hits,
-            }))}
-          />
-          <TrendChart
-            title={`${selectedWork.title} kudos`}
-            valueLabel="Kudos"
-            points={selectedWork.points.map((point) => ({
-              capturedOn: point.capturedOn,
-              value: point.kudos,
-            }))}
-          />
-        </div>
+      {perWorkSeries.length > 0 && (
+        <WorkComparisonSection perWorkSeries={perWorkSeries} earliestPostYear={earliestPostYear} />
       )}
     </div>
   );
