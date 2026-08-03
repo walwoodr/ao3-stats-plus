@@ -77,15 +77,42 @@ function resolveColorTokens(): ColorTokens {
 // a floating overlay injected on top of an arbitrary third-party page
 // (AO3), where separation from unpredictable host-page content matters
 // more than in-app visual consistency.
+//
+// Fixed positioning lives on the shared stack (getOrCreateBannerStack)
+// below, not here - a banner is always a normal in-flow child of that
+// stack now, never independently position:fixed itself.
 function bannerBaseStyle(colors: ColorTokens): string {
   return (
-    "position:fixed;top:1rem;right:1rem;z-index:2147483647;max-width:24rem;" +
+    "max-width:24rem;" +
     "display:flex;flex-direction:column;gap:0.75rem;" +
     "padding:1rem 1.25rem;border-radius:0.5rem;" +
     "font-family:'Work Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;" +
     `font-size:0.9375rem;line-height:1.5;color:${colors.ink};` +
     "box-shadow:0 4px 16px rgba(0,0,0,0.25);"
   );
+}
+
+const BANNER_STACK_ATTR = "data-ao3-stats-plus-banner-stack";
+
+// All banners append into one shared, lazily-created fixed-position stack
+// rather than each being independently position:fixed at the same
+// top:1rem;right:1rem spot - otherwise a second banner (e.g. runFanOut's
+// summary banner, rendered without removing its own progress banner - see
+// fanOut.ts) would render exactly on top of the first instead of below it.
+// align-items:flex-end (rather than the flex default, stretch) keeps each
+// banner's own content-driven width/right-edge alignment exactly as before
+// stacking was introduced - only the column gap is new.
+function getOrCreateBannerStack(container: HTMLElement): HTMLElement {
+  const existing = container.querySelector<HTMLElement>(`[${BANNER_STACK_ATTR}]`);
+  if (existing) return existing;
+
+  const stack = document.createElement("div");
+  stack.setAttribute(BANNER_STACK_ATTR, "");
+  stack.style.cssText =
+    "position:fixed;top:1rem;right:1rem;z-index:2147483647;" +
+    "display:flex;flex-direction:column;align-items:flex-end;gap:0.75rem;";
+  container.appendChild(stack);
+  return stack;
 }
 
 const HEADING_STYLE = "margin:0;font-weight:600;font-size:1rem;";
@@ -122,7 +149,7 @@ export function renderSuccessBanner(container: HTMLElement, data: SuccessBannerD
 
   appendTokenField(banner, colors, data);
 
-  container.appendChild(banner);
+  getOrCreateBannerStack(container).appendChild(banner);
   banner.focus();
 
   return banner;
@@ -147,7 +174,7 @@ export function renderFailureBanner(container: HTMLElement, data: FailureBannerD
   detail.style.cssText = `${MESSAGE_STYLE}font-size:0.75rem;color:${colors.inkSoft};`;
   banner.appendChild(detail);
 
-  container.appendChild(banner);
+  getOrCreateBannerStack(container).appendChild(banner);
   return banner;
 }
 
@@ -162,7 +189,7 @@ export function renderInfoBanner(container: HTMLElement, data: InfoBannerData): 
   banner.style.cssText = `${bannerBaseStyle(colors)}background:${tintBackground(colors, colors.accent)};border:1px solid ${colors.accent};`;
   banner.textContent = data.message;
 
-  container.appendChild(banner);
+  getOrCreateBannerStack(container).appendChild(banner);
   return banner;
 }
 
@@ -193,7 +220,7 @@ export function renderRetryBanner(container: HTMLElement, data: RetryBannerData)
   });
   banner.appendChild(retryButton);
 
-  container.appendChild(banner);
+  getOrCreateBannerStack(container).appendChild(banner);
   return banner;
 }
 
@@ -207,7 +234,7 @@ export function renderUnauthorizedBanner(
   banner.style.cssText = `${bannerBaseStyle(colors)}background:${tintBackground(colors, colors.destructive)};border:1px solid ${colors.destructive};`;
   banner.textContent = data.message;
 
-  container.appendChild(banner);
+  getOrCreateBannerStack(container).appendChild(banner);
   return banner;
 }
 
@@ -229,7 +256,7 @@ export function renderProgressBanner(
   banner.style.cssText = `${bannerBaseStyle(colors)}background:${tintBackground(colors, colors.accent)};border:1px solid ${colors.accent};`;
   banner.textContent = progressMessage(data);
 
-  container.appendChild(banner);
+  getOrCreateBannerStack(container).appendChild(banner);
   return banner;
 }
 
@@ -281,6 +308,6 @@ export function renderSummaryBanner(container: HTMLElement, data: SummaryBannerD
     banner.appendChild(truncationNotice);
   }
 
-  container.appendChild(banner);
+  getOrCreateBannerStack(container).appendChild(banner);
   return banner;
 }

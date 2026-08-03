@@ -381,3 +381,12 @@
   own CI (`.github/workflows/ci.yml`) already runs the real `npm run build`
   step, so CI itself was never fooled by this; only ad hoc local/agent
   verification was.
+- [2026-08-03] (stage: Maintenance) `frontend/src/bookmarklet/banners.test.ts`
+  exceeds CODE_STANDARDS.md's 400-line `.ts` file-length guideline (was
+  already at 608 lines pre-existing before this session's banner-stacking-
+  wrapper feature; now 668 after adding a "banner stacking wrapper" describe
+  block). Not addressed here per "no unrelated refactoring" - splitting this
+  spec file (e.g. by banner-type describe-block group, mirroring the
+  fanOut.test.ts entry above) is a reasonable future cleanup but out of
+  scope for a targeted styling/feature change. Flag for Review/Retrospective
+  to decide whether to split.

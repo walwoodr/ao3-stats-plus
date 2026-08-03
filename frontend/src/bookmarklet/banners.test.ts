@@ -605,4 +605,64 @@ describe("bookmarklet banners", () => {
       expect(retryButton?.style.backgroundColor).not.toBe("");
     });
   });
+
+  // Every banner used to be independently position:fixed at the same
+  // top:1rem;right:1rem spot, so a second banner (e.g. runFanOut's summary
+  // banner, rendered without removing its own progress banner - see
+  // fanOut.ts) landed exactly on top of the first instead of below it. All
+  // banners now render into one shared fixed-position stack that lays its
+  // children out in a column, so multiple simultaneous banners visibly
+  // stack down the Y axis instead of overlapping.
+  describe("banner stacking wrapper", () => {
+    it("renders multiple banners into one shared wrapper, not as separate top-level fixed banners", () => {
+      renderInfoBanner(container, { message: "First" });
+      renderRetryBanner(container, { message: "Second", onRetry: vi.fn() });
+
+      const stacks = container.querySelectorAll("[data-ao3-stats-plus-banner-stack]");
+      expect(stacks).toHaveLength(1);
+
+      const stack = stacks[0];
+      expect(stack.children).toHaveLength(2);
+      expect(stack.children[0].textContent).toContain("First");
+      expect(stack.children[1].textContent).toContain("Second");
+    });
+
+    it("gives the shared wrapper (not each individual banner) the fixed positioning and column layout", () => {
+      renderInfoBanner(container, { message: "First" });
+      renderRetryBanner(container, { message: "Second", onRetry: vi.fn() });
+
+      const stack = container.querySelector(
+        "[data-ao3-stats-plus-banner-stack]",
+      ) as HTMLElement | null;
+      expect(stack?.style.position).toBe("fixed");
+      expect(stack?.style.flexDirection).toBe("column");
+      expect(stack?.style.gap).not.toBe("");
+
+      for (const banner of Array.from(stack?.children ?? [])) {
+        expect((banner as HTMLElement).style.position).not.toBe("fixed");
+      }
+    });
+
+    it("reuses the same wrapper across every banner type (success, failure, progress, summary, etc.)", () => {
+      renderProgressBanner(container, { current: 1, total: 3 });
+      renderSuccessBanner(container, {
+        readToken: "cat-dog",
+        frontendOrigin: "https://app.example.com",
+        username: "someauthor",
+        onSaveToken: vi.fn().mockResolvedValue({ ok: true, readToken: "cat-dog" }),
+      });
+      renderSummaryBanner(container, {
+        enriched: 2,
+        skipped: 1,
+        total: 3,
+        truncatedWorks: false,
+        truncatedBookmarkPagesCount: 0,
+        circuitBroken: false,
+      });
+
+      const stacks = container.querySelectorAll("[data-ao3-stats-plus-banner-stack]");
+      expect(stacks).toHaveLength(1);
+      expect(stacks[0].children).toHaveLength(3);
+    });
+  });
 });
