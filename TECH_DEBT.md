@@ -300,3 +300,18 @@
   like the dashboard link's `.btn`-style treatment, which doesn't have this
   problem since it's not sitting inside a paragraph of contrasting body
   text).
+- [2026-08-03] (stage: Implementation) `groupWorksByFandom` (per-work
+  comparison graph feature, `docs/plans/per-work-comparison-graph.md`)
+  splits the `fandoms` field on `", "` to recover the fandom list for
+  `WorkPicker`'s grouped checkbox UI, since the backend exposes `fandoms`
+  as a single comma-joined `String`, not a list
+  (`backend/app/services/snapshot_ingest_service.rb:129`). This is lossy:
+  a fandom *name* that itself literally contains `", "` is indistinguishable
+  from two fandoms joined by the delimiter, and splits into two
+  pseudo-fandom groups (`groupWorksByFandom.test.ts` pins this as accepted,
+  current behavior, not a bug to silently fix). Harmless in practice - the
+  work is still listed and selectable under both fragments; worst case is
+  an extra, slightly-wrong-looking group heading. Accepted limitation, not
+  a backend change here - the proper fix is storing fandoms as an
+  array/jsonb column on `Work`, a data-model change explicitly deferred by
+  the plan as out of scope for this feature.
