@@ -84,3 +84,43 @@ baseline feature on purpose)
   POSTed survives; the rest is silently abandoned rather than resumed or
   retried. A `beforeunload` prompt (or similar) while a run is active would
   prevent that data loss from being accidental/unnoticed.
+
+## v2 candidates (confirmed 2026-08-03)
+
+- Per-work graphs (`WorkComparisonSection`/`MultiSeriesTrendChart`, and the
+  older single-work `PerWorkTrends` if still applicable) should include the
+  work's own publish date as a de-facto zero-basis data point, rather than
+  starting each line from its first captured stats snapshot. This is the
+  per-work analogue of the account-level "earliest post year" synthetic
+  zero-point already used for the aggregate hits/kudos charts, and depends
+  on the per-work creation-date scraping/data-model work already listed
+  above under "Per-work creation-date scraping and per-work zero-basis
+  baselines."
+- In the multi-work comparison graph, differentiate series using ONLY the
+  marker-shape and color-role (`seriesStyles.ts`'s 6-slot table) - stop
+  using dash pattern as a per-series differentiator. Instead, reserve
+  dashing for a single shared meaning: the segment of a line between a
+  work's zero-basis publish date and its first actually-recorded data
+  point is drawn dashed (representing "no data captured yet, interpolated
+  back to zero"), while every segment from the first real data point
+  onward is solid, regardless of which work/slot it belongs to.
+- The date-range slider's default bounds should be the union, across the
+  currently-selected works, of (each selected work's own publish date)
+  through (the most recent captured date among them) - not the author's
+  full earliest-post-year-to-now range as today. Depends on the same
+  per-work publish-date data described above.
+- Establish a proper data-visualization color scheme for the graphs,
+  modeled on the U.S. Digital Service's Data Design Standards color
+  system (https://xdgov.github.io/data-design-standards/components/colors)
+  rather than the current 6 hand-picked `colorTokens.ts` series colors.
+  Pair the resulting palette with a set of distinguishable marker glyphs
+  (⦿ • ◘ ○ ■ □ ▣) so shape x color combinations can expand the
+  multi-work comparison graph's current 6-work selection cap
+  (`assignStyleSlot`/`SERIES_STYLE_SLOTS`) to a meaningfully larger number
+  of simultaneously comparable works.
+- Adjust the vertical (Y) axis range on all graphs (aggregate and
+  per-work) to pad around the actual min/max values present in the
+  plotted data set, rather than always anchoring the axis to 0. Where
+  this leaves a gap between 0 and the padded starting value, render a
+  visible axis break/truncation indicator there so the non-zero-origin
+  axis isn't misread as starting at 0.
