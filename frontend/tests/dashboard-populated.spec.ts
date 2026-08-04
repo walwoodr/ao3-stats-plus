@@ -43,4 +43,22 @@ test.describe("dashboard with a seeded snapshot history", () => {
 
     await expect(page.getByRole("img", { name: /total hits/i })).toBeVisible();
   });
+
+  // Testing task 8 (docs/plans/per-work-zero-basis-dates.md): the fixture's
+  // default-selected work ("Work A") carries a publishedOn before its
+  // first capture, so the visible lead-in caption should render beneath
+  // the comparison chart pair in the default populated dashboard state.
+  test("shows the dashed-lead-in caption once a selected work has a zero-basis leadIn", async ({
+    page,
+  }) => {
+    await mockStatsForUser(page, POPULATED_STATS_RESPONSE);
+    await page.goto("/u/testauthor?token=tok_valid123");
+
+    await expect(page.getByRole("checkbox", { name: "Work A" })).toBeChecked();
+    await expect(
+      page.getByText(
+        /dashed segments show the period before your first captured stats for a work/i,
+      ),
+    ).toBeVisible();
+  });
 });
