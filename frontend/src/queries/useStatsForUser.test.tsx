@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { graphqlClient } from "../lib/graphqlClient";
-import { useStatsForUser } from "./useStatsForUser";
+import { useStatsForUser, type PerWorkSeries } from "./useStatsForUser";
 
 // useStatsForUser wraps graphql-request in a TanStack Query hook keyed
 // ["stats", username, token], per the plan. graphql-request itself is
@@ -93,5 +93,50 @@ describe("useStatsForUser", () => {
 
     const [query] = vi.mocked(graphqlClient.request).mock.calls[0];
     expect(query).toMatch(/earliestPostYear/);
+  });
+
+  // Per-work zero-basis dates (docs/plans/per-work-zero-basis-dates.md,
+  // Testing task 1): each work's own publish date is the primary source
+  // for its zero-basis leadIn, falling back to earliestPostYear only when
+  // absent. That fallback source is already selected above; this is the
+  // one field genuinely missing from the query today.
+  it("selects publishedOn inside the perWorkSeries block of the query document", () => {
+    vi.mocked(graphqlClient.request).mockResolvedValue({
+      statsForUser: { aggregateSeries: [], perWorkSeries: [], earliestPostYear: null },
+    });
+
+    renderWithClient("someauthor", "tok_valid");
+
+    const [query] = vi.mocked(graphqlClient.request).mock.calls[0];
+    const perWorkSeriesBlock = String(query).match(/perWorkSeries\s*{([^}]*)}/s)?.[1] ?? "";
+    expect(perWorkSeriesBlock).toMatch(/publishedOn/);
+  });
+
+  // Compile-time companion to the query-document test above: `PerWorkSeries`
+  // itself must expose `publishedOn: string | null`, or WorkComparisonSection
+  // has no typed field to read the fallback logic from even once the query
+  // document is fixed. This is a static-shape assertion (esbuild's transpile
+  // erases types and won't fail it at the `vitest run` level - it is caught
+  // by `npx tsc -b`, per this project's verification discipline) rather than
+  // a runtime one, since TypeScript's excess-property check only fires at
+  // compile time.
+  it("PerWorkSeries.publishedOn accepts a real ISO date or null (compile-time shape, verified via tsc -b)", () => {
+    const accurate: PerWorkSeries = {
+      ao3WorkId: 1,
+      title: "Work One",
+      fandoms: "",
+      points: [],
+      publishedOn: "2020-06-01",
+    };
+    const missing: PerWorkSeries = {
+      ao3WorkId: 2,
+      title: "Work Two",
+      fandoms: "",
+      points: [],
+      publishedOn: null,
+    };
+
+    expect(accurate.publishedOn).toBe("2020-06-01");
+    expect(missing.publishedOn).toBeNull();
   });
 });

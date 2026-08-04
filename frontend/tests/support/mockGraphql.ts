@@ -30,12 +30,18 @@ export const POPULATED_STATS_RESPONSE = {
           ao3WorkId: 111,
           title: "Work A",
           fandoms: "Fandom One",
+          // Before its first capture (2026-01-01) - exercises the
+          // per-work zero-basis lead-in + visible caption in the default
+          // single-work populated dashboard state (see
+          // docs/plans/per-work-zero-basis-dates.md).
+          publishedOn: "2025-06-01",
           points: [
             { capturedOn: "2026-01-01", hits: 60, kudos: 5 },
             { capturedOn: "2026-01-08", hits: 120, kudos: 15 },
           ],
         },
       ],
+      earliestPostYear: 2025,
     },
   },
 };
@@ -58,15 +64,29 @@ export const MULTI_WORK_STATS_RESPONSE = {
         { capturedOn: "2026-01-01", totalHits: 100, totalKudos: 10, kudosToHitsRatio: 0.1 },
         { capturedOn: "2026-01-08", totalHits: 220, totalKudos: 30, kudosToHitsRatio: 0.136 },
       ],
+      // Six of the seven works carry an accurate, distinct publishedOn
+      // (each before its own first capture) to exercise per-work
+      // zero-basis lead-ins across the comparison view; the seventh
+      // (i === 6) has no publishedOn and a later first capture, exercising
+      // the earliestPostYear-fallback lead-in path instead - see
+      // docs/plans/per-work-zero-basis-dates.md.
       perWorkSeries: Array.from({ length: 7 }, (_, i) => ({
         ao3WorkId: 100 + i,
         title: `Comparison Work ${i + 1}`,
         fandoms: "Shared Fandom",
-        points: [
-          { capturedOn: "2024-01-01", hits: (i + 1) * 10, kudos: i + 1 },
-          { capturedOn: "2025-01-01", hits: (i + 1) * 20, kudos: (i + 1) * 2 },
-          { capturedOn: "2026-01-01", hits: (i + 1) * 30, kudos: (i + 1) * 3 },
-        ],
+        publishedOn: i === 6 ? null : `2023-${String(i + 1).padStart(2, "0")}-01`,
+        points:
+          i === 6
+            ? [
+                { capturedOn: "2024-06-01", hits: 70, kudos: 7 },
+                { capturedOn: "2025-01-01", hits: 140, kudos: 14 },
+                { capturedOn: "2026-01-01", hits: 210, kudos: 21 },
+              ]
+            : [
+                { capturedOn: "2024-01-01", hits: (i + 1) * 10, kudos: i + 1 },
+                { capturedOn: "2025-01-01", hits: (i + 1) * 20, kudos: (i + 1) * 2 },
+                { capturedOn: "2026-01-01", hits: (i + 1) * 30, kudos: (i + 1) * 3 },
+              ],
       })),
       earliestPostYear: 2024,
     },
