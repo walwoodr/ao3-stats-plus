@@ -56,7 +56,10 @@ const WORK_D_NO_LEADIN: SeriesDatum = {
 describe("buildChartData: axis union with injected zero-basis dates", () => {
   it("includes each distinct leadIn.capturedOn in the union alongside real points", () => {
     const { rows } = buildChartData([WORK_A, WORK_D_NO_LEADIN]);
-    expect(rows.map((r) => r.capturedOn)).toEqual(["2020-01-01", "2026-01-01"]);
+    // WORK_A's leadIn (2020-01-01) plus the real-date union across both
+    // works: WORK_A's own two points (2026-01-01, 2026-01-08) and
+    // WORK_D_NO_LEADIN's point (2026-01-01, already covered by WORK_A's).
+    expect(rows.map((r) => r.capturedOn)).toEqual(["2020-01-01", "2026-01-01", "2026-01-08"]);
   });
 
   it("collapses multiple fallback works' identical leadIn date onto one shared slot", () => {

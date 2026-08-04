@@ -259,7 +259,19 @@ describe("DashboardPage", () => {
       expect(ratioLabel).toMatch(/\b0\b/);
     });
 
-    it("does not pass a leadIn to the per-work comparison charts", () => {
+    // Superseded by docs/plans/per-work-zero-basis-dates.md: the parent
+    // per-work-comparison-graph.md plan's Q5 originally kept per-work
+    // baselines out of scope (comparison charts got no leadIn at all,
+    // distinct from the aggregate "Total hits" chart above). This plan
+    // deliberately reverses that - each selected work now gets its own
+    // zero-basis leadIn (own publishedOn, or the earliestPostYear fallback
+    // exercised here since Work A has no publishedOn) - so this integration
+    // test now asserts DashboardPage correctly threads earliestPostYear
+    // through to WorkComparisonSection's per-work leadIn derivation, rather
+    // than the old absence invariant. Derivation itself (branches, guards)
+    // is covered in depth by WorkComparisonSection.leadIn.test.tsx; this
+    // stays as an end-to-end wiring smoke test.
+    it("passes a leadIn to the per-work comparison charts, per the zero-basis dates feature", () => {
       mockWithEarliestPostYear({
         earliestPostYear: 2020,
         aggregateSeries: TWO_POINT_SERIES,
@@ -279,17 +291,18 @@ describe("DashboardPage", () => {
       renderDashboard();
 
       // WorkComparisonSection's comparison charts (title "Hits"/"Kudos", not
-      // "Work A hits" - see WorkComparisonSection.test.tsx) never receive a
-      // leadIn at all (Q5: per-work baseline is a separate, out-of-scope
-      // ROADMAP item) - distinct from the aggregate "Total hits" chart
-      // above, which DOES get one here.
+      // "Work A hits" - see WorkComparisonSection.test.tsx) now receive a
+      // leadIn for Work A (no publishedOn -> falls back to the
+      // earliestPostYear baseline) alongside its 2 real points.
       const comparisonHitsFigure = screen.getByRole("img", { name: /^hits$/i });
-      expect(
-        within(comparisonHitsFigure).getAllByTestId(/multi-series-point-marker-/),
-      ).toHaveLength(2);
-      expect(
-        within(comparisonHitsFigure).queryByText(/estimated baseline/i),
-      ).not.toBeInTheDocument();
+      const markers = within(comparisonHitsFigure).getAllByTestId(/multi-series-point-marker-/);
+      expect(markers).toHaveLength(3);
+      // Both the sr-only marker and the sr-only table row echo the same
+      // "estimated baseline" wording - checking the marker text directly
+      // (rather than a bare getByText) avoids ambiguity between the two.
+      expect(markers.some((marker) => /estimated baseline/i.test(marker.textContent ?? ""))).toBe(
+        true,
+      );
     });
 
     it("renders the charts (not the 'not enough history' message) for a single real snapshot with a valid leadIn", () => {

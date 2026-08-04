@@ -229,7 +229,12 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
       for (let year = 2015; year < 2019; year++) {
         await user.keyboard("{ArrowRight}");
       }
-      expect(screen.getByText(/2019\s*[–-]/)).toBeInTheDocument();
+      // Anchored (not a bare /2019.../ substring match) - the mocked
+      // MultiSeriesTrendChart's own debug <pre> dump (used by
+      // capturedLeadIns() below) legitimately contains "2019-03-01" once
+      // Work Late's real leadIn survives this narrowed window, which would
+      // otherwise collide with a loose substring match on this element too.
+      expect(screen.getByText(/^2019\s*[–-]\s*2026$/)).toBeInTheDocument();
 
       const leadIns = capturedLeadIns();
       expect(leadIns[1]).toBeNull();
