@@ -359,6 +359,57 @@ existing pipeline.
    hollow-circle, hollow-square. If the distinguishability pass flags a pair,
    hexagon and wye (Y) are held in reserve as swaps.
 
+## Addendum (2026-08-04, Maintenance, same-day shape-set correction)
+
+The shape set as originally shipped (this plan's §3 table above, and "Decisions to confirm" #3)
+included **plus, star, and cross** at slots 4, 5, and 7. On review of the shipped feature, the
+user rejected these three as not "basic geometric shapes" and asked for outlines of the
+already-present diamond, triangle-up, and triangle-down instead — "adding outlines of the
+existing diamond, triangle-up and triangle-down should sufficiently handle this." This addendum
+records the correction rather than silently rewriting the table above, per this project's
+convention for dated corrections.
+
+**Resolved slot→shape reassignment** (colors untouched — shape was never color-dependent, so
+the hex/contrast/CVD numbers in §3 and "Palette derivation & verification" below remain valid
+as-is, indexed by slot):
+
+| slot | old shape (rejected) | new shape | color role (unchanged) |
+|---|---|---|---|
+| 4 | plus | diamond (hollow/outline) | teal |
+| 5 | star | triangle-up (hollow/outline) | azure |
+| 7 | cross / X | triangle-down (hollow/outline) | magenta |
+
+Rationale for this particular slot→shape pairing (one of several valid orderings — documented
+per the maintenance brief's request, not the only defensible choice): each hollow shape keeps
+the color role its slot already had, so this is a pure shape swap with zero downstream color/
+contrast/CVD re-derivation. The three hollow shapes were assigned to slots 4/5/7 in the same
+order their filled counterparts already appear in the table (diamond at slot 3, triangle-up at
+slot 2, triangle-down at slot 6) — a simple, arbitrary-but-consistent mapping, not one chosen to
+maximize index-distance from each shape's filled twin (unlike the original circle/square hollow
+pair at slots 8/9, which sit maximally far from their filled twins at 0/1). Index-distance from
+a shape's own filled twin has no bearing on distinguishability between *different* works' glyphs
+(work-to-slot assignment is by selection order, not shape family), so this wasn't treated as a
+hard constraint.
+
+Final 10-shape set: **circle, square, triangle-up, diamond, triangle-down — each filled and
+hollow/outline (5 × 2 = 10)**. No plus, star, or cross anywhere. The `MarkerShapeName` union
+names the three new hollow variants `diamond-hollow`, `triangle-hollow`, and
+`triangle-down-hollow` (matching the existing `circle-hollow`/`square-hollow` naming pattern —
+note the codebase's filled triangle-up shape is itself named `"triangle"`, not `"triangle-up"`,
+so its hollow variant follows suit as `"triangle-hollow"` rather than `"triangle-up-hollow"`;
+this plan's own prose above already used "triangle-up" loosely as a synonym for the same shape).
+
+Both prior distinguishability artifacts (`docs/testing/usds-shape-distinguishability-pass.md`,
+Testing's illustrative-geometry pass, and `docs/implementation/usds-manual-cvd-shape-pass.md`,
+Implementation's real-component manual CVD/grayscale pass) reviewed the **old** shape set
+including plus/star/cross and are now stale for the shape-silhouette question specifically (the
+CVD/color-distance numbers in both remain valid — colors didn't change). A fresh
+shape-distinguishability-only pass for the corrected 10-shape set is recorded at
+`docs/maintenance/usds-shape-set-correction-distinguishability-pass.md`.
+
+No functional, color, or contrast/CVD impact — this is a same-day shape-only correction, not a
+new decision requiring re-approval of the consolidated dash/CVD-mechanism decisions above.
+
 ## Cross-references
 
 - `docs/plans/per-work-comparison-graph.md` — the parent feature (6-slot scheme,

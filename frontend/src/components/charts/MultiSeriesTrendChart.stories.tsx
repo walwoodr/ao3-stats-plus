@@ -45,9 +45,10 @@ export const TwoWorksRegularHistory: Story = {
 // The common "ragged history" corner case: works added to the comparison at
 // different times don't share a start date - later-added works get gaps
 // (null in the chart, "—" in the table) for dates before they were added.
-// Full 10-work cap-raise state (docs/plans/usds-dataviz-color-scheme.md) -
-// exercises every one of the 10 style slots, including the 4 new shapes
-// (styleIndex 6-9: triangle-down, cross, circle-hollow, square-hollow).
+// Full 10-work cap-raise state (docs/plans/usds-dataviz-color-scheme.md,
+// shape set corrected same-day 2026-08-04) - exercises every one of the 10
+// style slots: circle/square/triangle/diamond/triangle-down, each filled
+// (styleIndex 0-3, 6) and hollow (styleIndex 4-5, 7-9).
 export const RaggedHistoryAcrossTenWorks: Story = {
   args: {
     title: "Hits",

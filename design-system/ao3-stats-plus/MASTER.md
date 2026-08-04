@@ -284,7 +284,11 @@ Guidance above (which stays correct and unchanged for the aggregate TrendChart/R
 section) rather than replacing it. Revised by `docs/plans/usds-dataviz-color-scheme.md`: the
 cap rose 6 → 10, all style slots were redesigned from scratch (USDS-inspired, project-tuned),
 per-series dash was dropped in favor of shape as the sole non-color channel, and a formal CVD
-(colorblind) verification step was added.
+(colorblind) verification step was added. **Corrected same-day (2026-08-04)**: the initially
+shipped shape set included plus, star, and cross markers; the user rejected these as not
+"basic geometric shapes" and requested hollow/outline variants of the existing diamond,
+triangle, and triangle-down shapes instead — see the "10-slot shape+color scheme" table below,
+which reflects the corrected set. Colors were never shape-dependent and are unchanged.
 
 ### The 10-slot shape+color scheme
 
@@ -308,17 +312,23 @@ thing on the chart ("pre-data lead-in"), never a per-series identifier.
 | 1 | square (filled) | orange | `#C2410C` | `#FDBA74` |
 | 2 | triangle-up (filled) | amber/ochre | `#854D0E` | `#FCD34D` |
 | 3 | diamond (filled) | green | `#15803D` | `#86EFAC` |
-| 4 | plus (filled) | teal | `#0F766E` | `#5EEAD4` |
-| 5 | star (filled) | azure | `#0369A1` | `#7DD3FC` |
+| 4 | diamond (hollow/outline) | teal | `#0F766E` | `#5EEAD4` |
+| 5 | triangle-up (hollow/outline) | azure | `#0369A1` | `#7DD3FC` |
 | 6 | triangle-down (filled) | indigo | `#4338CA` | `#818CF8` |
-| 7 | cross / X (filled) | magenta | `#A21CAF` | `#F0ABFC` |
+| 7 | triangle-down (hollow/outline) | magenta | `#A21CAF` | `#F0ABFC` |
 | 8 | circle (hollow/outline) | slate | `#334155` | `#CBD5E1` |
 | 9 | square (hollow/outline) | brown | `#7C2D12` | `#D2B48C` |
 
-The two hollow slots (8, 9) reuse the circle/square silhouettes and add a **fill vs. outline**
-channel, each paired with a color far from its filled twin (wine↔slate, orange↔brown) so the
-pair reads apart by both fill and hue; hollow markers render `fill="none"` + `stroke=color`,
-which also lets crossing lines show through in dense charts.
+Five base geometric shapes — circle, square, triangle-up, diamond, triangle-down — each in a
+filled and a hollow/outline variant (10 = 5 × 2). No plus, star, or cross: the initial USDS-
+inspired proposal included those three, but the user's same-day review rejected them as not
+"basic geometric shapes," so the plan's reserved-swap slots (4, 5, 7) were reassigned to hollow
+diamond/triangle-up/triangle-down instead. Hollow markers render `fill="none"` + `stroke=color`,
+which also lets crossing lines show through in dense charts. Unlike the original 6→10 shape
+additions (which paired each new hollow shape with a color far from its filled twin, e.g.
+wine↔slate), the hollow shapes swapped in here keep the color role each slot already had before
+the correction (slot 4 stays teal, slot 5 stays azure, slot 7 stays magenta) — color was never
+shape-dependent, so this correction only ever touches the `shape` column.
 
 **Contrast — verified** (WCAG relative-luminance formula, against `--color-card`: light
 `#FFFFFF`, dark `#2B232A`). As a *graphical object* (a chart line/marker, not body text), the
@@ -378,11 +388,13 @@ the rest.
 
 ### Shape distinguishability
 
-The 10 marker shapes (circle, square, triangle-up, diamond, plus, star, triangle-down, cross/X,
-hollow-circle, hollow-square) must be individually distinguishable at both chart scale (~8px,
-`size:4`) and legend scale (~10px, `size:5`), in both modes, and under grayscale/achromatopsia —
-validated empirically (not assumed), per the manual sign-off pass above. If any pair collides,
-hexagon and wye (Y) are held in reserve as swaps.
+The 10 marker shapes (circle, square, triangle-up, diamond, triangle-down — each filled and
+hollow/outline) must be individually distinguishable at both chart scale (~8px, `size:4`) and
+legend scale (~10px, `size:5`), in both modes, and under grayscale/achromatopsia — validated
+empirically (not assumed), per the manual sign-off pass above. Re-validated after the same-day
+(2026-08-04) shape-set correction (plus/star/cross → hollow diamond/triangle-up/triangle-down);
+see `docs/maintenance/usds-shape-set-correction-distinguishability-pass.md` for that pass. If
+any pair collides, hexagon and wye (Y) are held in reserve as swaps.
 
 ### Grouped picker pattern (multi-select + fandom bulk-select)
 
