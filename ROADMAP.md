@@ -108,7 +108,18 @@ baseline feature on purpose)
   currently-selected works, of (each selected work's own publish date)
   through (the most recent captured date among them) - not the author's
   full earliest-post-year-to-now range as today. Depends on the same
-  per-work publish-date data described above.
+  per-work publish-date data described above. **Amended 2026-08-04:** the
+  slider should also make unselectable any date strictly between the
+  latest (most recent) zero-basis date across currently-selected works and
+  the earliest real captured date across currently-selected works - i.e.
+  you cannot choose a window that falls entirely inside that span. Every
+  selected work is either not-yet-published or published-but-not-yet-
+  captured throughout that range, so a window chosen entirely inside it
+  would show nothing but flat interpolated lead-in lines, with no real
+  data to compare. Depends on the per-work zero-basis-dates feature
+  (shipped 2026-08-04, see `docs/plans/per-work-zero-basis-dates.md`) for
+  both the per-work zero-basis dates and each work's first real captured
+  date.
 - Establish a proper data-visualization color scheme for the graphs,
   modeled on the U.S. Digital Service's Data Design Standards color
   system (https://xdgov.github.io/data-design-standards/components/colors)
@@ -124,3 +135,12 @@ baseline feature on purpose)
   this leaves a gap between 0 and the padded starting value, render a
   visible axis break/truncation indicator there so the non-zero-origin
   axis isn't misread as starting at 0.
+
+## v2 candidates (confirmed 2026-08-04)
+
+- Persist the "compare works" selection (`WorkComparisonSection`'s
+  selected-work-ids state, currently plain `useState` that resets on every
+  page load) to browser storage - e.g. `localStorage`, scoped per-username
+  similar to `tokenStorage.ts`'s existing pattern - so a chosen comparison
+  set of works survives a page reload or a later revisit instead of
+  starting empty every time.
