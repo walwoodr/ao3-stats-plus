@@ -428,3 +428,14 @@
   padding (unlike `primaryButtonStyle`), so the icon Copy button's hit target
   is only as large as the glyph at 1rem. Minor; worth a visual check that the
   target is comfortably tappable on touch.
+- [2026-08-04] (stage: Review) Exporting `buildChartData` from
+  `MultiSeriesTrendChart.tsx` (previously an internal helper) newly trips the
+  `react-refresh/only-export-components` ESLint warning on that file (0 errors,
+  warning only; HMR fast-refresh degraded for the file in dev). The
+  zero-basis-dates final commit described both remaining warnings as
+  "pre-existing-pattern, unchanged" - accurate for `markerShapes.tsx` but this
+  MultiSeriesTrendChart instance is genuinely new. Non-blocking; the plan
+  explicitly chose to export the pure helper for unit-testability. Consider
+  extracting `buildChartData` into its own module (mirroring
+  `lib/comparisonSelection.ts`, the codebase's existing convention for
+  directly-tested pure transforms) to clear the warning and match that pattern.
