@@ -88,6 +88,26 @@ describe("bookmarklet banners", () => {
       expect(input.getAttribute("autocapitalize")).toBe("off");
     });
 
+    // The visible bordered box around the input+Copy button is the wrapper
+    // div (inputStyle) - the <input> itself (internalInputStyle) has
+    // border:none, so it has no border to visibly ring. The focus-ring
+    // effect must therefore mutate the wrapper's border/box-shadow, not the
+    // input's (which would be a no-op with nothing rendered to show for it).
+    it("applies the focus ring to the bordered input wrapper, not the borderless inner input", () => {
+      renderSuccessBanner(container, successBannerData());
+
+      const input = container.querySelector("input[type='text']") as HTMLInputElement;
+      const wrapper = input.parentElement as HTMLElement;
+
+      input.focus();
+      expect(wrapper.style.boxShadow).not.toBe("");
+      expect(wrapper.style.boxShadow).not.toBe("none");
+      expect(input.style.boxShadow).toBe("none");
+
+      input.blur();
+      expect(wrapper.style.boxShadow).toBe("none");
+    });
+
     it("links to the dashboard URL built from frontendOrigin, username, and the current token (URL-encoded)", () => {
       renderSuccessBanner(
         container,

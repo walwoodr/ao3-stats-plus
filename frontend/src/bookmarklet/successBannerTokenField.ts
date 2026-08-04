@@ -60,15 +60,23 @@ function smallTextStyle(color: string): string {
   return `${MESSAGE_STYLE}font-size:0.8125rem;color:${color};`;
 }
 
-function focusRingListeners(input: HTMLInputElement, colors: ColorTokens): void {
+// Listens on the <input> (the actual focus target), but rings the
+// *wrapper* div (inputStyle) - the input itself (internalInputStyle) has
+// border:none, so it has no visible border to ring; the wrapper is what
+// actually renders the bordered box around the input + Copy button.
+function focusRingListeners(
+  input: HTMLInputElement,
+  wrapper: HTMLElement,
+  colors: ColorTokens,
+): void {
   const baseBorder = `1px solid color-mix(in srgb, ${colors.ink} 20%, transparent)`;
   input.addEventListener("focus", () => {
-    input.style.borderColor = colors.accent;
-    input.style.boxShadow = `0 0 0 3px color-mix(in srgb, ${colors.accent} 15%, transparent)`;
+    wrapper.style.borderColor = colors.accent;
+    wrapper.style.boxShadow = `0 0 0 3px color-mix(in srgb, ${colors.accent} 15%, transparent)`;
   });
   input.addEventListener("blur", () => {
-    input.style.border = baseBorder;
-    input.style.boxShadow = "none";
+    wrapper.style.border = baseBorder;
+    wrapper.style.boxShadow = "none";
   });
 }
 
@@ -99,7 +107,7 @@ export function appendTokenField(
   input.spellcheck = false;
   input.setAttribute("autocapitalize", "off");
   input.style.cssText = internalInputStyle(colors);
-  focusRingListeners(input, colors);
+  focusRingListeners(input, inputArea, colors);
   inputArea.appendChild(input);
 
   const copyButton = document.createElement("button");
