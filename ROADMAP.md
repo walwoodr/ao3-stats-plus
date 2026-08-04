@@ -96,14 +96,20 @@ baseline feature on purpose)
   on the per-work creation-date scraping/data-model work already listed
   above under "Per-work creation-date scraping and per-work zero-basis
   baselines."
-- In the multi-work comparison graph, differentiate series using ONLY the
+- ~~In the multi-work comparison graph, differentiate series using ONLY the
   marker-shape and color-role (`seriesStyles.ts`'s 6-slot table) - stop
   using dash pattern as a per-series differentiator. Instead, reserve
   dashing for a single shared meaning: the segment of a line between a
   work's zero-basis publish date and its first actually-recorded data
   point is drawn dashed (representing "no data captured yet, interpolated
   back to zero"), while every segment from the first real data point
-  onward is solid, regardless of which work/slot it belongs to.
+  onward is solid, regardless of which work/slot it belongs to.~~
+  **RESOLVED 2026-08-04:** consolidated into the USDS color scheme item
+  below - a 10-slot table makes per-series dash impossible regardless
+  (10 mutually distinguishable dash patterns don't exist), so that plan
+  necessarily sets series lines solid and reserves dash solely for the
+  zero-basis lead-in, reaching this same end-state as one piece of work.
+  See `docs/plans/usds-dataviz-color-scheme.md`.
 - The date-range slider's default bounds should be the union, across the
   currently-selected works, of (each selected work's own publish date)
   through (the most recent captured date among them) - not the author's
@@ -120,15 +126,16 @@ baseline feature on purpose)
   (shipped 2026-08-04, see `docs/plans/per-work-zero-basis-dates.md`) for
   both the per-work zero-basis dates and each work's first real captured
   date.
-- Establish a proper data-visualization color scheme for the graphs,
-  modeled on the U.S. Digital Service's Data Design Standards color
-  system (https://xdgov.github.io/data-design-standards/components/colors)
-  rather than the current 6 hand-picked `colorTokens.ts` series colors.
-  Pair the resulting palette with a set of distinguishable marker glyphs
-  (⦿ • ◘ ○ ■ □ ▣) so shape x color combinations can expand the
-  multi-work comparison graph's current 6-work selection cap
-  (`assignStyleSlot`/`SERIES_STYLE_SLOTS`) to a meaningfully larger number
-  of simultaneously comparable works.
+- **IN PLANNING (2026-08-04):** establish a proper data-visualization color
+  scheme for the graphs, modeled on the U.S. Digital Service's Data Design
+  Standards color system
+  (https://xdgov.github.io/data-design-standards/components/colors) rather
+  than the current 6 series colors in `colorTokens.ts` (derived during the
+  per-work-comparison-graph feature's Planning stage). Pairs the resulting
+  palette with a larger set of distinguishable SVG marker shapes so
+  shape x color combinations raise the multi-work comparison graph's
+  selection cap from 6 to ~10. Finalized plan, with a formal colorblind
+  (CVD) verification step, at `docs/plans/usds-dataviz-color-scheme.md`.
 - Adjust the vertical (Y) axis range on all graphs (aggregate and
   per-work) to pad around the actual min/max values present in the
   plotted data set, rather than always anchoring the axis to 0. Where
