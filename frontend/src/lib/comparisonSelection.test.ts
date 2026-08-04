@@ -110,6 +110,30 @@ describe("unionCapturedOnDates", () => {
     expect(unionCapturedOnDates([])).toEqual([]);
   });
 
+  // Regression fence (docs/plans/per-work-zero-basis-dates.md, Testing
+  // task 7 / "Decoupling from the date-range slider"): zero-basis dates are
+  // explicitly kept OUT of this union - it must only ever look at each
+  // work's `points`, never a `publishedOn` field, so adding that field to
+  // PerWorkSeries can't silently widen the slider gate or the domain this
+  // function ultimately feeds. Same works, same points, differing only in
+  // publishedOn -> identical union.
+  it("is unaffected by a work's publishedOn - only real capture dates ever enter the union", () => {
+    const withoutPublishDates = unionCapturedOnDates([
+      work(1, ["2026-01-01", "2026-01-08"]),
+      work(2, ["2026-01-08"]),
+    ]);
+    const withPublishDates = unionCapturedOnDates([
+      { ...work(1, ["2026-01-01", "2026-01-08"]), publishedOn: "2010-01-01" },
+      { ...work(2, ["2026-01-08"]), publishedOn: "2005-06-01" },
+    ]);
+
+    expect(withPublishDates).toEqual(withoutPublishDates);
+    // None of the (much earlier) publishedOn years leak into the union.
+    expect(
+      withPublishDates.some((date) => date.startsWith("2010") || date.startsWith("2005")),
+    ).toBe(false);
+  });
+
   it("returns an empty array for works with no points, without throwing (malformed/empty points corner case)", () => {
     expect(unionCapturedOnDates([work(1, []), work(2, [])])).toEqual([]);
   });
