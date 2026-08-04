@@ -390,3 +390,41 @@
   fanOut.test.ts entry above) is a reasonable future cleanup but out of
   scope for a targeted styling/feature change. Flag for Review/Retrospective
   to decide whether to split.
+- [2026-07-23] (stage: Review, resolved 2026-08-03 stage: Maintenance)
+  ~~Success-banner Copy button (082b38e) became an icon glyph ("⧉") whose
+  only label is a `title="Copy"` attribute. For a `<button>`, accessible-name
+  computation prefers text content (the glyph) over `title`, so screen
+  readers announce the meaningless symbol, not "Copy" - an a11y regression
+  from the prior text label in a codebase that otherwise invests in a11y
+  (roles, aria-live, @axe-core). Fix: add `aria-label="Copy"` (and set it to
+  "Copied!" alongside the title on click). Same applies to the transient "☑"
+  copied state. Not blocking anything live, but a real follow-up.~~ - fixed:
+  `successBannerTokenField.ts`'s Copy button now sets `aria-label="Copy"`
+  alongside `title="Copy"`, updated to `aria-label="Copied!"` alongside
+  `title="Copied!"` in the click handler.
+- [2026-07-23] (stage: Review, resolved 2026-08-03 stage: Maintenance)
+  ~~The banners.test.ts assertions for the Copy button were changed
+  (082b38e) to look it up by `getAttribute("title")` rather than an
+  accessible name. `title` is not the accessible name, so the test now
+  passes while the button's actual AT-exposed name is a glyph - masking the
+  regression above rather than catching it. When the a11y fix lands, assert
+  on the accessible name (aria-label) instead.~~ - fixed: the 3 affected
+  tests in `banners.test.ts` ("provides a keyboard-operable Copy button",
+  "copies the CURRENT input value...", "confirms the copy visibly...") now
+  look up and assert on `getAttribute("aria-label")` instead of `title`;
+  confirmed they failed against the unfixed source before the aria-label
+  fix landed.
+- [2026-07-23] (stage: Review) Re-injection cleanup gap, pre-existing but
+  mildly worsened by the shared banner stack (0547df9). `window.__ao3StatsPlus.banner`
+  only ever tracks the single last banner passed through `setGuardBanner`;
+  fan-out's progress/summary banners are never tracked, so on re-injection
+  `existing.banner?.remove()` removes only the tracked banner and never the
+  shared stack wrapper - leaving any in-flight progress/summary banner plus a
+  now-empty `[data-ao3-stats-plus-banner-stack]` div lingering in document.body.
+  Visible outcome is not materially worse than before (orphaned fan-out
+  banners were always left behind), but consider removing the whole stack on
+  re-injection cleanup.
+- [2026-07-23] (stage: Review) The `inputButton` helper (082b38e) omits any
+  padding (unlike `primaryButtonStyle`), so the icon Copy button's hit target
+  is only as large as the glyph at 1rem. Minor; worth a visual check that the
+  target is comfortably tappable on touch.

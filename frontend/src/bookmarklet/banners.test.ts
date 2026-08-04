@@ -104,14 +104,16 @@ describe("bookmarklet banners", () => {
       );
     });
 
-    // The Copy button is an icon glyph ("⧉"), not a text label, so it's
-    // looked up by its title attribute (still "Copy") rather than
-    // textContent - the title is also what a screen reader/tooltip exposes.
+    // The Copy button is an icon glyph ("⧉"), not a text label, so its
+    // accessible name comes from aria-label (not textContent, and not
+    // title - title is not the accessible name computation source for a
+    // <button> with text/glyph content, so asserting on it would pass even
+    // if a screen reader announced the meaningless glyph instead of "Copy").
     it("provides a keyboard-operable Copy button", () => {
       renderSuccessBanner(container, successBannerData());
 
       const copyButton = Array.from(container.querySelectorAll("button")).find(
-        (b) => b.getAttribute("title") === "Copy",
+        (b) => b.getAttribute("aria-label") === "Copy",
       );
       expect(copyButton?.tagName).toBe("BUTTON");
       expect(copyButton?.getAttribute("tabindex")).not.toBe("-1");
@@ -125,7 +127,7 @@ describe("bookmarklet banners", () => {
       const input = container.querySelector("input[type='text']") as HTMLInputElement;
       input.value = "fox-owl";
       const copyButton = Array.from(container.querySelectorAll("button")).find(
-        (b) => b.getAttribute("title") === "Copy",
+        (b) => b.getAttribute("aria-label") === "Copy",
       );
       copyButton?.click();
 
@@ -139,11 +141,11 @@ describe("bookmarklet banners", () => {
 
       renderSuccessBanner(container, successBannerData());
       const copyButton = Array.from(container.querySelectorAll("button")).find(
-        (b) => b.getAttribute("title") === "Copy",
+        (b) => b.getAttribute("aria-label") === "Copy",
       );
       copyButton?.click();
 
-      expect(copyButton?.getAttribute("title")).toMatch(/copied/i);
+      expect(copyButton?.getAttribute("aria-label")).toMatch(/copied/i);
     });
 
     it("uses an accessible status role so screen readers announce success", () => {

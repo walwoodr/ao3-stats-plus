@@ -106,11 +106,13 @@ export function appendTokenField(
   copyButton.type = "button";
   copyButton.textContent = "⧉";
   copyButton.setAttribute("title", "Copy");
+  copyButton.setAttribute("aria-label", "Copy");
   copyButton.style.cssText = inputButton(colors.card, colors.inkSoft);
   copyButton.addEventListener("click", () => {
     navigator.clipboard.writeText(input.value);
     copyButton.textContent = "☑";
     copyButton.setAttribute("title", "Copied!");
+    copyButton.setAttribute("aria-label", "Copied!");
   });
   inputArea.appendChild(copyButton);
 
