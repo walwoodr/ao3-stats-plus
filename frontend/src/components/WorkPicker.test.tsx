@@ -157,30 +157,31 @@ describe("WorkPicker", () => {
     });
   });
 
-  describe("at the 6-work cap", () => {
-    const SEVEN_WORKS: PerWorkSeries[] = Array.from({ length: 7 }, (_, i) =>
+  describe("at the 10-work cap", () => {
+    const ELEVEN_WORKS: PerWorkSeries[] = Array.from({ length: 11 }, (_, i) =>
       work({ ao3WorkId: i + 1, title: `Work ${i + 1}`, fandoms: "Big Fandom" }),
     );
+    const TEN_SELECTED = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-    it("disables and aria-disables remaining unchecked checkboxes once 6 are selected", () => {
+    it("disables and aria-disables remaining unchecked checkboxes once 10 are selected", () => {
       render(
         <WorkPicker
-          perWorkSeries={SEVEN_WORKS}
-          selectedWorkIds={[1, 2, 3, 4, 5, 6]}
+          perWorkSeries={ELEVEN_WORKS}
+          selectedWorkIds={TEN_SELECTED}
           onChange={vi.fn()}
         />,
       );
 
-      const seventh = screen.getByRole("checkbox", { name: "Work 7" });
-      expect(seventh).toBeDisabled();
-      expect(seventh).toHaveAttribute("aria-disabled", "true");
+      const eleventh = screen.getByRole("checkbox", { name: "Work 11" });
+      expect(eleventh).toBeDisabled();
+      expect(eleventh).toHaveAttribute("aria-disabled", "true");
     });
 
     it("does not disable already-checked checkboxes at the cap (they must stay uncheckable, not un-uncheckable)", () => {
       render(
         <WorkPicker
-          perWorkSeries={SEVEN_WORKS}
-          selectedWorkIds={[1, 2, 3, 4, 5, 6]}
+          perWorkSeries={ELEVEN_WORKS}
+          selectedWorkIds={TEN_SELECTED}
           onChange={vi.fn()}
         />,
       );
@@ -191,35 +192,35 @@ describe("WorkPicker", () => {
     it("announces the cap via a role=status polite live region", () => {
       render(
         <WorkPicker
-          perWorkSeries={SEVEN_WORKS}
-          selectedWorkIds={[1, 2, 3, 4, 5, 6]}
+          perWorkSeries={ELEVEN_WORKS}
+          selectedWorkIds={TEN_SELECTED}
           onChange={vi.fn()}
         />,
       );
 
-      expect(screen.getByRole("status")).toHaveTextContent(/maximum of 6 works reached/i);
+      expect(screen.getByRole("status")).toHaveTextContent(/maximum of 10 works reached/i);
     });
 
     it("does not show the cap message when under the cap", () => {
       render(
-        <WorkPicker perWorkSeries={SEVEN_WORKS} selectedWorkIds={[1, 2]} onChange={vi.fn()} />,
+        <WorkPicker perWorkSeries={ELEVEN_WORKS} selectedWorkIds={[1, 2]} onChange={vi.fn()} />,
       );
 
-      expect(screen.queryByText(/maximum of 6 works reached/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/maximum of 10 works reached/i)).not.toBeInTheDocument();
     });
 
     it("select-all-in-fandom that would exceed the cap adds up to the cap and announces the truncation", async () => {
       const user = userEvent.setup();
-      render(<ControlledWorkPicker perWorkSeries={SEVEN_WORKS} />);
+      render(<ControlledWorkPicker perWorkSeries={ELEVEN_WORKS} />);
 
       await user.click(screen.getByRole("button", { name: /select all.*big fandom/i }));
 
-      const checked = SEVEN_WORKS.filter((w) =>
+      const checked = ELEVEN_WORKS.filter((w) =>
         screen.getByRole("checkbox", { name: w.title }).matches(":checked"),
       );
-      expect(checked).toHaveLength(6);
-      expect(screen.getByRole("status")).toHaveTextContent(/added 6 of 7 works/i);
-      expect(screen.getByRole("status")).toHaveTextContent(/6-work maximum reached/i);
+      expect(checked).toHaveLength(10);
+      expect(screen.getByRole("status")).toHaveTextContent(/added 10 of 11 works/i);
+      expect(screen.getByRole("status")).toHaveTextContent(/10-work maximum reached/i);
     });
   });
 
