@@ -465,3 +465,19 @@
   extracting `buildChartData` into its own module (mirroring
   `lib/comparisonSelection.ts`, the codebase's existing convention for
   directly-tested pure transforms) to clear the warning and match that pattern.
+- [2026-08-04] (stage: Implementation) `frontend/src/lib/useChartColors.test.ts`'s
+  "ColorTokens.series (multi-series categorical palette)" describe block
+  hardcodes literal pins of the *old* 6-hex `series` palette
+  (`docs/plans/per-work-comparison-graph.md`'s decision A) and was not among
+  the files Testing updated for `docs/plans/usds-dataviz-color-scheme.md`
+  (confirmed via `git log` - its last touch predates this feature's 6
+  Testing-stage commits). It now fails 5/5 tests against the finalized,
+  approved 10-slot palette actually shipped in `colorTokens.ts` (verified
+  correct by the new, canonical `colorTokens.test.ts`/`colorTokens.cvd.test.ts`,
+  which this Implementation pass made green). Per this stage's standing
+  instruction not to edit tests to make them pass, this file was left
+  untouched and flagged instead: needs its hardcoded `LIGHT_SERIES_HEXES`/
+  `DARK_SERIES_HEXES` arrays (and the `toHaveLength(6)` assertions) updated
+  to the new 10-hex plan values, or the whole duplicate-pinning describe
+  block removed now that `colorTokens.test.ts` owns that coverage - a call
+  for Testing/Review, not Implementation.
