@@ -415,6 +415,19 @@
   confirmed against a primary source (the paper's supplementary matrices,
   or a maintained reference implementation) before treating the automated
   CVD gate as fully authoritative.
+- [2026-08-04] (stage: Testing) `docs/testing/usds-shape-distinguishability-
+  pass.md` (Testing task 11) verified the 10-shape marker *strategy* via a
+  standalone illustrative SVG rendering script
+  (`docs/testing/assets/usds-shape-distinguishability/generate-shapes.mjs`),
+  not the real `markerShapes.tsx` component (which doesn't exist with the 4
+  new shapes yet, since Testing precedes Implementation). Its geometry for
+  triangle-down/cross/circle-hollow/square-hollow is a reasonable, but not
+  binding, illustration - Implementation is free to choose different exact
+  coordinates in `markerShapes.tsx` as long as the 10 shapes stay distinct.
+  Once Implementation lands the real component, its manual DevTools
+  CVD/grayscale pass (plan Implementation task 9) should re-confirm
+  distinguishability against the actual rendered shapes, not just rely on
+  this pre-Implementation illustrative pass.
 - [2026-07-23] (stage: Review, resolved 2026-08-03 stage: Maintenance)
   ~~The banners.test.ts assertions for the Copy button were changed
   (082b38e) to look it up by `getAttribute("title")` rather than an

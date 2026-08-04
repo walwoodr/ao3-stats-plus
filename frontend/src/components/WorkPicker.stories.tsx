@@ -59,17 +59,18 @@ export const WithOneSelected: Story = {
   },
 };
 
-const SEVEN_WORKS: PerWorkSeries[] = Array.from({ length: 7 }, (_, i) =>
+const ELEVEN_WORKS: PerWorkSeries[] = Array.from({ length: 11 }, (_, i) =>
   work({ ao3WorkId: i + 1, title: `Work ${i + 1}`, fandoms: "Big Fandom" }),
 );
+const TEN_SELECTED = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 export const AtCap: Story = {
-  args: { perWorkSeries: SEVEN_WORKS, selectedWorkIds: [1, 2, 3, 4, 5, 6], onChange: () => {} },
+  args: { perWorkSeries: ELEVEN_WORKS, selectedWorkIds: TEN_SELECTED, onChange: () => {} },
   render: function Render() {
-    const [selectedWorkIds, setSelectedWorkIds] = useState<number[]>([1, 2, 3, 4, 5, 6]);
+    const [selectedWorkIds, setSelectedWorkIds] = useState<number[]>(TEN_SELECTED);
     return (
       <WorkPicker
-        perWorkSeries={SEVEN_WORKS}
+        perWorkSeries={ELEVEN_WORKS}
         selectedWorkIds={selectedWorkIds}
         onChange={setSelectedWorkIds}
       />

@@ -55,7 +55,11 @@ export const Default: Story = {
   args: { perWorkSeries: GROUPED_WORKS, earliestPostYear: 2018 },
 };
 
-const SEVEN_WORKS_SAME_FANDOM: PerWorkSeries[] = Array.from({ length: 7 }, (_, i) => ({
+// 11 works sharing one fandom - one more than the 10-work cap - so a single
+// "select all in fandom" click in Storybook's own controls/interaction
+// reaches the raised cap and exercises every one of the 10 style slots
+// (including the 4 new shapes) at once.
+const ELEVEN_WORKS_SAME_FANDOM: PerWorkSeries[] = Array.from({ length: 11 }, (_, i) => ({
   ao3WorkId: i + 1,
   title: `Work ${i + 1}`,
   fandoms: "Big Fandom",
@@ -65,8 +69,8 @@ const SEVEN_WORKS_SAME_FANDOM: PerWorkSeries[] = Array.from({ length: 7 }, (_, i
   ],
 }));
 
-export const SevenWorkFandomAtCap: Story = {
-  args: { perWorkSeries: SEVEN_WORKS_SAME_FANDOM, earliestPostYear: 2024 },
+export const TenWorkFandomAtCap: Story = {
+  args: { perWorkSeries: ELEVEN_WORKS_SAME_FANDOM, earliestPostYear: 2024 },
 };
 
 export const SingleWorkNoSlider: Story = {
