@@ -12,12 +12,13 @@ export interface ComparisonLegendProps {
   seriesColors: readonly string[];
 }
 
-// Visible legend mapping each work's title to its (shape, dash, color)
-// glyph AND a worded style description ("solid wine line, circle marker") -
-// per decision A, shape+dash is the accessibility-guaranteed non-color
-// channel, so the legend spells it out in words rather than relying on
-// sighted-only glyph recognition. Each entry's text lives in its own <span>
-// (its only direct text-node child) so it's uniquely findable by
+// Visible legend mapping each work's title to its (shape, color) glyph AND
+// a worded style description ("wine circle marker") - per
+// docs/plans/usds-dataviz-color-scheme.md, shape alone is now the
+// accessibility-guaranteed non-color channel (dash is gone; series lines
+// are solid), so the legend spells the shape+color out in words rather than
+// relying on sighted-only glyph recognition. Each entry's text lives in its
+// own <span> (its only direct text-node child) so it's uniquely findable by
 // screen.getByText without also matching the wrapping <li>.
 export function ComparisonLegend({ entries, seriesColors }: ComparisonLegendProps) {
   return (
@@ -29,7 +30,7 @@ export function ComparisonLegend({ entries, seriesColors }: ComparisonLegendProp
           <li key={entry.workId} className="flex items-center gap-2 text-sm text-ink-soft">
             <MarkerGlyph shape={slot.shape} color={color} />
             <span>
-              {entry.title} — {slot.dashLabel} {slot.colorRole} line, {slot.shape} marker
+              {entry.title} — {slot.colorRole} {slot.shape} marker
             </span>
           </li>
         );

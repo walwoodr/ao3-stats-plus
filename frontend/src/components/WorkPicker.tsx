@@ -42,7 +42,7 @@ export function WorkPicker({
   // also lands the selection exactly at the cap) - the generic "reached"
   // statement and the specific "N of M" truncation detail are additive,
   // not alternatives, so both are announced together when applicable.
-  const genericCapMessage = atCap ? "Maximum of 6 works reached." : "";
+  const genericCapMessage = atCap ? "Maximum of 10 works reached." : "";
   const statusText = [genericCapMessage, truncationMessage, extraStatusMessage]
     .filter(Boolean)
     .join(" ");
@@ -65,7 +65,7 @@ export function WorkPicker({
 
     setTruncationMessage(
       cappedOut
-        ? `Added ${result.addedCount} of ${result.requestedCount} works; 6-work maximum reached.`
+        ? `Added ${result.addedCount} of ${result.requestedCount} works; 10-work maximum reached.`
         : null,
     );
     onChange(result.selectedIds);
