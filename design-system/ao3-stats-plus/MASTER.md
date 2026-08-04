@@ -102,12 +102,13 @@ little room for drift if these colors get adjusted later — re-verify if any of
 No hex value needed to change to hit the bar as originally chosen.
 
 **Series palette (multi-series chart color, JS-only — no CSS variable):** unlike the tokens
-above, the six-swatch categorical `series` palette (wine/teal/amber/indigo/green/purple) added
-for the per-work comparison charts is never consumed as a static Tailwind utility class, so it
-has no `--color-series-*` custom property in index.css — it lives only in
-`frontend/src/lib/colorTokens.ts`'s `ColorTokens.series` array, read by index straight into
-Recharts props. See "Multi-series categorical palette" below for the full slot table and
-contrast verification.
+above, the 10-slot categorical `series` palette (wine/orange/amber/green/teal/azure/indigo/
+magenta/slate/brown — raised from an original 6-swatch palette by
+`docs/plans/usds-dataviz-color-scheme.md`) added for the per-work comparison charts is never
+consumed as a static Tailwind utility class, so it has no `--color-series-*` custom property in
+index.css — it lives only in `frontend/src/lib/colorTokens.ts`'s `ColorTokens.series` array,
+read by index straight into Recharts props. See "The 10-slot shape+color scheme" below for the
+full slot table, contrast verification, and CVD verification.
 
 ### Typography
 
@@ -280,25 +281,44 @@ Added for the per-work comparison graph feature (`docs/plans/per-work-comparison
 this project's first *multi*-series chart context. MASTER.md previously had no multi-select,
 range-slider, or categorical-palette spec; this section extends the single-series Chart
 Guidance above (which stays correct and unchanged for the aggregate TrendChart/RatioChart
-section) rather than replacing it.
+section) rather than replacing it. Revised by `docs/plans/usds-dataviz-color-scheme.md`: the
+cap rose 6 → 10, all style slots were redesigned from scratch (USDS-inspired, project-tuned),
+per-series dash was dropped in favor of shape as the sole non-color channel, and a formal CVD
+(colorblind) verification step was added.
 
-### The 6-slot shape/dash/color scheme
+### The 10-slot shape+color scheme
 
-Each work selected for comparison gets a stable triple of (marker shape, `stroke-dasharray`,
-categorical color) — shape + dash is the accessibility-guaranteed, non-color channel (a
-colorblind or grayscale user still gets a unique marker shape and line texture per work); color
-is a **redundant reinforcement channel only**, never the sole differentiator — this extends,
-rather than contradicts, the existing "differentiated by line style, never color alone" rule
-above. Six is the cap: the count of unambiguously distinct simple marker shapes at chart scale.
+Each work selected for comparison gets a stable pair of (marker shape, categorical color) —
+**shape alone is now the accessibility-guaranteed, non-color channel** (a colorblind or
+grayscale user still gets a unique marker shape per work); color is a **redundant reinforcement
+channel only**, never the sole differentiator — this extends, rather than contradicts, the
+existing "differentiated by line style, never color alone" rule above. Ten is the cap: the
+count of unambiguously distinct marker shapes at chart scale, empirically validated (see "Shape
+distinguishability" below).
 
-| slot | marker | stroke-dasharray | color role | light hex | dark hex |
-|---|---|---|---|---|---|
-| 1 | circle | solid | wine (brand accent) | `#9F1239` | `#E8879E` |
-| 2 | square | `6 4` | teal | `#0F766E` | `#5EEAD4` |
-| 3 | triangle | `2 3` | amber | `#B45309` | `#FBBF24` |
-| 4 | diamond | `9 3 2 3` | indigo | `#4338CA` | `#A5B4FC` |
-| 5 | plus | `4 4` | green (growth family) | `#4D7C5F` | `#8FBFA0` |
-| 6 | star | `1 3` | purple | `#7E22CE` | `#D8B4FE` |
+**Dash is reserved for the lead-in only.** At 10 slots, 10 mutually distinguishable
+`stroke-dasharray` patterns do not exist, so per-series lines are now solid; the
+already-shipped per-work zero-basis lead-in (`docs/plans/per-work-zero-basis-dates.md`) keeps
+its own hardcoded dashed `--color-ink-soft` segment, unaffected — dash now means exactly one
+thing on the chart ("pre-data lead-in"), never a per-series identifier.
+
+| slot | marker shape | color role | light hex | dark hex |
+|---|---|---|---|---|
+| 0 | circle (filled) | wine (brand) | `#9F1239` | `#E8879E` |
+| 1 | square (filled) | orange | `#C2410C` | `#FDBA74` |
+| 2 | triangle-up (filled) | amber/ochre | `#854D0E` | `#FCD34D` |
+| 3 | diamond (filled) | green | `#15803D` | `#86EFAC` |
+| 4 | plus (filled) | teal | `#0F766E` | `#5EEAD4` |
+| 5 | star (filled) | azure | `#0369A1` | `#7DD3FC` |
+| 6 | triangle-down (filled) | indigo | `#4338CA` | `#818CF8` |
+| 7 | cross / X (filled) | magenta | `#A21CAF` | `#F0ABFC` |
+| 8 | circle (hollow/outline) | slate | `#334155` | `#CBD5E1` |
+| 9 | square (hollow/outline) | brown | `#7C2D12` | `#D2B48C` |
+
+The two hollow slots (8, 9) reuse the circle/square silhouettes and add a **fill vs. outline**
+channel, each paired with a color far from its filled twin (wine↔slate, orange↔brown) so the
+pair reads apart by both fill and hue; hollow markers render `fill="none"` + `stroke=color`,
+which also lets crossing lines show through in dense charts.
 
 **Contrast — verified** (WCAG relative-luminance formula, against `--color-card`: light
 `#FFFFFF`, dark `#2B232A`). As a *graphical object* (a chart line/marker, not body text), the
@@ -306,22 +326,63 @@ bar is WCAG 2.1 SC 1.4.11 (non-text contrast, ≥3:1), not the 4.5:1 body-text b
 
 | slot | light hex | CR vs light card | dark hex | CR vs dark card |
 |---|---|---|---|---|
-| 1 wine | `#9F1239` | 8.02:1 | `#E8879E` | 6.10:1 |
-| 2 teal | `#0F766E` | 5.47:1 | `#5EEAD4` | 10.32:1 |
-| 3 amber | `#B45309` | 5.02:1 | `#FBBF24` | 9.14:1 |
-| 4 indigo | `#4338CA` | 7.90:1 | `#A5B4FC` | 7.66:1 |
-| 5 green | `#4D7C5F` | 4.81:1 | `#8FBFA0` | 7.36:1 |
-| 6 purple | `#7E22CE` | 6.98:1 | `#D8B4FE` | 8.63:1 |
+| 0 wine | `#9F1239` | 8.02:1 | `#E8879E` | 6.10:1 |
+| 1 orange | `#C2410C` | 5.18:1 | `#FDBA74` | 9.05:1 |
+| 2 amber | `#854D0E` | 6.85:1 | `#FCD34D` | 10.58:1 |
+| 3 green | `#15803D` | 5.02:1 | `#86EFAC` | 10.86:1 |
+| 4 teal | `#0F766E` | 5.47:1 | `#5EEAD4` | 10.31:1 |
+| 5 azure | `#0369A1` | 5.93:1 | `#7DD3FC` | 9.15:1 |
+| 6 indigo | `#4338CA` | 7.90:1 | `#818CF8` | 5.11:1 |
+| 7 magenta | `#A21CAF` | 6.32:1 | `#F0ABFC` | 8.67:1 |
+| 8 slate | `#334155` | 10.35:1 | `#CBD5E1` | 10.28:1 |
+| 9 brown | `#7C2D12` | 9.37:1 | `#D2B48C` | 7.73:1 |
 
-All twelve clear 3:1 with comfortable margin (lowest 4.81:1). Style assignment is **stable**: a
-`workId → styleIndex` map assigns the lowest free index on add and releases it on remove
-(`frontend/src/lib/seriesStyles.ts`), so a work keeps its full (shape, dash, color) identity
-while other works are toggled in/out of the comparison. The palette lives in `colorTokens.ts`'s
-`series` field — unlike every other token above, it has **no** `--color-series-*` CSS custom
-property in index.css, since it's only ever consumed dynamically (by index) into Recharts
-props/legend glyphs, never as a static Tailwind utility class. A visible legend maps each
-work's title to its glyph and spells out the style in words ("solid wine line, circle
-marker") so the mapping survives into the accessible data table and for screen-reader users.
+All twenty clear 3:1 with comfortable margin (lowest 5.02:1 light / 5.11:1 dark). Style
+assignment is **stable**: a `workId → styleIndex` map assigns the lowest free index on add and
+releases it on remove (`frontend/src/lib/seriesStyles.ts`), so a work keeps its full (shape,
+color) identity while other works are toggled in/out of the comparison. The palette lives in
+`colorTokens.ts`'s `series` field — unlike every other token above, it has **no**
+`--color-series-*` CSS custom property in index.css, since it's only ever consumed dynamically
+(by index) into Recharts props/legend glyphs, never as a static Tailwind utility class. A
+visible legend maps each work's title to its glyph and spells out the style in words ("wine
+circle marker", "slate hollow-circle marker") so the mapping survives into the accessible data
+table and for screen-reader users.
+
+### CVD (colorblind) verification
+
+Formal requirement added by `docs/plans/usds-dataviz-color-scheme.md`, two complementary parts:
+
+1. **Automated gate** (`frontend/src/lib/colorTokens.cvd.test.ts`) — hardcodes the standard
+   Machado-2009 protanopia/deuteranopia/tritanopia simulation matrices plus an sRGB → CIE Lab
+   conversion (no new dependency) and asserts, for the 10 series colors in each mode: every
+   color clears 3:1 vs its card [hard gate], and for each CVD type, the minimum pairwise CIE76
+   ΔE across all 10 colors stays ≥ 3.0 (the just-noticeable-difference floor). Re-runs on any
+   palette edit.
+2. **Manual sign-off pass** — a documented pass in Chrome DevTools Rendering → "Emulate vision
+   deficiencies" (protanopia, deuteranopia, tritanopia, **achromatopsia/grayscale**) on the
+   10-work `MultiSeriesTrendChart` Storybook story, both light and dark. **Achromatopsia is the
+   decisive case**: with zero color, all 10 series must remain individually traceable by
+   **shape alone** — this is the real accessibility floor; color-channel imperfections are
+   acceptable precisely because shape never depends on them.
+
+Measured worst-case minimum pairwise ΔE (headroom over the 3.0 floor):
+
+| mode | protanopia | deuteranopia | tritanopia | floor |
+|---|---|---|---|---|
+| light | 4.6 | 3.8 | 5.5 | **3.8** |
+| dark | 12.6 | 3.7 | 10.5 | **3.7** |
+
+Because shape guarantees identity, color separation is a reinforcement target, not the
+accessibility floor — the ΔE ≥ 3 bar ensures color rarely actively misleads, and shape covers
+the rest.
+
+### Shape distinguishability
+
+The 10 marker shapes (circle, square, triangle-up, diamond, plus, star, triangle-down, cross/X,
+hollow-circle, hollow-square) must be individually distinguishable at both chart scale (~8px,
+`size:4`) and legend scale (~10px, `size:5`), in both modes, and under grayscale/achromatopsia —
+validated empirically (not assumed), per the manual sign-off pass above. If any pair collides,
+hexagon and wye (Y) are held in reserve as swaps.
 
 ### Grouped picker pattern (multi-select + fandom bulk-select)
 
@@ -329,7 +390,7 @@ The work-selection control (`WorkPicker`) is an outer `<fieldset>`/`<legend>` ("
 compare") containing one nested `<fieldset>`/`<legend>` per fandom group, each with native
 `<input type="checkbox">` + `<label>` per work (free keyboard operability, correct roles) and a
 real `<button>` naming its fandom ("Select all in Fandom One") that *adds* that fandom's works
-to one shared selection set — additive, never a replace/filter — up to the 6-work cap. At-cap
+to one shared selection set — additive, never a replace/filter — up to the 10-work cap. At-cap
 checkboxes get `disabled` + `aria-disabled`; cap/truncation messages go to a single `role=
 "status"` polite live region shared with any other dynamic announcement for the same section
 (e.g. a "Comparing N works, START to END" summary), rather than one live region per sub-
