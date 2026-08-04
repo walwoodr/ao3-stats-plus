@@ -1,25 +1,42 @@
-// The 6-slot (shape, dash, color-role) style table from the plan's Q3 table
-// (docs/plans/per-work-comparison-graph.md), plus a stable workId ->
-// styleIndex assignment. Shape + dash is the accessibility-guaranteed,
-// non-color differentiator; colorRole is a redundant reinforcement channel
+// The 10-slot (shape, color) style table from the plan's section 3 table
+// (docs/plans/usds-dataviz-color-scheme.md), superseding the original
+// 6-slot (shape, dash, color-role) table from
+// docs/plans/per-work-comparison-graph.md's Q3 decision. Shape is now the
+// SOLE accessibility-guaranteed, non-color differentiator - per the plan's
+// "Dash decision," 10 mutually distinguishable dasharray patterns don't
+// exist, so per-series lines are solid and dash is reserved exclusively for
+// the already-shipped zero-basis lead-in (MultiSeriesTrendChart.tsx, not
+// read from this table). colorRole is a redundant reinforcement channel
 // resolved against `ColorTokens.series` (see colorTokens.ts) in the SAME
-// slot order (wine, teal, amber, indigo, green, purple).
-export type MarkerShapeName = "circle" | "square" | "triangle" | "diamond" | "plus" | "star";
+// slot order.
+export type MarkerShapeName =
+  | "circle"
+  | "square"
+  | "triangle"
+  | "diamond"
+  | "plus"
+  | "star"
+  | "triangle-down"
+  | "cross"
+  | "circle-hollow"
+  | "square-hollow";
 
 export interface SeriesStyleSlot {
   shape: MarkerShapeName;
-  dash: string | null; // null = solid (slot 1) - an explicit choice, not a missing value.
   colorRole: string;
-  dashLabel: string; // human-readable word for the legend's worded style description.
 }
 
 export const SERIES_STYLE_SLOTS: readonly SeriesStyleSlot[] = [
-  { shape: "circle", dash: null, colorRole: "wine", dashLabel: "solid" },
-  { shape: "square", dash: "6 4", colorRole: "teal", dashLabel: "dashed" },
-  { shape: "triangle", dash: "2 3", colorRole: "amber", dashLabel: "dotted" },
-  { shape: "diamond", dash: "9 3 2 3", colorRole: "indigo", dashLabel: "dash-dot" },
-  { shape: "plus", dash: "4 4", colorRole: "green", dashLabel: "short-dashed" },
-  { shape: "star", dash: "1 3", colorRole: "purple", dashLabel: "fine-dotted" },
+  { shape: "circle", colorRole: "wine" },
+  { shape: "square", colorRole: "orange" },
+  { shape: "triangle", colorRole: "amber" },
+  { shape: "diamond", colorRole: "green" },
+  { shape: "plus", colorRole: "teal" },
+  { shape: "star", colorRole: "azure" },
+  { shape: "triangle-down", colorRole: "indigo" },
+  { shape: "cross", colorRole: "magenta" },
+  { shape: "circle-hollow", colorRole: "slate" },
+  { shape: "square-hollow", colorRole: "brown" },
 ];
 
 // Assignment is threaded through as an immutable Map (assign/release return
@@ -40,7 +57,7 @@ export function assignStyleSlot(
       break;
     }
   }
-  // All 6 slots taken - no 7th style exists to assign (matches the
+  // All 10 slots taken - no 11th style exists to assign (matches the
   // MAX_SELECTED_WORKS cap in comparisonSelection.ts), so this is a no-op.
   if (freeIndex === -1) return new Map(assignment);
 
