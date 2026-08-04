@@ -24,8 +24,8 @@ function work(ao3WorkId: number, capturedOnDates: string[] = []): PerWorkSeries 
 }
 
 describe("comparisonSelection: MAX_SELECTED_WORKS", () => {
-  it("is exactly 6, per Q2's resolved cap", () => {
-    expect(MAX_SELECTED_WORKS).toBe(6);
+  it("is exactly 10, per the plan's cap raise (docs/plans/usds-dataviz-color-scheme.md)", () => {
+    expect(MAX_SELECTED_WORKS).toBe(10);
   });
 });
 
@@ -42,10 +42,10 @@ describe("addWork / removeWork", () => {
     expect(addWork([1, 2], 1)).toEqual([1, 2]);
   });
 
-  it("refuses to add a 7th work once the 6-work cap is reached", () => {
-    const atCap = [1, 2, 3, 4, 5, 6];
+  it("refuses to add an 11th work once the 10-work cap is reached", () => {
+    const atCap = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-    expect(addWork(atCap, 7)).toEqual(atCap);
+    expect(addWork(atCap, 11)).toEqual(atCap);
   });
 
   it("removes a work id from the selection", () => {
@@ -79,19 +79,19 @@ describe("selectAllInFandom", () => {
     expect(result.requestedCount).toBe(3);
   });
 
-  it("truncates additions at the 6-work cap and reports how many were actually added vs requested", () => {
-    const result = selectAllInFandom([1, 2, 3, 4, 5], [10, 20, 30]);
+  it("truncates additions at the 10-work cap and reports how many were actually added vs requested", () => {
+    const result = selectAllInFandom([1, 2, 3, 4, 5, 6, 7, 8, 9], [100, 200, 300]);
 
     expect(result.selectedIds).toHaveLength(MAX_SELECTED_WORKS);
-    expect(result.selectedIds).toEqual([1, 2, 3, 4, 5, 10]);
+    expect(result.selectedIds).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 100]);
     expect(result.addedCount).toBe(1);
     expect(result.requestedCount).toBe(3);
   });
 
   it("adds nothing (addedCount 0) when already at the cap, without throwing", () => {
-    const atCap = [1, 2, 3, 4, 5, 6];
+    const atCap = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-    const result = selectAllInFandom(atCap, [10, 20]);
+    const result = selectAllInFandom(atCap, [100, 200]);
 
     expect(result.selectedIds).toEqual(atCap);
     expect(result.addedCount).toBe(0);
