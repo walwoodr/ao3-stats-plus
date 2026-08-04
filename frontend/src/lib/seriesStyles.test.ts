@@ -6,33 +6,36 @@ import {
   type SeriesStyleSlot,
 } from "./seriesStyles";
 
-// The 6-slot (shape, dash, color-role) table from the plan's Q3 table, plus
-// a stable workId -> styleIndex assignment. Assignment is threaded through
-// as an immutable Map (assign/release return a new map) so
-// WorkComparisonSection can keep it in useState and re-derive per render
-// without a class/singleton.
+// The 10-slot (shape, color) style table (docs/plans/usds-dataviz-color-
+// scheme.md, replacing the 6-slot shape/dash/color table from
+// docs/plans/per-work-comparison-graph.md), plus a stable workId ->
+// styleIndex assignment. Shape is now the SOLE accessibility-guaranteed,
+// non-color channel (dash is gone - lines are solid, see the plan's "Dash
+// decision"); colorRole is a redundant reinforcement channel resolved
+// against `ColorTokens.series` (see colorTokens.ts) in the SAME slot order.
 describe("SERIES_STYLE_SLOTS", () => {
-  it("has exactly 6 slots - the resolved cap from Q2, one style per work", () => {
-    expect(SERIES_STYLE_SLOTS).toHaveLength(6);
+  it("has exactly 10 slots - the resolved cap raise, one style per work", () => {
+    expect(SERIES_STYLE_SLOTS).toHaveLength(10);
   });
 
-  // Pinned exactly from the plan's Q3 table - shape, dash, and color-role
-  // per slot. Dash uses `null` to represent "solid" (slot 1) rather than an
-  // empty string, so a solid line is an explicit choice, not a missing
-  // value.
-  it("matches the plan's Q3 table exactly, in order", () => {
-    // Partial on purpose: toMatchObject below only checks these three
-    // fields (shape/dash/colorRole per the plan's Q3 table) and
-    // deliberately ignores dashLabel (added later, for the legend's
-    // worded style description - see seriesStyles.ts) and any other
-    // fields the real slot shape may gain.
+  // Pinned exactly from the plan's 10-slot table (section 3) - shape and
+  // color-role per slot, in order. No `dash`/`dashLabel` fields at all
+  // (Partial<SeriesStyleSlot> below intentionally only checks these two
+  // fields, so it also silently accepts an implementation that still
+  // carries extra fields - the "does not have a dash/dashLabel field"
+  // tests below cover their actual absence).
+  it("matches the plan's 10-slot table exactly, in order", () => {
     const expected: Partial<SeriesStyleSlot>[] = [
-      { shape: "circle", dash: null, colorRole: "wine" },
-      { shape: "square", dash: "6 4", colorRole: "teal" },
-      { shape: "triangle", dash: "2 3", colorRole: "amber" },
-      { shape: "diamond", dash: "9 3 2 3", colorRole: "indigo" },
-      { shape: "plus", dash: "4 4", colorRole: "green" },
-      { shape: "star", dash: "1 3", colorRole: "purple" },
+      { shape: "circle", colorRole: "wine" },
+      { shape: "square", colorRole: "orange" },
+      { shape: "triangle", colorRole: "amber" },
+      { shape: "diamond", colorRole: "green" },
+      { shape: "plus", colorRole: "teal" },
+      { shape: "star", colorRole: "azure" },
+      { shape: "triangle-down", colorRole: "indigo" },
+      { shape: "cross", colorRole: "magenta" },
+      { shape: "circle-hollow", colorRole: "slate" },
+      { shape: "square-hollow", colorRole: "brown" },
     ];
 
     expected.forEach((slot, index) => {
@@ -45,24 +48,25 @@ describe("SERIES_STYLE_SLOTS", () => {
     expect(new Set(shapes).size).toBe(shapes.length);
   });
 
-  it("gives every slot a distinct dash pattern", () => {
-    const dashes = SERIES_STYLE_SLOTS.map((s) => s.dash);
-    expect(new Set(dashes).size).toBe(dashes.length);
-  });
-
   it("gives every slot a distinct color role", () => {
     const roles = SERIES_STYLE_SLOTS.map((s) => s.colorRole);
     expect(new Set(roles).size).toBe(roles.length);
   });
 
-  it("gives every slot a human-readable dashLabel usable in the legend's worded style description", () => {
+  // Dash is gone entirely (plan's "Dash decision": at 10 slots, 10 mutually
+  // distinguishable dasharrays don't exist, and dash was always redundant
+  // with shape as a non-color channel) - no slot should carry a `dash` or
+  // `dashLabel` field at all, not even `null`/an empty string.
+  it("does not carry a `dash` field on any slot (lines are solid, dash removed as a per-series channel)", () => {
     SERIES_STYLE_SLOTS.forEach((slot) => {
-      expect(typeof slot.dashLabel).toBe("string");
-      expect(slot.dashLabel.length).toBeGreaterThan(0);
+      expect(slot).not.toHaveProperty("dash");
     });
-    // Solid (slot 1) must be described in words, exactly matching the
-    // plan's own worked example: "solid wine line, circle marker".
-    expect(SERIES_STYLE_SLOTS[0].dashLabel).toBe("solid");
+  });
+
+  it("does not carry a `dashLabel` field on any slot (the legend's worded description drops the dash word)", () => {
+    SERIES_STYLE_SLOTS.forEach((slot) => {
+      expect(slot).not.toHaveProperty("dashLabel");
+    });
   });
 });
 
@@ -103,16 +107,28 @@ describe("assignStyleSlot", () => {
     expect(assignment.get(1)).toBe(workOneSlot);
   });
 
-  it("does not assign a 7th slot once all 6 are taken (matches SERIES_STYLE_SLOTS.length)", () => {
+  it("assigns up to all 10 slots as 10 works are added in sequence", () => {
     let assignment = new Map<number, number>();
-    for (let workId = 1; workId <= 6; workId += 1) {
+    for (let workId = 1; workId <= 10; workId += 1) {
       assignment = assignStyleSlot(assignment, workId);
     }
 
-    assignment = assignStyleSlot(assignment, 7);
+    for (let workId = 1; workId <= 10; workId += 1) {
+      expect(assignment.get(workId)).toBe(workId - 1);
+    }
+    expect(assignment.size).toBe(10);
+  });
 
-    expect(assignment.has(7)).toBe(false);
-    expect(assignment.size).toBe(6);
+  it("does not assign an 11th slot once all 10 are taken (matches SERIES_STYLE_SLOTS.length)", () => {
+    let assignment = new Map<number, number>();
+    for (let workId = 1; workId <= 10; workId += 1) {
+      assignment = assignStyleSlot(assignment, workId);
+    }
+
+    assignment = assignStyleSlot(assignment, 11);
+
+    expect(assignment.has(11)).toBe(false);
+    expect(assignment.size).toBe(10);
   });
 });
 
@@ -151,17 +167,42 @@ describe("releaseStyleSlot", () => {
     expect(assignment.get(2)).toBe(workTwoSlot);
   });
 
-  it("reuses the LOWEST free index, not just any free index, when multiple slots are free", () => {
+  it("reuses the LOWEST free index, not just any free index, when multiple slots are free (extended over 10 slots)", () => {
     let assignment = new Map<number, number>();
-    for (let workId = 1; workId <= 6; workId += 1) {
+    for (let workId = 1; workId <= 10; workId += 1) {
       assignment = assignStyleSlot(assignment, workId);
     }
-    // Free slots 1 and 3 (indices), leaving 0, 2, 4, 5 taken.
+    // Free slots 1 and 3 (indices), leaving 0, 2, 4-9 taken.
     assignment = releaseStyleSlot(assignment, 2);
     assignment = releaseStyleSlot(assignment, 4);
 
-    assignment = assignStyleSlot(assignment, 7);
+    assignment = assignStyleSlot(assignment, 11);
 
-    expect(assignment.get(7)).toBe(1);
+    expect(assignment.get(11)).toBe(1);
+  });
+
+  it("refills all 10 slots correctly after releasing and re-adding across the full range", () => {
+    let assignment = new Map<number, number>();
+    for (let workId = 1; workId <= 10; workId += 1) {
+      assignment = assignStyleSlot(assignment, workId);
+    }
+    // Release every even-numbered work (slots 1, 3, 5, 7, 9).
+    [2, 4, 6, 8, 10].forEach((workId) => {
+      assignment = releaseStyleSlot(assignment, workId);
+    });
+    expect(assignment.size).toBe(5);
+
+    // Re-add 5 new works - each should land on the lowest free slot,
+    // lowest-first.
+    [12, 13, 14, 15, 16].forEach((workId) => {
+      assignment = assignStyleSlot(assignment, workId);
+    });
+
+    expect(assignment.get(12)).toBe(1);
+    expect(assignment.get(13)).toBe(3);
+    expect(assignment.get(14)).toBe(5);
+    expect(assignment.get(15)).toBe(7);
+    expect(assignment.get(16)).toBe(9);
+    expect(assignment.size).toBe(10);
   });
 });
