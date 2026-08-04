@@ -126,16 +126,18 @@ baseline feature on purpose)
   (shipped 2026-08-04, see `docs/plans/per-work-zero-basis-dates.md`) for
   both the per-work zero-basis dates and each work's first real captured
   date.
-- **IN PLANNING (2026-08-04):** establish a proper data-visualization color
-  scheme for the graphs, modeled on the U.S. Digital Service's Data Design
-  Standards color system
+- ~~Establish a proper data-visualization color scheme for the graphs,
+  modeled on the U.S. Digital Service's Data Design Standards color system
   (https://xdgov.github.io/data-design-standards/components/colors) rather
   than the current 6 series colors in `colorTokens.ts` (derived during the
   per-work-comparison-graph feature's Planning stage). Pairs the resulting
   palette with a larger set of distinguishable SVG marker shapes so
   shape x color combinations raise the multi-work comparison graph's
-  selection cap from 6 to ~10. Finalized plan, with a formal colorblind
-  (CVD) verification step, at `docs/plans/usds-dataviz-color-scheme.md`.
+  selection cap from 6 to ~10, with a formal colorblind (CVD) verification
+  step.~~ **SHIPPED 2026-08-04** (`docs/plans/usds-dataviz-color-scheme.md`;
+  the shape set was further corrected same-day - plus/star/cross swapped
+  for hollow diamond/triangle-up/triangle-down per user review - see that
+  plan's addendum).
 - Adjust the vertical (Y) axis range on all graphs (aggregate and
   per-work) to pad around the actual min/max values present in the
   plotted data set, rather than always anchoring the axis to 0. Where
