@@ -134,9 +134,12 @@ function cellValue(row: ChartRow, workId: number): string | number {
 // see the plan's "New vs. extended" section). Reuses the same accessibility
 // skeleton (figure role=img, aria-hidden Recharts block, sr-only per-point
 // markers, sr-only wide data table) plus a visible legend mapping each
-// work's title to its (shape, dash, color) glyph in words - color is a
-// redundant reinforcement channel (decision A), never the sole
-// differentiator; identity for AT users is always the work's title text.
+// work's title to its (shape, color) glyph in words - per
+// docs/plans/usds-dataviz-color-scheme.md, shape alone is now the
+// guaranteed non-color channel (dash was dropped as a per-series
+// differentiator; series lines are solid) and color is redundant
+// reinforcement only, never the sole differentiator; identity for AT users
+// is always the work's title text.
 export function MultiSeriesTrendChart({ title, valueLabel, series }: MultiSeriesTrendChartProps) {
   const headingId = useId();
   const colors = useChartColors();
@@ -200,7 +203,6 @@ export function MultiSeriesTrendChart({ title, valueLabel, series }: MultiSeries
                   isAnimationActive={false}
                   stroke={color}
                   strokeWidth={2}
-                  strokeDasharray={slot.dash ?? undefined}
                   dot={(dotProps: {
                     cx?: number;
                     cy?: number;

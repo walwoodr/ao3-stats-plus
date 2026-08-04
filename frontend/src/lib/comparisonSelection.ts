@@ -5,10 +5,14 @@ import type { PerWorkPoint, PerWorkSeries } from "../queries/useStatsForUser";
 // useState, not Zustand - this is ephemeral, view-local UI state). Kept
 // pure and dependency-free so it's unit-testable without rendering.
 
-// The resolved cap from Q2: the binding constraint is the count of
-// unambiguously distinct marker shapes (six), so this also bounds the
-// style/color slot count in seriesStyles.ts/colorTokens.ts.
-export const MAX_SELECTED_WORKS = 6;
+// The resolved cap, raised 6 -> 10 by docs/plans/usds-dataviz-color-
+// scheme.md (Discovery's "target cap ~10," redesigning all style slots from
+// scratch): the binding constraint is still the count of unambiguously
+// distinct marker shapes (now ten, validated by the shape-distinguishability
+// pass), so this also bounds the style/color slot count in
+// seriesStyles.ts/colorTokens.ts - see capInvariant.test.ts for the
+// cross-module guard.
+export const MAX_SELECTED_WORKS = 10;
 
 export function addWork(selectedWorkIds: number[], workId: number): number[] {
   if (selectedWorkIds.includes(workId)) return selectedWorkIds;
