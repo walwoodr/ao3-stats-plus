@@ -465,7 +465,7 @@
   extracting `buildChartData` into its own module (mirroring
   `lib/comparisonSelection.ts`, the codebase's existing convention for
   directly-tested pure transforms) to clear the warning and match that pattern.
-- [2026-08-04] (stage: Implementation) `frontend/src/lib/useChartColors.test.ts`'s
+- ~~[2026-08-04] (stage: Implementation) `frontend/src/lib/useChartColors.test.ts`'s
   "ColorTokens.series (multi-series categorical palette)" describe block
   hardcodes literal pins of the *old* 6-hex `series` palette
   (`docs/plans/per-work-comparison-graph.md`'s decision A) and was not among
@@ -480,4 +480,9 @@
   `DARK_SERIES_HEXES` arrays (and the `toHaveLength(6)` assertions) updated
   to the new 10-hex plan values, or the whole duplicate-pinning describe
   block removed now that `colorTokens.test.ts` owns that coverage - a call
-  for Testing/Review, not Implementation.
+  for Testing/Review, not Implementation.~~ **RESOLVED 2026-08-04:** updated
+  `LIGHT_SERIES_HEXES`/`DARK_SERIES_HEXES` and the two `toHaveLength`
+  assertions to the real 10-hex values (verified directly against
+  `colorTokens.ts`), rather than deleting the block - it still adds value as
+  an independent cross-check against `colorTokens.test.ts`/
+  `colorTokens.cvd.test.ts`, not pure duplication. All 573 tests green.

@@ -105,22 +105,44 @@ describe("usePrefersDarkColorScheme / useChartColors", () => {
 // duplicated source of truth with index.css/MASTER.md (its own file-level
 // comment says to re-verify all three stay in sync).
 describe("ColorTokens.series (multi-series categorical palette)", () => {
-  const LIGHT_SERIES_HEXES = ["#9F1239", "#0F766E", "#B45309", "#4338CA", "#4D7C5F", "#7E22CE"];
-  const DARK_SERIES_HEXES = ["#E8879E", "#5EEAD4", "#FBBF24", "#A5B4FC", "#8FBFA0", "#D8B4FE"];
+  const LIGHT_SERIES_HEXES = [
+    "#9F1239",
+    "#C2410C",
+    "#854D0E",
+    "#15803D",
+    "#0F766E",
+    "#0369A1",
+    "#4338CA",
+    "#A21CAF",
+    "#334155",
+    "#7C2D12",
+  ];
+  const DARK_SERIES_HEXES = [
+    "#E8879E",
+    "#FDBA74",
+    "#FCD34D",
+    "#86EFAC",
+    "#5EEAD4",
+    "#7DD3FC",
+    "#818CF8",
+    "#F0ABFC",
+    "#CBD5E1",
+    "#D2B48C",
+  ];
 
-  it("gives LIGHT_COLOR_TOKENS a series array of exactly 6 hexes", () => {
-    expect(LIGHT_COLOR_TOKENS.series).toHaveLength(6);
+  it("gives LIGHT_COLOR_TOKENS a series array of exactly 10 hexes", () => {
+    expect(LIGHT_COLOR_TOKENS.series).toHaveLength(10);
   });
 
-  it("gives DARK_COLOR_TOKENS a series array of exactly 6 hexes", () => {
-    expect(DARK_COLOR_TOKENS.series).toHaveLength(6);
+  it("gives DARK_COLOR_TOKENS a series array of exactly 10 hexes", () => {
+    expect(DARK_COLOR_TOKENS.series).toHaveLength(10);
   });
 
-  it("matches the plan's light palette exactly, in slot order (wine, teal, amber, indigo, green, purple)", () => {
+  it("matches the plan's light palette exactly, in slot order (wine, orange, amber, green, teal, azure, indigo, magenta, slate, brown)", () => {
     expect(LIGHT_COLOR_TOKENS.series).toEqual(LIGHT_SERIES_HEXES);
   });
 
-  it("matches the plan's dark palette exactly, in slot order (wine, teal, amber, indigo, green, purple)", () => {
+  it("matches the plan's dark palette exactly, in slot order (wine, orange, amber, green, teal, azure, indigo, magenta, slate, brown)", () => {
     expect(DARK_COLOR_TOKENS.series).toEqual(DARK_SERIES_HEXES);
   });
 
