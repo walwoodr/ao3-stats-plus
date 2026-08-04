@@ -23,9 +23,6 @@ feature scope, agreed as out of scope for v1 on purpose.
   Planning — this item is about graphing them, not new data collection)
 - Per-work comments over time (also already captured in the v1 data model;
   graphing only)
-- List of per-work bookmark comments (new data source — likely requires
-  scraping the work's bookmarks page, not just the stats page; more scraping
-  surface than anything in v1)
 - User subscriptions over time (account-level; see subscriptions note above)
 
 ## v2 candidates (confirmed 2026-07-30, deferred from the earliest-post-year
@@ -147,6 +144,20 @@ baseline feature on purpose)
 
 ## v2 candidates (confirmed 2026-08-04)
 
+- Display per-work bookmark notes/comments in the UI. **Verified 2026-08-04:
+  this is NOT a new data source**, correcting the 2026-07-22 batch's
+  original framing ("likely requires scraping the work's bookmarks page").
+  `scrapeWorkBookmarks.ts` already scrapes each public bookmark's note
+  (`noteHtml`), bookmarker name, tags, date, and collections from the
+  work's `/works/:id/bookmarks` page; this is already stored (the
+  `work_bookmarks` table) and already exposed via GraphQL
+  (`WorkBookmarkType`, `PerWorkSeriesType#bookmarks`) - all shipped as
+  part of `docs/plans/work-page-enrichment-data-model.md`. That plan
+  explicitly scoped the consuming UI out ("The toggle-graph UI that
+  consumes this data remains explicitly out of scope and needs its own
+  consultation + Planning pass"). What's actually left is pure frontend
+  work: designing and building a UI to list/display this already-captured
+  data - no scraping, backend, or data-model work needed.
 - Persist the "compare works" selection (`WorkComparisonSection`'s
   selected-work-ids state, currently plain `useState` that resets on every
   page load) to browser storage - e.g. `localStorage`, scoped per-username
