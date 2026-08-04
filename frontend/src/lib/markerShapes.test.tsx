@@ -3,17 +3,15 @@ import { render } from "@testing-library/react";
 import { MarkerGlyph, renderMarkerShape } from "./markerShapes";
 import type { MarkerShapeName } from "./seriesStyles";
 
-// Testing task 4 (docs/plans/usds-dataviz-color-scheme.md, section 7): the
-// 10-shape marker set (6 pre-existing filled shapes + 4 new ones -
-// triangle-down, cross, circle-hollow, square-hollow). New file - no prior
-// markerShapes test existed. `renderMarkerShape`'s new shape names
-// (triangle-down/cross/circle-hollow/square-hollow) don't exist on
-// `MarkerShapeName` yet (still the 6-name union pre-Implementation), so
-// every reference to them below is a genuine TypeScript error until
-// Implementation task 3 extends the union - the same "red, not just at
-// runtime" shape as MultiSeriesTrendChart.buildChartData.test.ts's
-// not-yet-exported `buildChartData` import. `as MarkerShapeName` casts on
-// the 4 new literals make that explicit rather than silently suppressing it.
+// Testing task 4 (docs/plans/usds-dataviz-color-scheme.md, section 7),
+// revised same-day (2026-08-04) per the user's basic-geometric-shapes-only
+// maintenance correction: the shipped 10-shape set originally included
+// plus/star/cross at slots 4/5/7; those are replaced here with
+// diamond-hollow/triangle-hollow/triangle-down-hollow (outlines of the
+// pre-existing filled diamond/triangle/triangle-down), following the exact
+// same hollow-rendering pattern already established by circle-hollow/
+// square-hollow. Final 10: circle/square/triangle/diamond/triangle-down,
+// each filled and hollow - no plus/star/cross anywhere.
 const COLOR = "#123456";
 
 // Renders a shape's raw SVG primitive wrapped in a real <svg> root so
@@ -28,12 +26,12 @@ const ALL_TEN_SHAPES: MarkerShapeName[] = [
   "square",
   "triangle",
   "diamond",
-  "plus",
-  "star",
-  "triangle-down" as MarkerShapeName,
-  "cross" as MarkerShapeName,
-  "circle-hollow" as MarkerShapeName,
-  "square-hollow" as MarkerShapeName,
+  "diamond-hollow",
+  "triangle-hollow",
+  "triangle-down",
+  "triangle-down-hollow",
+  "circle-hollow",
+  "square-hollow",
 ];
 
 describe("renderMarkerShape: full 10-shape set", () => {
@@ -82,20 +80,6 @@ describe("renderMarkerShape: full 10-shape set", () => {
       expect(polygon).not.toBeNull();
       expect(polygon?.getAttribute("fill")).toBe(COLOR);
     });
-
-    it("renders plus as two filled rects (cross-arms)", () => {
-      const { container } = renderShape("plus");
-      const rects = container.querySelectorAll("rect");
-      expect(rects.length).toBeGreaterThanOrEqual(2);
-      rects.forEach((rect) => expect(rect.getAttribute("fill")).toBe(COLOR));
-    });
-
-    it("renders star as a filled <polygon>", () => {
-      const { container } = renderShape("star");
-      const polygon = container.querySelector("polygon");
-      expect(polygon).not.toBeNull();
-      expect(polygon?.getAttribute("fill")).toBe(COLOR);
-    });
   });
 
   describe("new shape: triangle-down", () => {
@@ -120,20 +104,7 @@ describe("renderMarkerShape: full 10-shape set", () => {
     });
   });
 
-  describe("new shape: cross", () => {
-    it("renders distinct markup from the plus shape (not an accidental reuse)", () => {
-      const plusHtml = renderShape("plus").container.querySelector("svg")?.innerHTML;
-      const crossHtml = renderShape("cross" as MarkerShapeName).container.querySelector(
-        "svg",
-      )?.innerHTML;
-
-      expect(plusHtml).toBeTruthy();
-      expect(crossHtml).toBeTruthy();
-      expect(crossHtml).not.toBe(plusHtml);
-    });
-  });
-
-  describe('new hollow shapes: fill="none" + stroke (plan\'s explicit geometry)', () => {
+  describe('hollow shapes: fill="none" + stroke (plan\'s explicit geometry)', () => {
     it('renders circle-hollow as a single <circle fill="none" stroke=color>', () => {
       const { container } = renderShape("circle-hollow" as MarkerShapeName);
       const circle = container.querySelector("circle");
@@ -148,6 +119,47 @@ describe("renderMarkerShape: full 10-shape set", () => {
       expect(rect).not.toBeNull();
       expect(rect?.getAttribute("fill")).toBe("none");
       expect(rect?.getAttribute("stroke")).toBe(COLOR);
+    });
+
+    // Same-day (2026-08-04) maintenance correction: the user rejected
+    // plus/star/cross as not "basic geometric shapes" and required their
+    // slots (4/5/7) be replaced with hollow/outline diamond, triangle, and
+    // triangle-down instead - each following this exact fill="none" +
+    // stroke=color pattern, geometry otherwise identical to its filled
+    // counterpart's <polygon> points.
+    it('renders diamond-hollow as a single <polygon fill="none" stroke=color> with diamond geometry', () => {
+      const { container } = renderShape("diamond-hollow" as MarkerShapeName);
+      const polygon = container.querySelector("polygon");
+      expect(polygon).not.toBeNull();
+      expect(polygon?.getAttribute("fill")).toBe("none");
+      expect(polygon?.getAttribute("stroke")).toBe(COLOR);
+      expect(polygon?.getAttribute("points")).toBe(
+        renderShape("diamond").container.querySelector("polygon")?.getAttribute("points"),
+      );
+    });
+
+    it('renders triangle-hollow as a single <polygon fill="none" stroke=color> with the upward-triangle geometry', () => {
+      const { container } = renderShape("triangle-hollow" as MarkerShapeName);
+      const polygon = container.querySelector("polygon");
+      expect(polygon).not.toBeNull();
+      expect(polygon?.getAttribute("fill")).toBe("none");
+      expect(polygon?.getAttribute("stroke")).toBe(COLOR);
+      expect(polygon?.getAttribute("points")).toBe(
+        renderShape("triangle").container.querySelector("polygon")?.getAttribute("points"),
+      );
+    });
+
+    it('renders triangle-down-hollow as a single <polygon fill="none" stroke=color> with the downward-triangle geometry', () => {
+      const { container } = renderShape("triangle-down-hollow" as MarkerShapeName);
+      const polygon = container.querySelector("polygon");
+      expect(polygon).not.toBeNull();
+      expect(polygon?.getAttribute("fill")).toBe("none");
+      expect(polygon?.getAttribute("stroke")).toBe(COLOR);
+      expect(polygon?.getAttribute("points")).toBe(
+        renderShape("triangle-down" as MarkerShapeName)
+          .container.querySelector("polygon")
+          ?.getAttribute("points"),
+      );
     });
 
     it("scales the hollow stroke width with `size` rather than using a fixed constant", () => {

@@ -18,22 +18,27 @@ describe("SERIES_STYLE_SLOTS", () => {
     expect(SERIES_STYLE_SLOTS).toHaveLength(10);
   });
 
-  // Pinned exactly from the plan's 10-slot table (section 3) - shape and
-  // color-role per slot, in order. No `dash`/`dashLabel` fields at all
+  // Pinned from the plan's 10-slot table (section 3), as corrected same-day
+  // by the user's 2026-08-04 basic-geometric-shapes-only review (see the
+  // plan doc's addendum and TECH_DEBT.md-style dated note): slots 4/5/7
+  // swap plus/star/cross for hollow/outline diamond, triangle, and
+  // triangle-down respectively - no plus/star/cross anywhere in the final
+  // set. Colors are untouched (colorRole per slot index is independent of
+  // shape - see colorTokens.ts). No `dash`/`dashLabel` fields at all
   // (Partial<SeriesStyleSlot> below intentionally only checks these two
   // fields, so it also silently accepts an implementation that still
   // carries extra fields - the "does not have a dash/dashLabel field"
   // tests below cover their actual absence).
-  it("matches the plan's 10-slot table exactly, in order", () => {
+  it("matches the corrected 10-slot table exactly, in order (basic geometric shapes only)", () => {
     const expected: Partial<SeriesStyleSlot>[] = [
       { shape: "circle", colorRole: "wine" },
       { shape: "square", colorRole: "orange" },
       { shape: "triangle", colorRole: "amber" },
       { shape: "diamond", colorRole: "green" },
-      { shape: "plus", colorRole: "teal" },
-      { shape: "star", colorRole: "azure" },
+      { shape: "diamond-hollow", colorRole: "teal" },
+      { shape: "triangle-hollow", colorRole: "azure" },
       { shape: "triangle-down", colorRole: "indigo" },
-      { shape: "cross", colorRole: "magenta" },
+      { shape: "triangle-down-hollow", colorRole: "magenta" },
       { shape: "circle-hollow", colorRole: "slate" },
       { shape: "square-hollow", colorRole: "brown" },
     ];

@@ -9,15 +9,23 @@
 // read from this table). colorRole is a redundant reinforcement channel
 // resolved against `ColorTokens.series` (see colorTokens.ts) in the SAME
 // slot order.
+// Same-day (2026-08-04) maintenance correction to the shipped 10-shape set:
+// the user rejected plus/star/cross as not "basic geometric shapes" -
+// slots 4/5/7 now carry hollow/outline variants of the pre-existing filled
+// diamond/triangle/triangle-down instead (see the addendum in
+// docs/plans/usds-dataviz-color-scheme.md and the fresh distinguishability
+// pass in docs/maintenance/). Final 10 = 5 base geometric shapes (circle,
+// square, triangle, diamond, triangle-down) x 2 fill states (filled,
+// hollow) - no plus/star/cross anywhere.
 export type MarkerShapeName =
   | "circle"
   | "square"
   | "triangle"
   | "diamond"
-  | "plus"
-  | "star"
+  | "diamond-hollow"
+  | "triangle-hollow"
   | "triangle-down"
-  | "cross"
+  | "triangle-down-hollow"
   | "circle-hollow"
   | "square-hollow";
 
@@ -31,10 +39,10 @@ export const SERIES_STYLE_SLOTS: readonly SeriesStyleSlot[] = [
   { shape: "square", colorRole: "orange" },
   { shape: "triangle", colorRole: "amber" },
   { shape: "diamond", colorRole: "green" },
-  { shape: "plus", colorRole: "teal" },
-  { shape: "star", colorRole: "azure" },
+  { shape: "diamond-hollow", colorRole: "teal" },
+  { shape: "triangle-hollow", colorRole: "azure" },
   { shape: "triangle-down", colorRole: "indigo" },
-  { shape: "cross", colorRole: "magenta" },
+  { shape: "triangle-down-hollow", colorRole: "magenta" },
   { shape: "circle-hollow", colorRole: "slate" },
   { shape: "square-hollow", colorRole: "brown" },
 ];

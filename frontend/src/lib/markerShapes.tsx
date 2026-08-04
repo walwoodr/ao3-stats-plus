@@ -1,8 +1,10 @@
 import type { MarkerShapeName } from "./seriesStyles";
 
 // Pure SVG-path renderers for the 10 marker shapes (docs/plans/usds-
-// dataviz-color-scheme.md's slot table - 6 original filled shapes plus 4
-// new ones: triangle-down, cross, circle-hollow, square-hollow) - used
+// dataviz-color-scheme.md's slot table, corrected same-day 2026-08-04 per
+// the user's basic-geometric-shapes-only review - see that plan's addendum)
+// - 5 base geometric shapes (circle, square, triangle, diamond,
+// triangle-down), each filled and hollow. No plus/star/cross. Used
 // identically by MultiSeriesTrendChart's custom line dots (embedded
 // directly in Recharts' own <svg> canvas, so they render bare primitives,
 // not a wrapping <svg>) and by ComparisonLegend's small standalone glyphs
@@ -15,19 +17,20 @@ interface ShapeGeometryProps {
   color: string;
 }
 
-function starPoints(cx: number, cy: number, outerRadius: number, innerRadius: number): string {
-  const points: string[] = [];
-  for (let i = 0; i < 10; i += 1) {
-    // Alternate outer/inner radius every point, starting straight up
-    // (-90deg) so the star reads the same way a typical star glyph does.
-    const radius = i % 2 === 0 ? outerRadius : innerRadius;
-    const angle = (Math.PI / 5) * i - Math.PI / 2;
-    points.push(`${cx + radius * Math.cos(angle)},${cy + radius * Math.sin(angle)}`);
-  }
-  return points.join(" ");
+function diamondPoints(cx: number, cy: number, size: number): string {
+  return `${cx},${cy - size} ${cx + size},${cy} ${cx},${cy + size} ${cx - size},${cy}`;
 }
 
-// Hollow markers (circle-hollow, square-hollow) draw only an outline, so
+function trianglePoints(cx: number, cy: number, size: number): string {
+  return `${cx},${cy - size} ${cx - size},${cy + size} ${cx + size},${cy + size}`;
+}
+
+function triangleDownPoints(cx: number, cy: number, size: number): string {
+  return `${cx},${cy + size} ${cx - size},${cy - size} ${cx + size},${cy - size}`;
+}
+
+// Hollow markers (circle-hollow, square-hollow, diamond-hollow,
+// triangle-hollow, triangle-down-hollow) draw only an outline, so
 // their stroke width must scale with `size` rather than use a fixed
 // constant - otherwise the outline reads as too thin at chart scale
 // (size:4) or too thick at legend scale (size:5). A fixed fraction of
@@ -49,74 +52,38 @@ export function renderMarkerShape(
     case "square":
       return <rect x={cx - size} y={cy - size} width={size * 2} height={size * 2} fill={color} />;
     case "triangle":
-      return (
-        <polygon
-          points={`${cx},${cy - size} ${cx - size},${cy + size} ${cx + size},${cy + size}`}
-          fill={color}
-        />
-      );
+      return <polygon points={trianglePoints(cx, cy, size)} fill={color} />;
     case "diamond":
-      return (
-        <polygon
-          points={`${cx},${cy - size} ${cx + size},${cy} ${cx},${cy + size} ${cx - size},${cy}`}
-          fill={color}
-        />
-      );
-    case "plus": {
-      const armWidth = size * 0.6;
-      return (
-        <g>
-          <rect
-            x={cx - armWidth / 2}
-            y={cy - size}
-            width={armWidth}
-            height={size * 2}
-            fill={color}
-          />
-          <rect
-            x={cx - size}
-            y={cy - armWidth / 2}
-            width={size * 2}
-            height={armWidth}
-            fill={color}
-          />
-        </g>
-      );
-    }
-    case "star":
-      return <polygon points={starPoints(cx, cy, size, size * 0.4)} fill={color} />;
+      return <polygon points={diamondPoints(cx, cy, size)} fill={color} />;
     case "triangle-down":
+      return <polygon points={triangleDownPoints(cx, cy, size)} fill={color} />;
+    case "diamond-hollow":
       return (
         <polygon
-          points={`${cx},${cy + size} ${cx - size},${cy - size} ${cx + size},${cy - size}`}
-          fill={color}
+          points={diamondPoints(cx, cy, size)}
+          fill="none"
+          stroke={color}
+          strokeWidth={hollowStrokeWidth(size)}
         />
       );
-    case "cross": {
-      // Plus rotated 45deg: two diagonal rects through the center, drawn as
-      // rotated <g>s of the same "arm" rect used by "plus" so the geometry
-      // stays genuinely distinct (not a copy) while reusing the same visual
-      // weight.
-      const armWidth = size * 0.6;
+    case "triangle-hollow":
       return (
-        <g transform={`rotate(45 ${cx} ${cy})`}>
-          <rect
-            x={cx - armWidth / 2}
-            y={cy - size}
-            width={armWidth}
-            height={size * 2}
-            fill={color}
-          />
-          <rect
-            x={cx - size}
-            y={cy - armWidth / 2}
-            width={size * 2}
-            height={armWidth}
-            fill={color}
-          />
-        </g>
+        <polygon
+          points={trianglePoints(cx, cy, size)}
+          fill="none"
+          stroke={color}
+          strokeWidth={hollowStrokeWidth(size)}
+        />
       );
-    }
+    case "triangle-down-hollow":
+      return (
+        <polygon
+          points={triangleDownPoints(cx, cy, size)}
+          fill="none"
+          stroke={color}
+          strokeWidth={hollowStrokeWidth(size)}
+        />
+      );
     case "circle-hollow":
       return (
         <circle
