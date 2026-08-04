@@ -23,6 +23,12 @@ export interface PerWorkSeries {
   title: string;
   fandoms: string;
   points: PerWorkPoint[];
+  // Per-work zero-basis dates (docs/plans/per-work-zero-basis-dates.md):
+  // the work's own AO3 publish date, when the backend has scraped it -
+  // optional so pre-existing test fixtures that predate this field keep
+  // compiling; WorkComparisonSection treats a missing/null value the same
+  // (fall back to earliestPostYear).
+  publishedOn?: string | null;
 }
 
 export interface StatsForUserData {
@@ -49,6 +55,7 @@ const STATS_FOR_USER_QUERY = gql`
         ao3WorkId
         title
         fandoms
+        publishedOn
         points {
           capturedOn
           hits
