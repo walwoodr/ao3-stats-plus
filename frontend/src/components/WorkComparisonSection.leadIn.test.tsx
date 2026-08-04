@@ -95,7 +95,10 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
     await user.click(screen.getByRole("checkbox", { name: "Work Two" }));
 
     const leadIns = capturedLeadIns();
-    expect(leadIns[2]).toEqual({ capturedOn: "2019-01-01", label: "Before 2019 (estimated baseline)" });
+    expect(leadIns[2]).toEqual({
+      capturedOn: "2019-01-01",
+      label: "Before 2019 (estimated baseline)",
+    });
   });
 
   it("gives every fallback work the identical shared fallback capturedOn/label (they collapse to one slot)", async () => {
@@ -119,7 +122,10 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
     await user.click(screen.getByRole("checkbox", { name: "Work Two" }));
 
     const leadIns = capturedLeadIns();
-    expect(leadIns[1]).toEqual({ capturedOn: "2018-01-01", label: "Before 2018 (estimated baseline)" });
+    expect(leadIns[1]).toEqual({
+      capturedOn: "2018-01-01",
+      label: "Before 2018 (estimated baseline)",
+    });
     expect(leadIns[2]).toEqual(leadIns[1]);
   });
 
