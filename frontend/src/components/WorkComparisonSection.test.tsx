@@ -80,8 +80,8 @@ describe("WorkComparisonSection", () => {
     });
   });
 
-  describe("6 works selected (at the cap)", () => {
-    const SEVEN_WORKS: PerWorkSeries[] = Array.from({ length: 7 }, (_, i) =>
+  describe("10 works selected (at the cap)", () => {
+    const ELEVEN_WORKS: PerWorkSeries[] = Array.from({ length: 11 }, (_, i) =>
       work({
         ao3WorkId: i + 1,
         title: `Work ${i + 1}`,
@@ -90,30 +90,31 @@ describe("WorkComparisonSection", () => {
       }),
     );
 
-    it("caps additions at 6 works via select-all-in-fandom and disables the 7th checkbox", async () => {
+    it("caps additions at 10 works via select-all-in-fandom and disables the 11th checkbox", async () => {
       const user = userEvent.setup();
-      render(<WorkComparisonSection perWorkSeries={SEVEN_WORKS} earliestPostYear={null} />);
+      render(<WorkComparisonSection perWorkSeries={ELEVEN_WORKS} earliestPostYear={null} />);
 
       await user.click(screen.getByRole("button", { name: /select all.*big fandom/i }));
 
-      const checkedCount = SEVEN_WORKS.filter((w) =>
+      const checkedCount = ELEVEN_WORKS.filter((w) =>
         screen.getByRole("checkbox", { name: w.title }).matches(":checked"),
       ).length;
-      expect(checkedCount).toBe(6);
-      expect(screen.getByRole("status")).toHaveTextContent(/maximum of 6 works reached/i);
+      expect(checkedCount).toBe(10);
+      expect(screen.getByRole("status")).toHaveTextContent(/maximum of 10 works reached/i);
     });
 
-    it("renders all 6 selected works' legend entries across the comparison charts", async () => {
+    it("renders all 10 selected works' legend entries across the comparison charts", async () => {
       const user = userEvent.setup();
-      render(<WorkComparisonSection perWorkSeries={SEVEN_WORKS} earliestPostYear={null} />);
+      render(<WorkComparisonSection perWorkSeries={ELEVEN_WORKS} earliestPostYear={null} />);
 
       await user.click(screen.getByRole("button", { name: /select all.*big fandom/i }));
 
       const hitsFigure = screen.getByRole("img", { name: /^hits$/i });
-      const checkedTitles = SEVEN_WORKS.filter((w) =>
+      const checkedTitles = ELEVEN_WORKS.filter((w) =>
         screen.getByRole("checkbox", { name: w.title }).matches(":checked"),
       ).map((w) => w.title);
 
+      expect(checkedTitles).toHaveLength(10);
       checkedTitles.forEach((title) => {
         // Same multi-occurrence reality as above - a work's title legitimately
         // appears 3x per figure (legend, sr-only markers, sr-only table).
@@ -218,6 +219,52 @@ describe("WorkComparisonSection", () => {
       expect(summary?.textContent).toMatch(/comparing 2 works/i);
       expect(summary?.textContent).toMatch(/2020/);
       expect(summary?.textContent).toMatch(/2026/);
+    });
+  });
+
+  // Testing task 10 (docs/plans/usds-dataviz-color-scheme.md): the full
+  // 10-work cap-raise state rendered end to end through the real
+  // orchestrator (picker + both charts), not just the cap-truncation
+  // mechanics covered above.
+  describe("10-work state renders both charts + full legend", () => {
+    const TEN_WORKS: PerWorkSeries[] = Array.from({ length: 10 }, (_, i) =>
+      work({
+        ao3WorkId: i + 1,
+        title: `Work ${i + 1}`,
+        fandoms: "Fandom A",
+        points: [{ capturedOn: "2026-01-01", hits: (i + 1) * 10, kudos: i + 1 }],
+      }),
+    );
+
+    it("renders all 10 works checked and in both the hits and kudos charts", async () => {
+      const user = userEvent.setup();
+      render(<WorkComparisonSection perWorkSeries={TEN_WORKS} earliestPostYear={null} />);
+
+      await user.click(screen.getByRole("button", { name: /select all.*fandom a/i }));
+
+      TEN_WORKS.forEach((w) => {
+        expect(screen.getByRole("checkbox", { name: w.title })).toBeChecked();
+      });
+
+      const hitsFigure = screen.getByRole("img", { name: /^hits$/i });
+      const kudosFigure = screen.getByRole("img", { name: /^kudos$/i });
+      TEN_WORKS.forEach((w) => {
+        expect(within(hitsFigure).getAllByText(new RegExp(w.title, "i")).length).toBeGreaterThan(0);
+        expect(within(kudosFigure).getAllByText(new RegExp(w.title, "i")).length).toBeGreaterThan(
+          0,
+        );
+      });
+    });
+
+    it("does not disable any checkbox with exactly 10 works available and all 10 selected (cap, not availability, gates)", async () => {
+      const user = userEvent.setup();
+      render(<WorkComparisonSection perWorkSeries={TEN_WORKS} earliestPostYear={null} />);
+
+      await user.click(screen.getByRole("button", { name: /select all.*fandom a/i }));
+
+      TEN_WORKS.forEach((w) => {
+        expect(screen.getByRole("checkbox", { name: w.title })).not.toBeDisabled();
+      });
     });
   });
 

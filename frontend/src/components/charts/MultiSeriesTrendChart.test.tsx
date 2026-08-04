@@ -8,16 +8,19 @@ import { SERIES_STYLE_SLOTS } from "../../lib/seriesStyles";
 // section). It reuses the same accessibility skeleton (figure role=img,
 // aria-hidden Recharts block, sr-only per-point markers, sr-only data
 // table) plus a visible legend mapping each work's title to its
-// (shape, dash, color) glyph in words - shape+dash is the guaranteed
-// non-color channel (decision A), color is redundant reinforcement only.
+// (shape, color) glyph in words - per
+// docs/plans/usds-dataviz-color-scheme.md, shape alone is now the
+// guaranteed non-color channel (dash was dropped as a per-series
+// differentiator; lines are solid - see MultiSeriesTrendChart.solidLines.
+// test.tsx), color is redundant reinforcement only.
 //
 // Legend wording is derived from the real SERIES_STYLE_SLOTS table (not
 // hardcoded here) so this test pins the *format*
-// ("<dashLabel> <colorRole> line, <shape> marker") without duplicating
-// seriesStyles.test.ts's ownership of the exact per-slot words.
+// ("<colorRole> <shape> marker") without duplicating seriesStyles.test.ts's
+// ownership of the exact per-slot words.
 function legendDescription(styleIndex: number): string {
   const slot = SERIES_STYLE_SLOTS[styleIndex];
-  return `${slot.dashLabel} ${slot.colorRole} line, ${slot.shape} marker`;
+  return `${slot.colorRole} ${slot.shape} marker`;
 }
 
 const WORK_A: SeriesDatum = {
@@ -163,6 +166,49 @@ describe("MultiSeriesTrendChart", () => {
       render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[singlePointWork]} />);
 
       expect(screen.getByText("Work C — 2026-02-01: 7 Hits")).toBeInTheDocument();
+    });
+  });
+
+  // Testing task 9 (docs/plans/usds-dataviz-color-scheme.md): the full
+  // 10-work cap-raise state - corner case "7th-10th work selected" from the
+  // plan's section 4, exercising style slots 6-9 (the 4 new shapes) for the
+  // first time in this component.
+  describe("10-series state (full cap-raise)", () => {
+    const TEN_WORKS: SeriesDatum[] = Array.from({ length: 10 }, (_, i) => ({
+      workId: i + 1,
+      title: `Work ${i + 1}`,
+      styleIndex: i,
+      points: [{ capturedOn: "2026-01-01", value: (i + 1) * 10 }],
+    }));
+
+    it("renders all 10 works' titles in the visible legend", () => {
+      render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={TEN_WORKS} />);
+
+      TEN_WORKS.forEach((work) => {
+        expect(screen.getAllByText(new RegExp(work.title, "i")).length).toBeGreaterThan(0);
+      });
+    });
+
+    it("gives all 10 works a distinct worded style description in the legend", () => {
+      render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={TEN_WORKS} />);
+
+      const descriptions = TEN_WORKS.map((work) => legendDescription(work.styleIndex));
+      expect(new Set(descriptions).size).toBe(10);
+    });
+
+    it("has one date column plus 10 work columns in the sr-only table", () => {
+      render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={TEN_WORKS} />);
+
+      const table = screen.getByRole("table", { name: /hits/i });
+      const headerCells = within(table).getAllByRole("columnheader");
+      expect(headerCells).toHaveLength(11);
+    });
+
+    it("renders one sr-only marker per work", () => {
+      render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={TEN_WORKS} />);
+
+      const markers = screen.getAllByTestId(/multi-series-point-marker-/);
+      expect(markers).toHaveLength(10);
     });
   });
 });
