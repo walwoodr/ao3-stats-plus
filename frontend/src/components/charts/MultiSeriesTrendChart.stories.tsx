@@ -124,3 +124,48 @@ export const NoWorksSelected: Story = {
     series: [],
   },
 };
+
+// Testing task 6 (docs/plans/per-work-zero-basis-dates.md, section 7): feeds
+// the Storybook addon-a11y automated axe scan against a populated
+// zero-basis state - one work with an accurate publishedOn (its own
+// distinct dashed lead-in slot), two works sharing the earliestPostYear
+// fallback (collapsed onto one shared slot), and one work with no leadIn at
+// all (mixed presence, the common real-world shape).
+export const WithZeroBasisLeadIns: Story = {
+  args: {
+    title: "Hits",
+    valueLabel: "Hits",
+    series: [
+      {
+        workId: 1,
+        title: "The Long Way Home",
+        styleIndex: 0,
+        points: [
+          { capturedOn: "2026-01-01", value: 100 },
+          { capturedOn: "2026-01-08", value: 220 },
+        ],
+        leadIn: { capturedOn: "2020-06-01", label: "Published 2020-06-01" },
+      },
+      {
+        workId: 2,
+        title: "Sideways",
+        styleIndex: 1,
+        points: [{ capturedOn: "2026-01-08", value: 90 }],
+        leadIn: { capturedOn: "2018-01-01", label: "Before 2018 (estimated baseline)" },
+      },
+      {
+        workId: 3,
+        title: "Crossover Event",
+        styleIndex: 2,
+        points: [{ capturedOn: "2026-01-01", value: 30 }],
+        leadIn: { capturedOn: "2018-01-01", label: "Before 2018 (estimated baseline)" },
+      },
+      {
+        workId: 4,
+        title: "No Baseline Available",
+        styleIndex: 3,
+        points: [{ capturedOn: "2026-01-01", value: 15 }],
+      },
+    ],
+  },
+};
