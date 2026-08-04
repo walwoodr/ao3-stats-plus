@@ -96,11 +96,12 @@ describe("usePrefersDarkColorScheme / useChartColors", () => {
   });
 });
 
-// The multi-series categorical palette (decision A - a redundant color
-// channel on top of shape+dash, never color-only) is added to ColorTokens
-// as a `series` array, one hex per seriesStyles.ts slot, in the SAME order
-// as that slot table (wine, teal, amber, indigo, green, purple) - see the
-// plan's Q3 table and "Multi-series categorical palette" section. Both hex
+// The multi-series categorical palette (a redundant color channel on top
+// of shape, never color-only - dash was retired as a per-series
+// differentiator by docs/plans/usds-dataviz-color-scheme.md) is added to
+// ColorTokens as a `series` array, one hex per seriesStyles.ts slot, in the
+// SAME order as that slot table (wine, orange, amber, green, teal, azure,
+// indigo, magenta, slate, brown) - see that plan's 10-slot table. Both hex
 // sets are pinned exactly here, since colorTokens.ts is explicitly a
 // duplicated source of truth with index.css/MASTER.md (its own file-level
 // comment says to re-verify all three stay in sync).
