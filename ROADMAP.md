@@ -151,3 +151,11 @@ baseline feature on purpose)
   similar to `tokenStorage.ts`'s existing pattern - so a chosen comparison
   set of works survives a page reload or a later revisit instead of
   starting empty every time.
+- The date-range slider (`DateRangeSlider`, currently year-granularity only
+  - a `[number, number]` pair of years) should allow filtering with
+  month-level specificity, not just whole years. Needs Discovery/Planning
+  on the actual UI mechanism (e.g. a finer-grained slider, paired
+  month+year pickers, or a different control entirely) and how
+  month-granularity interacts with the existing `capturedOn`-date-keyed
+  chart axis and the year-only union/domain logic in
+  `comparisonSelection.ts`.
