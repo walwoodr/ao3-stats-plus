@@ -402,6 +402,19 @@
   `successBannerTokenField.ts`'s Copy button now sets `aria-label="Copy"`
   alongside `title="Copy"`, updated to `aria-label="Copied!"` alongside
   `title="Copied!"` in the click handler.
+- [2026-08-04] (stage: Testing) EXTERNAL-UNVERIFIED: `frontend/src/lib/
+  colorTokens.cvd.test.ts`'s three CVD simulation matrices (protanopia/
+  deuteranopia/tritanopia, applied to linear sRGB) are a good-faith
+  transcription of the commonly-published Machado, Oliveira & Fernandes
+  (2009) full-severity dichromacy matrices, not independently re-verified
+  against the original paper or Chromium's "Emulate vision deficiencies"
+  source in this pass - this environment has no live web access to do that
+  byte-for-byte check. The plan's own >=3.0 ΔE floor has comfortable
+  headroom against its measured worst case (3.7-3.8), so small coefficient
+  drift is unlikely to flip a pass/fail verdict, but this should be
+  confirmed against a primary source (the paper's supplementary matrices,
+  or a maintained reference implementation) before treating the automated
+  CVD gate as fully authoritative.
 - [2026-07-23] (stage: Review, resolved 2026-08-03 stage: Maintenance)
   ~~The banners.test.ts assertions for the Copy button were changed
   (082b38e) to look it up by `getAttribute("title")` rather than an
