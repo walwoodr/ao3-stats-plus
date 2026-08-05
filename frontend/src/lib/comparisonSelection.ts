@@ -52,6 +52,16 @@ export function selectAllInFandom(
   };
 }
 
+// Fandom-header "deselect all" half of the tri-state bulk-select semantics
+// (docs/plans/work-comparison-picker-redesign.md §0.4/§5): removes every id
+// in `fandomWorkIds` from the selection, preserving the relative order of
+// whatever remains. Composes removeWork's filter semantics rather than
+// duplicating them - existing addWork/removeWork/selectAllInFandom untouched.
+export function deselectAllInFandom(selectedWorkIds: number[], fandomWorkIds: number[]): number[] {
+  const toRemove = new Set(fandomWorkIds);
+  return selectedWorkIds.filter((id) => !toRemove.has(id));
+}
+
 // Union of capture dates across the given works, deduped and ascending -
 // both the slider's `>2` gate input and (indirectly, via
 // MultiSeriesTrendChart's own union-date derivation) the comparison
