@@ -396,18 +396,61 @@ empirically (not assumed), per the manual sign-off pass above. Re-validated afte
 see `docs/maintenance/usds-shape-set-correction-distinguishability-pass.md` for that pass. If
 any pair collides, hexagon and wye (Y) are held in reserve as swaps.
 
-### Grouped picker pattern (multi-select + fandom bulk-select)
+### Multi-select combobox picker (chips + fandom subsections + tri-state bulk-select)
 
-The work-selection control (`WorkPicker`) is an outer `<fieldset>`/`<legend>` ("Works to
-compare") containing one nested `<fieldset>`/`<legend>` per fandom group, each with native
-`<input type="checkbox">` + `<label>` per work (free keyboard operability, correct roles) and a
-real `<button>` naming its fandom ("Select all in Fandom One") that *adds* that fandom's works
-to one shared selection set — additive, never a replace/filter — up to the 10-work cap. At-cap
-checkboxes get `disabled` + `aria-disabled`; cap/truncation messages go to a single `role=
-"status"` polite live region shared with any other dynamic announcement for the same section
-(e.g. a "Comparing N works, START to END" summary), rather than one live region per sub-
-component, so assistive tech doesn't have to track multiple simultaneous regions for one
-logical update.
+**Superseded 2026-08-04** (`docs/plans/work-comparison-picker-redesign.md`) — the original
+grouped-checkbox `<fieldset>` pattern below is replaced by an MUI `Autocomplete` (`multiple`)
+combobox, chosen because `Select` (even with `multiple` + `renderValue` chips) has no
+type-to-filter, while `Autocomplete` natively delivers chips-in-the-field, type-to-filter, AND
+grouped/sectioned options together (WAI-ARIA combobox pattern, keyboard-operable out of the box).
+
+- **Field:** a single MUI `TextField`-backed combobox labeled "Works to compare" (the label IS
+  the control's accessible name — no outer `<fieldset>`/`<legend>` wrapper anymore; the
+  surrounding controls-island `.card` provides the visual surround instead). Selected works
+  render as removable `Chip`s inside the closed field via `renderValue` (v9's replacement for
+  the removed `renderTags`).
+- **Grouping:** options are flattened to one `{id, title, fandom}` row per (work × fandom)
+  appearance (`groupBy`), since a multi-fandom work must appear under each of its fandoms but
+  MUI's `groupBy` can only place one option object in one group. `isOptionEqualToValue` matches
+  by `id`, so toggling any appearance toggles the one underlying work, and it renders exactly one
+  chip regardless of how many fandom groups it appears under.
+- **Fandom-header tri-state bulk-select:** `renderGroup` renders a real `<button type="button">`
+  per fandom group (inside the popup listbox), naming its action + fandom ("Select all in Fandom
+  One" / "Deselect all in Fandom One"), plus a tri-state indicator (none/some/all) shown via
+  **icon shape + text** next to it, never color alone. Semantics: a fully-selected fandom
+  deselects all of it; none/partial fills it to 100% (additive, cap-respecting) — acting on the
+  fandom's full work set, not the filter-visible subset. A clickable control inside a
+  listbox/combobox popup is a known deviation from the strict WAI-ARIA combobox pattern (arrow-key
+  roving focus doesn't naturally reach it); the documented fallback, if real keyboard use ever
+  shows this is genuinely broken, is to render the bulk-select control just outside the popup
+  listbox per group instead.
+- **Type-to-filter:** matches title AND fandom name (`createFilterOptions({ stringify: o =>
+  \`${o.title} ${o.fandom}\` })`) — filtering by fandom keeps that whole group visible rather than
+  confusingly emptying the list when a user types a fandom name.
+- **Cap handling:** `getOptionDisabled` disables (`aria-disabled`) unselected options once at the
+  10-work cap; selected options/chips stay removable. Cap/truncation messages go to a single
+  `role="status"` polite live region shared with any other dynamic announcement for the same
+  section (e.g. a "Comparing N works, START to END" summary), rather than one live region per
+  sub-component, so assistive tech doesn't have to track multiple simultaneous regions for one
+  logical update.
+- **Chip accessible delete:** MUI's chip delete icon has no reliable accessible name out of the
+  box. `Chip` has no `slotProps.deleteIcon` in the installed v9.2.0 (`ChipOwnerState`/
+  `ChipOwnProps` expose no such slot) — the accessible name (`aria-label="Remove {title}"`) is set
+  directly as a prop on the element passed to `deleteIcon` instead; MUI clones that element to
+  attach its own `onClick`, but preserves other props (verified against the installed `Chip.js`).
+  The icon itself is a hand-rolled inline `<svg>` "x" (see Anti-Patterns/Icons below) — a
+  hand-rolled icon component must explicitly forward `onClick`/`className` onto its own `<svg>`,
+  since (unlike a library icon component) it doesn't do so automatically.
+- **Theming:** field/chips/popup/options themed via `useChartColors()` + `sx` (MUI takes no
+  Tailwind classes), following the same `hexToRgba` accent-ring-at-15% pattern as the MUI Slider
+  below — `.input`-equivalent field styling, `.card`-equivalent popup surface, visible accent
+  focus rings throughout, selected-option/tri-state distinguished by shape/check + text, never
+  color alone.
+- **State:** the selection/range this control drives now lives in a persisted per-username
+  Zustand store (`useWorkComparisonStore`, `docs/plans/work-comparison-picker-redesign.md` §2),
+  not view-local `useState` — `WorkPicker` itself stays a controlled, store-agnostic component
+  (`perWorkSeries`/`selectedWorkIds`/`onChange`/`extraStatusMessage` in, nothing else); the store
+  lives one level up, in `WorkComparisonSection`.
 
 ### MUI Slider themed to tokens
 
@@ -430,7 +473,11 @@ jump between roles mid-drag.
 
 ## Anti-Patterns (do NOT use)
 
-- ❌ Emojis as icons — SVG only (Heroicons, already the closest fit for this stack)
+- ❌ Emojis as icons — SVG only. **Corrected 2026-08-04**: no icon library (Heroicons,
+  `@mui/icons-material`, or otherwise) is installed or approved in this project
+  (`TECH_STACK.md`) — hand-roll small inline `<svg>` primitives instead (see
+  `frontend/src/lib/markerShapes.tsx` and the chip-delete icon in the combobox picker section
+  above), rather than adding a dependency for a single icon.
 - ❌ Any drop shadow on cards — this system is flat/bordered, not elevated, in either mode
 - ❌ `translateY`/scale hover transforms on cards or buttons — color/border transitions only
 - ❌ A hero stat card as the dashboard's opening element — the chart itself is the thesis, not
