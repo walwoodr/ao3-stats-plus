@@ -461,7 +461,7 @@ describe("DashboardPage", () => {
       expect(screen.getByRole("img", { name: /total hits/i })).toBeInTheDocument();
       expect(screen.getByRole("img", { name: /total kudos/i })).toBeInTheDocument();
       expect(screen.getByRole("img", { name: /kudos.to.hits ratio/i })).toBeInTheDocument();
-      expect(screen.getByRole("group", { name: /works to compare/i })).toBeInTheDocument();
+      expect(screen.getByRole("combobox", { name: /works to compare/i })).toBeInTheDocument();
     });
   });
 });
