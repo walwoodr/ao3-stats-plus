@@ -8,6 +8,7 @@ import {
   type YearWindow,
 } from "../lib/comparisonSelection";
 import { assignStyleSlot, releaseStyleSlot } from "../lib/seriesStyles";
+import { useWorkComparisonStore } from "../store/useWorkComparisonStore";
 import { WorkPicker } from "./WorkPicker";
 import { DateRangeSlider } from "./DateRangeSlider";
 import {
@@ -19,6 +20,7 @@ import {
 export interface WorkComparisonSectionProps {
   perWorkSeries: PerWorkSeries[];
   earliestPostYear: number | null;
+  username: string;
 }
 
 function yearOf(capturedOn: string): number {
@@ -83,44 +85,89 @@ function computeLeadIn(
   };
 }
 
-// REPLACES PerWorkTrends (Q1: replace, not coexist). Owns the two pieces of
-// ephemeral, view-local UI state the plan's "State management" section
-// calls for - `selectedWorkIds` (order = add order, drives the stable style
-// assignment) and `range` (null = full range / slider hidden) - as plain
-// useState, not Zustand. Composes WorkPicker + DateRangeSlider + two
-// MultiSeriesTrendChart instances (hits, kudos) over the same derived
-// selection.
+// Filters a persisted/restored selection down to ids that still exist in
+// perWorkSeries (a work deleted/renamed since, or a different account's
+// stale data - plan §2.3 #2), falling back to the first work whenever that
+// leaves nothing selected - covers both a genuine first visit (no restored
+// ids at all, §2.3 #1) and dangling ids that filtering emptied out (§2.3
+// #2) via the same fallback.
+function reconcileSelection(
+  rawSelectedWorkIds: number[],
+  perWorkSeries: PerWorkSeries[],
+): number[] {
+  const availableIds = new Set(perWorkSeries.map((work) => work.ao3WorkId));
+  const filtered = rawSelectedWorkIds.filter((id) => availableIds.has(id));
+  if (filtered.length > 0) return filtered;
+  return perWorkSeries[0] ? [perWorkSeries[0].ao3WorkId] : [];
+}
+
+function sameIds(a: number[], b: number[]): boolean {
+  return a.length === b.length && a.every((id, index) => id === b[index]);
+}
+
+// Diffs a new selection against the current style-assignment map so each
+// work's (shape, dash, color) triple stays stable across other works being
+// toggled - the lowest-free-index-on-add / release-on-remove contract lives
+// in seriesStyles.ts; this just keeps the map in sync with whatever
+// selection (from a user interaction OR the mount-time reconciliation
+// below) is now current.
+function syncStyleAssignment(
+  previous: Map<number, number>,
+  nextSelectedWorkIds: number[],
+): Map<number, number> {
+  let next = previous;
+  for (const workId of previous.keys()) {
+    if (!nextSelectedWorkIds.includes(workId)) next = releaseStyleSlot(next, workId);
+  }
+  for (const workId of nextSelectedWorkIds) {
+    if (!next.has(workId)) next = assignStyleSlot(next, workId);
+  }
+  return next;
+}
+
+// REPLACES PerWorkTrends (Q1: replace, not coexist). `selectedWorkIds`/
+// `range` now live in the persisted per-username useWorkComparisonStore
+// (plan §2) rather than local useState - restored on mount and reconciled
+// against the current perWorkSeries (§2.3). `styleAssignment` (workId ->
+// style slot) stays view-local useState, NOT persisted - style slots are
+// ephemeral visual assignment, rebuilt from the restored/reconciled
+// selection's own order. Composes the Autocomplete-based WorkPicker +
+// DateRangeSlider + two MultiSeriesTrendChart instances (hits, kudos)
+// side-by-side in a bordered "controls island" (§8).
 export function WorkComparisonSection({
   perWorkSeries,
   earliestPostYear,
+  username,
 }: WorkComparisonSectionProps) {
-  const [selectedWorkIds, setSelectedWorkIds] = useState<number[]>(() =>
-    perWorkSeries[0] ? [perWorkSeries[0].ao3WorkId] : [],
-  );
-  const [styleAssignment, setStyleAssignment] = useState<Map<number, number>>(() =>
-    perWorkSeries[0] ? assignStyleSlot(new Map(), perWorkSeries[0].ao3WorkId) : new Map(),
-  );
-  const [range, setRange] = useState<YearWindow | null>(null);
+  const setSelectionInStore = useWorkComparisonStore((state) => state.setSelection);
+  const setRangeInStore = useWorkComparisonStore((state) => state.setRange);
+
+  // Persistence reconciliation (§2.3 #1/#2), performed once - inside this
+  // lazy initializer, which React guarantees runs exactly once, synchronously,
+  // during the component's FIRST render, before the `selectedWorkIds`
+  // subscription below reads its first snapshot. Writing the reconciled
+  // selection straight back into the store here (rather than in a
+  // useEffect) means that subscription already reflects it within this same
+  // render - no extra render pass, and, critically, no re-running on every
+  // later render, so a user explicitly deselecting down to zero works
+  // during the CURRENT session stays at zero rather than this same
+  // fallback-to-first-work logic re-forcing a selection back afterward.
+  const [styleAssignment, setStyleAssignment] = useState<Map<number, number>>(() => {
+    const store = useWorkComparisonStore.getState();
+    const currentRaw = store.getSelection(username);
+    const reconciled = reconcileSelection(currentRaw, perWorkSeries);
+    if (!sameIds(reconciled, currentRaw)) store.setSelection(username, reconciled);
+    return syncStyleAssignment(new Map(), reconciled);
+  });
+
+  const selectedWorkIds = useWorkComparisonStore((state) => state.getSelection(username));
+  const rawRange = useWorkComparisonStore((state) => state.getRange(username));
 
   if (perWorkSeries.length === 0) return null;
 
-  // Diffs the new selection against the current style-assignment map so
-  // each work's (shape, dash, color) triple stays stable across other
-  // works being toggled - the lowest-free-index-on-add / release-on-remove
-  // contract lives in seriesStyles.ts; this just keeps the map in sync with
-  // whatever WorkPicker reports as the new selection.
   function handleSelectionChange(nextSelectedWorkIds: number[]) {
-    setSelectedWorkIds(nextSelectedWorkIds);
-    setStyleAssignment((previous) => {
-      let next = previous;
-      for (const workId of previous.keys()) {
-        if (!nextSelectedWorkIds.includes(workId)) next = releaseStyleSlot(next, workId);
-      }
-      for (const workId of nextSelectedWorkIds) {
-        if (!next.has(workId)) next = assignStyleSlot(next, workId);
-      }
-      return next;
-    });
+    setSelectionInStore(username, nextSelectedWorkIds);
+    setStyleAssignment((previous) => syncStyleAssignment(previous, nextSelectedWorkIds));
   }
 
   // Selection order (not perWorkSeries order) drives both the legend/table
@@ -135,8 +182,11 @@ export function WorkComparisonSection({
   // Q5's boundary-crossing corner case: once the selection drops back to
   // <= 2 union points, the slider unmounts (DateRangeSlider's own gate) AND
   // the window resets to full - no stale filter left applied invisibly.
-  if (!showSlider && range !== null) {
-    setRange(null);
+  // Adjusts the store during render (the same "you might not need an
+  // effect" pattern this file already used for the pre-redesign local
+  // `range` useState) rather than in a useEffect.
+  if (!showSlider && rawRange !== null) {
+    setRangeInStore(username, null);
   }
 
   const currentYear = new Date().getFullYear();
@@ -155,16 +205,16 @@ export function WorkComparisonSection({
   // to a degenerate single-point clamp; otherwise preserve the overlapping
   // portion of the user's chosen window.
   const effectiveRange: YearWindow | null =
-    range === null || range.end < domain.start || range.start > domain.end
+    rawRange === null || rawRange.end < domain.start || rawRange.start > domain.end
       ? null
-      : clampWindow(range, domain);
+      : clampWindow(rawRange, domain);
 
   const sliderValue: [number, number] = effectiveRange
     ? [effectiveRange.start, effectiveRange.end]
     : [domain.start, domain.end];
 
   function handleRangeChange(nextValue: [number, number]) {
-    setRange(clampWindow({ start: nextValue[0], end: nextValue[1] }, domain));
+    setRangeInStore(username, clampWindow({ start: nextValue[0], end: nextValue[1] }, domain));
   }
 
   function buildSeries(metric: "hits" | "kudos"): SeriesDatum[] {
@@ -206,20 +256,36 @@ export function WorkComparisonSection({
     <div className="mt-10 flex flex-col gap-6">
       <h2 className="font-display text-xl font-semibold text-ink">Compare works</h2>
 
-      <WorkPicker
-        perWorkSeries={perWorkSeries}
-        selectedWorkIds={selectedWorkIds}
-        onChange={handleSelectionChange}
-        extraStatusMessage={summaryMessage}
-      />
+      <div
+        data-testid="controls-island"
+        className="flex flex-col gap-3 rounded-lg border border-ink/12 bg-card p-6"
+      >
+        <div className="flex flex-col gap-6 md:flex-row md:items-start">
+          <div className="md:flex-1">
+            <WorkPicker
+              perWorkSeries={perWorkSeries}
+              selectedWorkIds={selectedWorkIds}
+              onChange={handleSelectionChange}
+              extraStatusMessage={summaryMessage}
+            />
+          </div>
 
-      <DateRangeSlider
-        min={domain.start}
-        max={domain.end}
-        value={sliderValue}
-        onChange={handleRangeChange}
-        unionPointCount={unionDates.length}
-      />
+          {/* Omitted (not just gated-null inside DateRangeSlider itself) so
+              the picker fills the row rather than leaving a stray fixed-
+              width empty column - plan §8/§11's "no empty column." */}
+          {showSlider && (
+            <div className="md:w-72 md:shrink-0">
+              <DateRangeSlider
+                min={domain.start}
+                max={domain.end}
+                value={sliderValue}
+                onChange={handleRangeChange}
+                unionPointCount={unionDates.length}
+              />
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="flex flex-col gap-8">
         <MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={hitsSeries} />

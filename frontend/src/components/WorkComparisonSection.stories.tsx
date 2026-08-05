@@ -52,7 +52,10 @@ const GROUPED_WORKS: PerWorkSeries[] = [
 ];
 
 export const Default: Story = {
-  args: { perWorkSeries: GROUPED_WORKS, earliestPostYear: 2018 },
+  // Distinct usernames per story - the store persists per-username (plan
+  // §2) via localStorage, so sharing one username across stories would let
+  // an interaction in one story's selection bleed into another's.
+  args: { perWorkSeries: GROUPED_WORKS, earliestPostYear: 2018, username: "story-default" },
 };
 
 // 11 works sharing one fandom - one more than the 10-work cap - so a single
@@ -70,12 +73,17 @@ const ELEVEN_WORKS_SAME_FANDOM: PerWorkSeries[] = Array.from({ length: 11 }, (_,
 }));
 
 export const TenWorkFandomAtCap: Story = {
-  args: { perWorkSeries: ELEVEN_WORKS_SAME_FANDOM, earliestPostYear: 2024 },
+  args: {
+    perWorkSeries: ELEVEN_WORKS_SAME_FANDOM,
+    earliestPostYear: 2024,
+    username: "story-ten-at-cap",
+  },
 };
 
 export const SingleWorkNoSlider: Story = {
   args: {
     perWorkSeries: [GROUPED_WORKS[0], GROUPED_WORKS[1]],
     earliestPostYear: 2018,
+    username: "story-single-no-slider",
   },
 };
