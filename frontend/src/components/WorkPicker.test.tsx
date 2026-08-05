@@ -372,4 +372,72 @@ describe("WorkPicker", () => {
       ).not.toBeInTheDocument();
     });
   });
+
+  // §11 "Accessibility (first-class - verify, don't assume)": the chip
+  // delete affordance's accessible name isn't reliable by default, the
+  // fandom-header button is a non-standard control inside a combobox
+  // listbox (flagged risk), and only one role=status region should exist in
+  // the merged tree (WorkPicker's own, carrying extraStatusMessage too).
+  describe("accessibility", () => {
+    it("names each chip's delete control 'Remove {title}'", () => {
+      render(
+        <WorkPicker perWorkSeries={TWO_FANDOM_WORKS} selectedWorkIds={[1, 2]} onChange={vi.fn()} />,
+      );
+
+      expect(screen.getByLabelText("Remove Alpha")).toBeInTheDocument();
+      expect(screen.getByLabelText("Remove Beta")).toBeInTheDocument();
+    });
+
+    it("deletes the last-selected work on Backspace when the (empty) combobox input is focused", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      render(
+        <WorkPicker
+          perWorkSeries={TWO_FANDOM_WORKS}
+          selectedWorkIds={[1, 2]}
+          onChange={onChange}
+        />,
+      );
+
+      getCombobox().focus();
+      await user.keyboard("{Backspace}");
+
+      expect(onChange).toHaveBeenCalledWith([1]);
+    });
+
+    it("gives the fandom-header bulk-select control a real, keyboard-focusable button with a distinguishing accessible name", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      render(
+        <WorkPicker perWorkSeries={TWO_FANDOM_WORKS} selectedWorkIds={[1]} onChange={onChange} />,
+      );
+
+      await openPicker(user);
+      const header = screen.getByRole("button", { name: /select all.*fandom one/i });
+      header.focus();
+      expect(header).toHaveFocus();
+
+      await user.keyboard("{Enter}");
+
+      // Partial (Alpha selected, Beta not) -> fills to 100%, doesn't wipe -
+      // same tri-state contract exercised functionally above; here the
+      // assertion is specifically that Enter, not just a mouse click,
+      // operates it (keyboard operability, §11's flagged in-listbox risk).
+      expect(onChange).toHaveBeenCalledWith(expect.arrayContaining([1, 2]));
+    });
+
+    it("keeps exactly one role=status live region in the rendered tree", () => {
+      render(
+        <WorkPicker
+          perWorkSeries={TWO_FANDOM_WORKS}
+          selectedWorkIds={[]}
+          onChange={vi.fn()}
+          extraStatusMessage="Comparing 0 works."
+        />,
+      );
+
+      expect(screen.getAllByRole("status")).toHaveLength(1);
+      expect(screen.getByRole("status")).toHaveTextContent(/comparing 0 works/i);
+    });
+  });
 });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addWork,
   clampWindow,
+  deselectAllInFandom,
   filterPointsInWindow,
   MAX_SELECTED_WORKS,
   removeWork,
@@ -102,6 +103,40 @@ describe("selectAllInFandom", () => {
     const result = selectAllInFandom([5, 3], [1, 2]);
 
     expect(result.selectedIds).toEqual([5, 3, 1, 2]);
+  });
+});
+
+// New pure helper (docs/plans/work-comparison-picker-redesign.md §0.4/§5,
+// requirement 8's "full fandom -> deselect all" half of the fandom-header
+// tri-state semantics). Existing addWork/removeWork/selectAllInFandom are
+// untouched - this composes removeWork semantics over a fandom's id set.
+describe("deselectAllInFandom", () => {
+  it("removes exactly the fandom's ids from the selection", () => {
+    expect(deselectAllInFandom([1, 2, 3], [1, 2])).toEqual([3]);
+  });
+
+  it("preserves the relative order of the ids that remain", () => {
+    expect(deselectAllInFandom([5, 1, 2, 3], [1, 3])).toEqual([5, 2]);
+  });
+
+  it("is a no-op when none of the fandom's ids are currently selected", () => {
+    expect(deselectAllInFandom([1, 2], [99, 100])).toEqual([1, 2]);
+  });
+
+  it("never removes an id outside the given fandom's id set (other selections untouched)", () => {
+    const result = deselectAllInFandom([1, 2, 3, 4], [2]);
+
+    expect(result).toEqual([1, 3, 4]);
+    expect(result).toContain(1);
+    expect(result).toContain(4);
+  });
+
+  it("returns an empty array when every selected id belongs to the fandom", () => {
+    expect(deselectAllInFandom([1, 2], [1, 2])).toEqual([]);
+  });
+
+  it("is a no-op on an empty selection", () => {
+    expect(deselectAllInFandom([], [1, 2])).toEqual([]);
   });
 });
 
