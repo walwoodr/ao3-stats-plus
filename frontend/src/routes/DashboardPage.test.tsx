@@ -6,6 +6,7 @@ import { GraphQLError } from "graphql";
 import { DashboardPage } from "./DashboardPage";
 import { useTokenFromUrl } from "../store/useTokenFromUrl";
 import { useTokenStore } from "../store/useTokenStore";
+import { useWorkComparisonStore } from "../store/useWorkComparisonStore";
 import { useStatsForUser } from "../queries/useStatsForUser";
 
 // graphql-request throws ClientError for a real GraphQL-level rejection from
@@ -52,11 +53,16 @@ function mockStats(overrides: Partial<ReturnType<typeof useStatsForUser>>) {
 }
 
 describe("DashboardPage", () => {
-  // useTokenStore is a real (unmocked) Zustand store persisted to
-  // localStorage - reset it between tests so token-clearing assertions
-  // below aren't polluted by state left over from a previous test.
+  // useTokenStore and useWorkComparisonStore are both real (unmocked)
+  // Zustand stores persisted to localStorage - reset them between tests so
+  // assertions below aren't polluted by state left over from a previous
+  // test (docs/plans/work-comparison-picker-redesign.md §2 - the
+  // comparison section now reads/writes useWorkComparisonStore for real
+  // here too, not local useState).
   beforeEach(() => {
     useTokenStore.setState({ tokensByUsername: {} });
+    window.localStorage.removeItem("ao3-stats-plus-work-comparison-store");
+    useWorkComparisonStore.setState({ byUsername: {} });
   });
 
   describe("with no token available", () => {
@@ -385,7 +391,12 @@ describe("DashboardPage", () => {
       },
     ];
 
-    it("renders WorkComparisonSection's grouped checkbox picker, not the old single-work <select>", () => {
+    // Superseded by docs/plans/work-comparison-picker-redesign.md: the
+    // grouped-checkbox picker this test originally guarded is itself being
+    // replaced by the Autocomplete combobox - this now asserts the NEW
+    // control renders (and the old checkbox/fieldset markup does not),
+    // rather than re-asserting the picker this redesign replaces.
+    it("renders WorkComparisonSection's Autocomplete combobox picker, not the old grouped-checkbox <fieldset>", () => {
       vi.mocked(useTokenFromUrl).mockReturnValue("tok_valid");
       mockStats({
         data: {
@@ -403,9 +414,8 @@ describe("DashboardPage", () => {
 
       renderDashboard();
 
-      expect(screen.getByRole("group", { name: /works to compare/i })).toBeInTheDocument();
-      expect(screen.getByRole("checkbox", { name: "Work A" })).toBeInTheDocument();
-      expect(screen.queryByRole("combobox", { name: /work/i })).not.toBeInTheDocument();
+      expect(screen.getByRole("combobox", { name: /works to compare/i })).toBeInTheDocument();
+      expect(screen.queryByRole("checkbox", { name: "Work A" })).not.toBeInTheDocument();
     });
 
     it("still guards the section behind perWorkSeries.length > 0 (no picker when there is no per-work history)", () => {

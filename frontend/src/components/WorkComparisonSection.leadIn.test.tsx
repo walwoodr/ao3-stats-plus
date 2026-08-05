@@ -1,23 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { WorkComparisonSection } from "./WorkComparisonSection";
+import { useWorkComparisonStore } from "../store/useWorkComparisonStore";
 import type { PerWorkSeries } from "../queries/useStatsForUser";
 import type { SeriesDatum } from "./charts/MultiSeriesTrendChart";
 
 // Testing tasks 2 + 3 (docs/plans/per-work-zero-basis-dates.md, section 7):
-// WorkComparisonSection computes each selected work's zero-basis date (own
-// publishedOn, or `${earliestPostYear}-01-01`, or absent) and passes it as
-// `leadIn` on the SeriesDatum it builds for MultiSeriesTrendChart. These
-// tests observe exactly that boundary - what gets PASSED to
-// MultiSeriesTrendChart - by replacing the real chart with a stub that
-// dumps each series' workId + leadIn to the DOM, rather than depending on
-// MultiSeriesTrendChart's own (separately tested, in
-// MultiSeriesTrendChart.leadIn.test.tsx) rendering of that prop. This file
-// is new (not an extension of WorkComparisonSection.test.tsx) so the mock
-// above doesn't affect that file's many tests that assert on the *real*
-// rendered chart (role=img, legend text, etc.) - see CODE_STANDARDS.md's
-// file-length guidance for why a new file over one already-substantial one.
+// WorkComparisonSection computes each selected work's zero-basis date and
+// passes it as `leadIn` on the SeriesDatum built for MultiSeriesTrendChart
+// (mocked here to observe exactly what's passed, independent of
+// MultiSeriesTrendChart's own rendering). Assertions are unchanged by the
+// picker/state-store redesign (docs/plans/work-comparison-picker-redesign.md
+// T9(e)) - only the selection interaction mechanism (checkbox -> combobox)
+// and the now-required `username` prop / store reset are new here.
 vi.mock("./charts/MultiSeriesTrendChart", () => ({
   MultiSeriesTrendChart: ({ title, series }: { title: string; series: SeriesDatum[] }) => (
     <pre data-testid={`captured-series-${title}`}>
@@ -25,6 +21,8 @@ vi.mock("./charts/MultiSeriesTrendChart", () => ({
     </pre>
   ),
 }));
+
+const USERNAME = "testauthor";
 
 interface CapturedLeadIn {
   capturedOn: string;
@@ -49,6 +47,25 @@ function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWor
   };
 }
 
+function renderSection(props: { perWorkSeries: PerWorkSeries[]; earliestPostYear: number | null }) {
+  return render(<WorkComparisonSection {...props} username={USERNAME} />);
+}
+
+// MUI's Autocomplete toggles the popup closed on a second click of an
+// already-open, already-focused input - only click to open if not already
+// open, so a second call in the same test doesn't accidentally close it.
+async function selectWorkViaCombobox(user: ReturnType<typeof userEvent.setup>, title: string) {
+  if (!screen.queryByRole("listbox")) {
+    await user.click(screen.getByRole("combobox", { name: /works to compare/i }));
+  }
+  await user.click(screen.getByRole("option", { name: title }));
+}
+
+beforeEach(() => {
+  window.localStorage.clear();
+  useWorkComparisonStore.setState({ byUsername: {} });
+});
+
 describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
   it("uses a work's own publishedOn as its leadIn, labeled 'Published <date>'", async () => {
     const user = userEvent.setup();
@@ -67,8 +84,8 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
       }),
     ];
 
-    render(<WorkComparisonSection perWorkSeries={works} earliestPostYear={2019} />);
-    await user.click(screen.getByRole("checkbox", { name: "Work Two" }));
+    renderSection({ perWorkSeries: works, earliestPostYear: 2019 });
+    await selectWorkViaCombobox(user, "Work Two");
 
     const leadIns = capturedLeadIns();
     expect(leadIns[1]).toEqual({ capturedOn: "2020-06-01", label: "Published 2020-06-01" });
@@ -91,8 +108,8 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
       }),
     ];
 
-    render(<WorkComparisonSection perWorkSeries={works} earliestPostYear={2019} />);
-    await user.click(screen.getByRole("checkbox", { name: "Work Two" }));
+    renderSection({ perWorkSeries: works, earliestPostYear: 2019 });
+    await selectWorkViaCombobox(user, "Work Two");
 
     const leadIns = capturedLeadIns();
     expect(leadIns[2]).toEqual({
@@ -118,8 +135,8 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
       }),
     ];
 
-    render(<WorkComparisonSection perWorkSeries={works} earliestPostYear={2018} />);
-    await user.click(screen.getByRole("checkbox", { name: "Work Two" }));
+    renderSection({ perWorkSeries: works, earliestPostYear: 2018 });
+    await selectWorkViaCombobox(user, "Work Two");
 
     const leadIns = capturedLeadIns();
     expect(leadIns[1]).toEqual({
@@ -146,8 +163,8 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
       }),
     ];
 
-    render(<WorkComparisonSection perWorkSeries={works} earliestPostYear={null} />);
-    await user.click(screen.getByRole("checkbox", { name: "Work Two" }));
+    renderSection({ perWorkSeries: works, earliestPostYear: null });
+    await selectWorkViaCombobox(user, "Work Two");
 
     const leadIns = capturedLeadIns();
     // Work One still gets its own accurate leadIn even though the shared
@@ -175,8 +192,8 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
         }),
       ];
 
-      render(<WorkComparisonSection perWorkSeries={works} earliestPostYear={2019} />);
-      await user.click(screen.getByRole("checkbox", { name: "Work Two" }));
+      renderSection({ perWorkSeries: works, earliestPostYear: 2019 });
+      await selectWorkViaCombobox(user, "Work Two");
 
       const leadIns = capturedLeadIns();
       expect(leadIns[1]).not.toBeNull();
@@ -208,8 +225,8 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
 
     it("keeps every selected work's leadIn present at the default full-range view", async () => {
       const user = userEvent.setup();
-      render(<WorkComparisonSection perWorkSeries={[EARLY, LATE]} earliestPostYear={null} />);
-      await user.click(screen.getByRole("checkbox", { name: "Work Late" }));
+      renderSection({ perWorkSeries: [EARLY, LATE], earliestPostYear: null });
+      await selectWorkViaCombobox(user, "Work Late");
 
       const leadIns = capturedLeadIns();
       expect(leadIns[1]).not.toBeNull();
@@ -218,8 +235,8 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
 
     it("drops a work's leadIn once the slider's narrowed start year passes its publish year, while a later-published work's leadIn remains", async () => {
       const user = userEvent.setup();
-      render(<WorkComparisonSection perWorkSeries={[EARLY, LATE]} earliestPostYear={null} />);
-      await user.click(screen.getByRole("checkbox", { name: "Work Late" }));
+      renderSection({ perWorkSeries: [EARLY, LATE], earliestPostYear: null });
+      await selectWorkViaCombobox(user, "Work Late");
 
       // Domain start is the earliest union captured date (2015, since
       // earliestPostYear is null here) - narrow it up to 2019, past Work
@@ -256,11 +273,9 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
         ],
       });
 
-      render(
-        <WorkComparisonSection perWorkSeries={[EARLY, LATE, VANISHES]} earliestPostYear={null} />,
-      );
-      await user.click(screen.getByRole("checkbox", { name: "Work Late" }));
-      await user.click(screen.getByRole("checkbox", { name: "Work Vanishes" }));
+      renderSection({ perWorkSeries: [EARLY, LATE, VANISHES], earliestPostYear: null });
+      await selectWorkViaCombobox(user, "Work Late");
+      await selectWorkViaCombobox(user, "Work Vanishes");
 
       const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
       startThumb.focus();

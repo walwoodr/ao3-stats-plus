@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { WorkComparisonSection } from "./WorkComparisonSection";
+import { useWorkComparisonStore } from "../store/useWorkComparisonStore";
 import type { PerWorkSeries } from "../queries/useStatsForUser";
 
 // Testing task 8 (docs/plans/per-work-zero-basis-dates.md, section 7): a
@@ -9,18 +10,12 @@ import type { PerWorkSeries } from "../queries/useStatsForUser";
 // "Dashed segments show the period before your first captured stats for a
 // work." whenever >=1 currently selected/visible work has a rendered
 // lead-in, and is hidden entirely when zero lead-ins are currently
-// rendered - including the "zoomed past every work's publish date" corner
-// case, where the underlying data still technically has a zero-basis but
-// none currently display. Renders the real component tree (unlike
-// WorkComparisonSection.leadIn.test.tsx's chart-stubbing approach) since
-// the caption is rendered directly by WorkComparisonSection itself, outside
-// MultiSeriesTrendChart - no chart-level mock needed to observe it.
-//
-// The two "does not render" tests below are regression fences, not
-// red-today assertions: the caption doesn't exist at all pre-implementation,
-// so its absence already trivially holds. They earn their place once the
-// caption lands (catching a future "always show it" regression).
+// rendered. Assertions are unchanged by the picker/state-store redesign
+// (docs/plans/work-comparison-picker-redesign.md T9(e)) - only the
+// selection interaction mechanism (checkbox -> combobox) and the
+// now-required `username` prop / store reset are new here.
 const CAPTION_TEXT = /dashed segments show the period before your first captured stats for a work/i;
+const USERNAME = "testauthor";
 
 function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWorkSeries {
   return {
@@ -31,6 +26,25 @@ function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWor
     ...overrides,
   };
 }
+
+function renderSection(props: { perWorkSeries: PerWorkSeries[]; earliestPostYear: number | null }) {
+  return render(<WorkComparisonSection {...props} username={USERNAME} />);
+}
+
+// MUI's Autocomplete toggles the popup closed on a second click of an
+// already-open, already-focused input - only click to open if not already
+// open, so a second call in the same test doesn't accidentally close it.
+async function selectWorkViaCombobox(user: ReturnType<typeof userEvent.setup>, title: string) {
+  if (!screen.queryByRole("listbox")) {
+    await user.click(screen.getByRole("combobox", { name: /works to compare/i }));
+  }
+  await user.click(screen.getByRole("option", { name: title }));
+}
+
+beforeEach(() => {
+  window.localStorage.clear();
+  useWorkComparisonStore.setState({ byUsername: {} });
+});
 
 describe("WorkComparisonSection: visible lead-in caption", () => {
   it("renders the caption when the default single selected work has a rendered leadIn", () => {
@@ -43,7 +57,7 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
       }),
     ];
 
-    render(<WorkComparisonSection perWorkSeries={works} earliestPostYear={null} />);
+    renderSection({ perWorkSeries: works, earliestPostYear: null });
 
     expect(screen.getByText(CAPTION_TEXT)).toBeInTheDocument();
   });
@@ -58,7 +72,7 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
       }),
     ];
 
-    render(<WorkComparisonSection perWorkSeries={works} earliestPostYear={null} />);
+    renderSection({ perWorkSeries: works, earliestPostYear: null });
 
     expect(screen.queryByText(CAPTION_TEXT)).not.toBeInTheDocument();
   });
@@ -80,10 +94,10 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
       }),
     ];
 
-    render(<WorkComparisonSection perWorkSeries={works} earliestPostYear={null} />);
+    renderSection({ perWorkSeries: works, earliestPostYear: null });
     expect(screen.queryByText(CAPTION_TEXT)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("checkbox", { name: "Work Two" }));
+    await selectWorkViaCombobox(user, "Work Two");
 
     expect(screen.getByText(CAPTION_TEXT)).toBeInTheDocument();
   });
@@ -105,10 +119,10 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
       }),
     ];
 
-    render(<WorkComparisonSection perWorkSeries={works} earliestPostYear={null} />);
+    renderSection({ perWorkSeries: works, earliestPostYear: null });
     expect(screen.getByText(CAPTION_TEXT)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("checkbox", { name: "Work One" }));
+    await selectWorkViaCombobox(user, "Work One");
 
     expect(screen.queryByText(CAPTION_TEXT)).not.toBeInTheDocument();
   });
@@ -132,7 +146,7 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
       }),
     ];
 
-    render(<WorkComparisonSection perWorkSeries={works} earliestPostYear={null} />);
+    renderSection({ perWorkSeries: works, earliestPostYear: null });
     expect(screen.getByText(CAPTION_TEXT)).toBeInTheDocument();
 
     // 3 own points already clear the >2 union-points slider gate. Domain
@@ -158,7 +172,7 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
       }),
     ];
 
-    render(<WorkComparisonSection perWorkSeries={works} earliestPostYear={null} />);
+    renderSection({ perWorkSeries: works, earliestPostYear: null });
 
     expect(screen.getAllByText(CAPTION_TEXT)).toHaveLength(1);
   });
@@ -174,8 +188,8 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
       }),
     ];
 
-    render(<WorkComparisonSection perWorkSeries={works} earliestPostYear={null} />);
-    await user.click(screen.getByRole("checkbox", { name: "Work One" }));
+    renderSection({ perWorkSeries: works, earliestPostYear: null });
+    await selectWorkViaCombobox(user, "Work One");
 
     expect(screen.queryByText(CAPTION_TEXT)).not.toBeInTheDocument();
   });

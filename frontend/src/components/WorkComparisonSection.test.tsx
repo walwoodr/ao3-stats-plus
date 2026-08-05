@@ -1,18 +1,74 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { WorkComparisonSection } from "./WorkComparisonSection";
+import { useWorkComparisonStore } from "../store/useWorkComparisonStore";
 import type { PerWorkSeries } from "../queries/useStatsForUser";
 
 // WorkComparisonSection is the orchestrator that REPLACES PerWorkTrends
-// (Q1, resolved: replace, not coexist) - it owns selectedWorkIds/range
-// local state (see the plan's "State management": plain useState, no
-// Zustand - this is ephemeral view-local UI state) and composes
-// WorkPicker + DateRangeSlider + two MultiSeriesTrendChart instances
-// (hits, kudos).
+// (Q1, resolved: replace, not coexist) and composes the Autocomplete-based
+// WorkPicker + DateRangeSlider + two MultiSeriesTrendChart instances (hits,
+// kudos) side-by-side in a bordered "controls island"
+// (docs/plans/work-comparison-picker-redesign.md §8). `selectedWorkIds`/
+// `range` now live in the persisted per-username useWorkComparisonStore
+// (§2), not local useState - every render passes `username` and the store
+// is reset (in-memory + localStorage) between tests, mirroring how
+// useTokenStore.test.ts resets its own store. Interaction helpers below
+// replace the old direct checkbox clicks with combobox-driven equivalents
+// (plan T9(a)); persistence-specific reconciliation cases (§2.3) live in the
+// sibling WorkComparisonSection.persistence.test.tsx, split out for the same
+// per-concern-file reason WorkComparisonSection.caption.test.tsx and
+// .leadIn.test.tsx already exist as separate files.
+const USERNAME = "testauthor";
+
 function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWorkSeries {
   return { title: `Work ${overrides.ao3WorkId}`, fandoms: "", points: [], ...overrides };
 }
+
+function renderSection(props: { perWorkSeries: PerWorkSeries[]; earliestPostYear: number | null }) {
+  return render(<WorkComparisonSection {...props} username={USERNAME} />);
+}
+
+function getWorksCombobox() {
+  return screen.getByRole("combobox", { name: /works to compare/i });
+}
+
+// Opens the combobox only if it isn't already open - MUI's Autocomplete
+// toggles the popup closed on a second click of an already-open, already-
+// focused input (confirmed against a Testing-stage reference
+// implementation), so unconditionally clicking it before every interaction
+// would accidentally close an already-open popup instead of being a no-op.
+async function ensurePickerOpen(user: ReturnType<typeof userEvent.setup>) {
+  if (!screen.queryByRole("listbox")) {
+    await user.click(getWorksCombobox());
+  }
+}
+
+// Toggles one work on/off via the combobox - mirrors the old direct
+// checkbox-click helper's toggle-either-direction behavior (clicking an
+// unselected option adds it; clicking a selected one removes it, §3/T1).
+async function selectWorkViaCombobox(user: ReturnType<typeof userEvent.setup>, title: string) {
+  await ensurePickerOpen(user);
+  await user.click(screen.getByRole("option", { name: title }));
+}
+
+async function bulkSelectFandom(user: ReturnType<typeof userEvent.setup>, fandomFragment: string) {
+  await ensurePickerOpen(user);
+  await user.click(
+    screen.getByRole("button", {
+      name: new RegExp(`(select|deselect) all.*${fandomFragment}`, "i"),
+    }),
+  );
+}
+
+function isSelected(title: string): boolean {
+  return screen.queryByLabelText(`Remove ${title}`) !== null;
+}
+
+beforeEach(() => {
+  window.localStorage.clear();
+  useWorkComparisonStore.setState({ byUsername: {} });
+});
 
 const TWO_WORKS: PerWorkSeries[] = [
   work({
@@ -33,48 +89,93 @@ const TWO_WORKS: PerWorkSeries[] = [
 ];
 
 describe("WorkComparisonSection", () => {
-  it("defaults to exactly one selected work (the first) on mount, matching today's PerWorkTrends default", () => {
-    render(<WorkComparisonSection perWorkSeries={TWO_WORKS} earliestPostYear={null} />);
+  it("defaults to exactly one selected work (the first) on mount, matching today's default", () => {
+    renderSection({ perWorkSeries: TWO_WORKS, earliestPostYear: null });
 
-    expect(screen.getByRole("checkbox", { name: "Work One" })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "Work Two" })).not.toBeChecked();
+    expect(isSelected("Work One")).toBe(true);
+    expect(isSelected("Work Two")).toBe(false);
   });
 
   it("renders both the hits and kudos comparison charts together", () => {
-    render(<WorkComparisonSection perWorkSeries={TWO_WORKS} earliestPostYear={null} />);
+    renderSection({ perWorkSeries: TWO_WORKS, earliestPostYear: null });
 
     expect(screen.getByRole("img", { name: /^hits$/i })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /^kudos$/i })).toBeInTheDocument();
   });
 
   it("shows only the default work's data in both charts' legends", () => {
-    render(<WorkComparisonSection perWorkSeries={TWO_WORKS} earliestPostYear={null} />);
+    renderSection({ perWorkSeries: TWO_WORKS, earliestPostYear: null });
 
-    // MultiSeriesTrendChart renders a work's title in three places (visible
-    // legend, sr-only per-point markers, sr-only table header) - see its own
-    // test file's "renders a visible legend" case - so a loose match must
-    // use getAllByText (>=1), not the singular getByText which throws on
-    // multiple matches.
     const hitsFigure = screen.getByRole("img", { name: /^hits$/i });
     expect(within(hitsFigure).getAllByText(/work one/i).length).toBeGreaterThan(0);
     expect(within(hitsFigure).queryByText(/work two/i)).not.toBeInTheDocument();
   });
 
-  describe("0 works selected", () => {
-    it("shows the empty-selection message in place of chart content once the only work is unchecked", async () => {
+  describe("the controls island layout (§8)", () => {
+    // Testing-stage hook for the island's DOM structure: a
+    // `data-testid="controls-island"` wrapper is the minimal structural
+    // marker this suite needs to prove the picker and slider are rendered
+    // as siblings inside one shared bordered container, rather than
+    // asserting on exact Tailwind class strings (brittle) or a visual
+    // snapshot. Implementation may name it differently but should keep an
+    // equivalent hook - ask before dropping the ability to verify this
+    // structurally.
+    it("renders the works combobox and the date-range slider inside one shared island container", async () => {
       const user = userEvent.setup();
-      render(<WorkComparisonSection perWorkSeries={TWO_WORKS} earliestPostYear={null} />);
+      const worksWithThreeUnionPoints: PerWorkSeries[] = [
+        work({
+          ao3WorkId: 1,
+          title: "Work One",
+          fandoms: "Fandom A",
+          points: [
+            { capturedOn: "2020-01-01", hits: 1, kudos: 1 },
+            { capturedOn: "2021-01-01", hits: 2, kudos: 1 },
+          ],
+        }),
+        work({
+          ao3WorkId: 2,
+          title: "Work Two",
+          fandoms: "Fandom A",
+          points: [{ capturedOn: "2022-01-01", hits: 3, kudos: 1 }],
+        }),
+      ];
 
-      await user.click(screen.getByRole("checkbox", { name: "Work One" }));
+      renderSection({ perWorkSeries: worksWithThreeUnionPoints, earliestPostYear: null });
+      await selectWorkViaCombobox(user, "Work Two");
+
+      const island = screen.getByTestId("controls-island");
+      expect(
+        within(island).getByRole("combobox", { name: /works to compare/i }),
+      ).toBeInTheDocument();
+      expect(within(island).getAllByRole("slider").length).toBeGreaterThan(0);
+    });
+
+    it("lets the picker fill the row when the slider self-gates to null (≤2 union points)", () => {
+      renderSection({ perWorkSeries: TWO_WORKS, earliestPostYear: null });
+
+      const island = screen.getByTestId("controls-island");
+      expect(
+        within(island).getByRole("combobox", { name: /works to compare/i }),
+      ).toBeInTheDocument();
+      expect(within(island).queryAllByRole("slider")).toHaveLength(0);
+    });
+  });
+
+  describe("0 works selected", () => {
+    it("shows the empty-selection message in place of chart content once the only work is deselected", async () => {
+      const user = userEvent.setup();
+      renderSection({ perWorkSeries: TWO_WORKS, earliestPostYear: null });
+
+      await selectWorkViaCombobox(user, "Work One");
 
       expect(screen.getAllByText(/select at least one work to compare/i).length).toBeGreaterThan(0);
     });
 
     it("hides the date-range slider with nothing selected", async () => {
       const user = userEvent.setup();
-      render(<WorkComparisonSection perWorkSeries={TWO_WORKS} earliestPostYear={null} />);
+      renderSection({ perWorkSeries: TWO_WORKS, earliestPostYear: null });
 
-      await user.click(screen.getByRole("checkbox", { name: "Work One" }));
+      await selectWorkViaCombobox(user, "Work One");
 
       expect(screen.queryAllByRole("slider")).toHaveLength(0);
     });
@@ -90,34 +191,32 @@ describe("WorkComparisonSection", () => {
       }),
     );
 
-    it("caps additions at 10 works via select-all-in-fandom and disables the 11th checkbox", async () => {
+    it("caps additions at 10 works via select-all-in-fandom and aria-disables the 11th option", async () => {
       const user = userEvent.setup();
-      render(<WorkComparisonSection perWorkSeries={ELEVEN_WORKS} earliestPostYear={null} />);
+      renderSection({ perWorkSeries: ELEVEN_WORKS, earliestPostYear: null });
 
-      await user.click(screen.getByRole("button", { name: /select all.*big fandom/i }));
+      await bulkSelectFandom(user, "big fandom");
 
-      const checkedCount = ELEVEN_WORKS.filter((w) =>
-        screen.getByRole("checkbox", { name: w.title }).matches(":checked"),
-      ).length;
+      const checkedCount = ELEVEN_WORKS.filter((w) => isSelected(w.title)).length;
       expect(checkedCount).toBe(10);
       expect(screen.getByRole("status")).toHaveTextContent(/maximum of 10 works reached/i);
+      expect(screen.getByRole("option", { name: "Work 11" })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
     });
 
     it("renders all 10 selected works' legend entries across the comparison charts", async () => {
       const user = userEvent.setup();
-      render(<WorkComparisonSection perWorkSeries={ELEVEN_WORKS} earliestPostYear={null} />);
+      renderSection({ perWorkSeries: ELEVEN_WORKS, earliestPostYear: null });
 
-      await user.click(screen.getByRole("button", { name: /select all.*big fandom/i }));
+      await bulkSelectFandom(user, "big fandom");
 
       const hitsFigure = screen.getByRole("img", { name: /^hits$/i });
-      const checkedTitles = ELEVEN_WORKS.filter((w) =>
-        screen.getByRole("checkbox", { name: w.title }).matches(":checked"),
-      ).map((w) => w.title);
+      const checkedTitles = ELEVEN_WORKS.filter((w) => isSelected(w.title)).map((w) => w.title);
 
       expect(checkedTitles).toHaveLength(10);
       checkedTitles.forEach((title) => {
-        // Same multi-occurrence reality as above - a work's title legitimately
-        // appears 3x per figure (legend, sr-only markers, sr-only table).
         expect(within(hitsFigure).getAllByText(new RegExp(title, "i")).length).toBeGreaterThan(0);
       });
     });
@@ -125,7 +224,7 @@ describe("WorkComparisonSection", () => {
 
   describe("date-range slider gating tied to the union-points >2 gate", () => {
     it("does not render the slider for the default 1-selected state with only 2 union points", () => {
-      render(<WorkComparisonSection perWorkSeries={TWO_WORKS} earliestPostYear={null} />);
+      renderSection({ perWorkSeries: TWO_WORKS, earliestPostYear: null });
 
       expect(screen.queryAllByRole("slider")).toHaveLength(0);
     });
@@ -150,11 +249,9 @@ describe("WorkComparisonSection", () => {
         }),
       ];
 
-      render(
-        <WorkComparisonSection perWorkSeries={worksWithThreeUnionPoints} earliestPostYear={null} />,
-      );
+      renderSection({ perWorkSeries: worksWithThreeUnionPoints, earliestPostYear: null });
 
-      await user.click(screen.getByRole("checkbox", { name: "Work Two" }));
+      await selectWorkViaCombobox(user, "Work Two");
 
       expect(screen.getAllByRole("slider").length).toBeGreaterThan(0);
     });
@@ -179,13 +276,11 @@ describe("WorkComparisonSection", () => {
         }),
       ];
 
-      render(
-        <WorkComparisonSection perWorkSeries={worksWithThreeUnionPoints} earliestPostYear={null} />,
-      );
-      await user.click(screen.getByRole("checkbox", { name: "Work Two" }));
+      renderSection({ perWorkSeries: worksWithThreeUnionPoints, earliestPostYear: null });
+      await selectWorkViaCombobox(user, "Work Two");
       expect(screen.getAllByRole("slider").length).toBeGreaterThan(0);
 
-      await user.click(screen.getByRole("checkbox", { name: "Work Two" }));
+      await selectWorkViaCombobox(user, "Work Two");
 
       expect(screen.queryAllByRole("slider")).toHaveLength(0);
     });
@@ -209,8 +304,8 @@ describe("WorkComparisonSection", () => {
         }),
       ];
 
-      render(<WorkComparisonSection perWorkSeries={worksAcrossYears} earliestPostYear={null} />);
-      await user.click(screen.getByRole("checkbox", { name: "Work Two" }));
+      renderSection({ perWorkSeries: worksAcrossYears, earliestPostYear: null });
+      await selectWorkViaCombobox(user, "Work Two");
 
       const statusRegions = screen.getAllByRole("status");
       const summary = statusRegions.find((el) => /comparing/i.test(el.textContent ?? ""));
@@ -236,14 +331,14 @@ describe("WorkComparisonSection", () => {
       }),
     );
 
-    it("renders all 10 works checked and in both the hits and kudos charts", async () => {
+    it("renders all 10 works selected and in both the hits and kudos charts", async () => {
       const user = userEvent.setup();
-      render(<WorkComparisonSection perWorkSeries={TEN_WORKS} earliestPostYear={null} />);
+      renderSection({ perWorkSeries: TEN_WORKS, earliestPostYear: null });
 
-      await user.click(screen.getByRole("button", { name: /select all.*fandom a/i }));
+      await bulkSelectFandom(user, "fandom a");
 
       TEN_WORKS.forEach((w) => {
-        expect(screen.getByRole("checkbox", { name: w.title })).toBeChecked();
+        expect(isSelected(w.title)).toBe(true);
       });
 
       const hitsFigure = screen.getByRole("img", { name: /^hits$/i });
@@ -256,90 +351,24 @@ describe("WorkComparisonSection", () => {
       });
     });
 
-    it("does not disable any checkbox with exactly 10 works available and all 10 selected (cap, not availability, gates)", async () => {
+    it("does not aria-disable any option with exactly 10 works available and all 10 selected", async () => {
       const user = userEvent.setup();
-      render(<WorkComparisonSection perWorkSeries={TEN_WORKS} earliestPostYear={null} />);
+      renderSection({ perWorkSeries: TEN_WORKS, earliestPostYear: null });
 
-      await user.click(screen.getByRole("button", { name: /select all.*fandom a/i }));
+      await bulkSelectFandom(user, "fandom a");
 
       TEN_WORKS.forEach((w) => {
-        expect(screen.getByRole("checkbox", { name: w.title })).not.toBeDisabled();
+        expect(screen.getByRole("option", { name: w.title })).not.toHaveAttribute(
+          "aria-disabled",
+          "true",
+        );
       });
     });
   });
 
   it("is not rendered at all when perWorkSeries is empty (existing guard stays the caller's responsibility)", () => {
-    render(<WorkComparisonSection perWorkSeries={[]} earliestPostYear={null} />);
+    renderSection({ perWorkSeries: [], earliestPostYear: null });
 
-    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
-  });
-
-  // Regression for TECH_DEBT.md (2026-08-03): `range` was only ever reset
-  // to null when the selection dropped *below* the >2 union-points gate -
-  // never reconciled against a live `domain` that shifts while staying
-  // *above* the gate. This drives the selection through exactly that path
-  // (never dipping to <= 2 union points, so the old gate-based reset never
-  // fires) and asserts the newly-selected work's own points actually reach
-  // the chart, rather than being silently filtered out by a stale window.
-  describe("stale range window across a selection swap (regression)", () => {
-    it("re-clamps the window against the live domain instead of leaving a stale narrowed range applied", async () => {
-      const user = userEvent.setup();
-      const worksWithDisjointRanges: PerWorkSeries[] = [
-        work({
-          ao3WorkId: 1,
-          title: "Work Early",
-          fandoms: "Fandom A",
-          points: [
-            { capturedOn: "2018-01-01", hits: 10, kudos: 1 },
-            { capturedOn: "2018-06-01", hits: 20, kudos: 2 },
-            { capturedOn: "2019-01-01", hits: 30, kudos: 3 },
-          ],
-        }),
-        work({
-          ao3WorkId: 2,
-          title: "Work Late",
-          fandoms: "Fandom A",
-          points: [
-            { capturedOn: "2023-01-01", hits: 100, kudos: 10 },
-            { capturedOn: "2024-01-01", hits: 200, kudos: 20 },
-            { capturedOn: "2025-01-01", hits: 300, kudos: 30 },
-          ],
-        }),
-      ];
-
-      render(
-        <WorkComparisonSection perWorkSeries={worksWithDisjointRanges} earliestPostYear={null} />,
-      );
-
-      // "Work Early" alone already clears the >2 union-points gate (3
-      // points), so the slider is mounted from the default 1-selected state.
-      expect(screen.getAllByRole("slider").length).toBeGreaterThan(0);
-
-      // Narrow the window down to Work Early's own span - excludes Work
-      // Late's 2023-2025 points entirely.
-      const endThumb = screen.getByRole("slider", { name: /range end \(year\)/i });
-      const initialEnd = Number(endThumb.getAttribute("aria-valuenow"));
-      endThumb.focus();
-      for (let year = initialEnd; year > 2019; year--) {
-        await user.keyboard("{ArrowLeft}");
-      }
-      expect(screen.getByText(/2018\s*[–-]\s*2019/)).toBeInTheDocument();
-
-      // Add Work Late (union points stay well above the gate throughout),
-      // then drop Work Early - leaving only Work Late selected. Work Late
-      // alone still clears the gate (3 points), so the slider stays mounted
-      // and the selection never dips to <= 2 union points, meaning the old
-      // gate-drop reset never fires even though the domain has shifted.
-      await user.click(screen.getByRole("checkbox", { name: "Work Late" }));
-      await user.click(screen.getByRole("checkbox", { name: "Work Early" }));
-
-      expect(screen.getAllByRole("slider").length).toBeGreaterThan(0);
-
-      const hitsFigure = screen.getByRole("img", { name: /^hits$/i });
-      // Without a live re-clamp against the current domain, Work Late's
-      // 2023-2025 points are all silently filtered out by the stale
-      // [2018, 2019] window - this should not happen.
-      expect(within(hitsFigure).queryByText(/work late.*2024-01-01/i)).toBeInTheDocument();
-    });
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 });
