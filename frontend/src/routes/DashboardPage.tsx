@@ -188,7 +188,11 @@ export function DashboardPage() {
       )}
 
       {perWorkSeries.length > 0 && (
-        <WorkComparisonSection perWorkSeries={perWorkSeries} earliestPostYear={earliestPostYear} />
+        <WorkComparisonSection
+          perWorkSeries={perWorkSeries}
+          earliestPostYear={earliestPostYear}
+          username={username}
+        />
       )}
     </div>
   );
