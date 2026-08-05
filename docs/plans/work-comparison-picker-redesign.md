@@ -174,16 +174,23 @@ const renderChips = (value, getItemProps) =>
         {...itemProps}
         label={option.title}
         onDelete={onDelete}
-        deleteIcon={<CloseIcon aria-hidden />}
-        slotProps={{ deleteIcon: { 'aria-label': `Remove ${option.title}` } }}
+        deleteIcon={<CloseIcon aria-label={`Remove ${option.title}`} />}
         sx={chipSx}
       />
     );
   });
 ```
 
+**Corrected 2026-08-04 (Testing finding):** `Chip` has no `slotProps.deleteIcon` in the installed
+MUI v9.2.0 (`ChipOwnerState`/`ChipOwnProps` expose no such slot) - the original snippet above
+would not type-check. The accessible name must be set directly as a prop on the element passed
+to `deleteIcon`; MUI clones that element internally to attach its own `onClick`, but preserves
+other props (including `aria-label`), so `aria-label` set directly on the icon element survives.
+`CloseIcon` here is this plan's own small hand-rolled inline-SVG component (§9's icon note) -
+not an import from any icon library.
+
 - `getItemProps({ index })` supplies `onDelete`, `key`, `disabled`, `tabIndex`, `data-item-index` (v9 API).
-- **MUI's chip delete icon has no reliable accessible name out of the box** — we set `aria-label="Remove {title}"`. Verify with axe + a name assertion (§11).
+- **MUI's chip delete icon has no reliable accessible name out of the box** — we set `aria-label="Remove {title}"` directly on the icon element. Verify with axe + a name assertion (§11).
 - Keyboard: MUI focuses chips and deletes on Backspace/Delete when focused — verify.
 
 ---
@@ -227,7 +234,12 @@ Extends the existing snapshot (not a new page).
 - **Focus:** every interactive element (field, chips, chip-delete, option rows, fandom-header button) gets the visible `--color-accent` ring.
 - **No color-alone differentiation:** selected option rows and the fandom tri-state indicator use shape/check/weight + text.
 - **Motion:** color/border transitions only (150–300ms), no transforms.
-- **Icons:** SVG only (Heroicons close icon), never emoji.
+- **Icons:** SVG only, never emoji. **Corrected 2026-08-04 (Testing finding):** no icon library
+  (Heroicons, `@mui/icons-material`, or otherwise) is installed or approved in this project
+  (`TECH_STACK.md`) - adding one for a single close icon isn't warranted. Hand-roll a small inline
+  `<svg>` "x" (a `<path>` or two crossed `<line>`s), following the same pattern already
+  established by `frontend/src/lib/markerShapes.tsx`'s hand-rolled SVG primitives, rather than
+  adding a dependency.
 - MASTER.md's "Grouped picker pattern" section is rewritten to describe this component (task list) so the snapshot stops documenting a removed control.
 
 ---
