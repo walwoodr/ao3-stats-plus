@@ -59,6 +59,25 @@ export const WithOneSelected: Story = {
   },
 };
 
+// Selects the multi-fandom "Crossover Event" work (id 3) up front, so its
+// chip and both option-row appearances (one per fandom group, §3) render
+// selected from the start - exercises the "toggling any appearance toggles
+// the one work, exactly one chip" flattening without requiring an
+// interaction step in Storybook's own a11y scan.
+export const MultiFandomWorkSelected: Story = {
+  args: { perWorkSeries: GROUPED_WORKS, selectedWorkIds: [3], onChange: () => {} },
+  render: function Render() {
+    const [selectedWorkIds, setSelectedWorkIds] = useState<number[]>([3]);
+    return (
+      <WorkPicker
+        perWorkSeries={GROUPED_WORKS}
+        selectedWorkIds={selectedWorkIds}
+        onChange={setSelectedWorkIds}
+      />
+    );
+  },
+};
+
 const ELEVEN_WORKS: PerWorkSeries[] = Array.from({ length: 11 }, (_, i) =>
   work({ ao3WorkId: i + 1, title: `Work ${i + 1}`, fandoms: "Big Fandom" }),
 );
