@@ -259,4 +259,117 @@ describe("WorkPicker", () => {
       expect(screen.getByRole("button", { name: /select all.*no fandom/i })).toBeInTheDocument();
     });
   });
+
+  describe("at the 10-work cap", () => {
+    const ELEVEN_WORKS: PerWorkSeries[] = Array.from({ length: 11 }, (_, i) =>
+      work({ ao3WorkId: i + 1, title: `Work ${i + 1}`, fandoms: "Big Fandom" }),
+    );
+    const TEN_SELECTED = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+    it("aria-disables remaining unselected options once 10 are selected (getOptionDisabled)", async () => {
+      const user = userEvent.setup();
+      render(
+        <WorkPicker
+          perWorkSeries={ELEVEN_WORKS}
+          selectedWorkIds={TEN_SELECTED}
+          onChange={vi.fn()}
+        />,
+      );
+
+      await openPicker(user);
+
+      expect(screen.getByRole("option", { name: "Work 11" })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+    });
+
+    it("does not disable already-selected options at the cap (they stay removable)", async () => {
+      const user = userEvent.setup();
+      render(
+        <WorkPicker
+          perWorkSeries={ELEVEN_WORKS}
+          selectedWorkIds={TEN_SELECTED}
+          onChange={vi.fn()}
+        />,
+      );
+
+      await openPicker(user);
+
+      expect(screen.getByRole("option", { name: "Work 1" })).not.toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+      expect(screen.getByLabelText("Remove Work 1")).toBeInTheDocument();
+    });
+
+    it("announces the cap via a role=status polite live region", () => {
+      render(
+        <WorkPicker
+          perWorkSeries={ELEVEN_WORKS}
+          selectedWorkIds={TEN_SELECTED}
+          onChange={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByRole("status")).toHaveTextContent(/maximum of 10 works reached/i);
+    });
+
+    it("does not show the cap message when under the cap", () => {
+      render(
+        <WorkPicker perWorkSeries={ELEVEN_WORKS} selectedWorkIds={[1, 2]} onChange={vi.fn()} />,
+      );
+
+      expect(screen.queryByText(/maximum of 10 works reached/i)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("type-to-filter (matches title AND fandom name, §0.5)", () => {
+    it("filters options by title", async () => {
+      const user = userEvent.setup();
+      render(<WorkPicker perWorkSeries={TWO_FANDOM_WORKS} selectedWorkIds={[]} onChange={vi.fn()} />);
+
+      await openPicker(user);
+      await user.type(getCombobox(), "Alph");
+
+      expect(screen.getByRole("option", { name: "Alpha" })).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "Beta" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "Gamma" })).not.toBeInTheDocument();
+    });
+
+    it("filters options by fandom name, keeping the whole matching fandom's works visible", async () => {
+      const user = userEvent.setup();
+      render(<WorkPicker perWorkSeries={TWO_FANDOM_WORKS} selectedWorkIds={[]} onChange={vi.fn()} />);
+
+      await openPicker(user);
+      await user.type(getCombobox(), "Fandom Two");
+
+      expect(screen.getByRole("option", { name: "Gamma" })).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "Alpha" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "Beta" })).not.toBeInTheDocument();
+    });
+
+    it("shows an empty-result state when the filter matches neither title nor fandom", async () => {
+      const user = userEvent.setup();
+      render(<WorkPicker perWorkSeries={TWO_FANDOM_WORKS} selectedWorkIds={[]} onChange={vi.fn()} />);
+
+      await openPicker(user);
+      await user.type(getCombobox(), "nonexistent-zzz");
+
+      expect(screen.queryAllByRole("option")).toHaveLength(0);
+    });
+
+    it("hides a fandom's bulk-select header once every one of its works is filtered out", async () => {
+      const user = userEvent.setup();
+      render(<WorkPicker perWorkSeries={TWO_FANDOM_WORKS} selectedWorkIds={[]} onChange={vi.fn()} />);
+
+      await openPicker(user);
+      await user.type(getCombobox(), "Fandom One");
+
+      expect(screen.getByRole("button", { name: /select all.*fandom one/i })).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /select all.*fandom two/i }),
+      ).not.toBeInTheDocument();
+    });
+  });
 });
