@@ -530,3 +530,28 @@
   words are stable and screen-reader-exposed); the `circle-hollow`/`square-hollow`
   shape token reads slightly awkwardly inline. Nit; consider a display-name map
   if the phrasing is worth polishing.
+- [2026-08-05] (stage: Maintenance) `InstallPage`'s "GitHub" link (footer,
+  `href="https://github.com/walwoodr/ao3-stats-plus"`, class `text-accent`)
+  fails `accessibility.spec.ts`'s axe scan with a **real, plausible**
+  color-contrast reading: `fgContrast` 1.59:1 (needs 3:1), `nodeColor: #9f1239`
+  (the real `--color-accent` wine hex) against `parentColor: #7a6b72` (the
+  real `--color-ink-soft` hex) - plus a second, related `link-in-text-block-style`
+  violation: the link has no underline/other non-color distinguishing style, so
+  color is its ONLY differentiator on top of being under-contrast. Distinct from
+  the existing 2026-07-30 entry above (WebKit-only, bogus-looking captured colors
+  consistent with a mid-`transition-colors` capture artifact) - this one reproduces
+  with real token values across chromium/firefox/webkit alike, so it is not that
+  same timing flake; it's a genuine, always-present defect. Confirmed unrelated to
+  the work-comparison-picker-redesign feature (`InstallPage.tsx` untouched by that
+  work). Fix: give the link its own underline (or another non-color signal) and
+  darken/adjust its color so `text-accent`-on-`text-ink-soft` clears 3:1, or move
+  it out of the low-contrast paragraph entirely.
+- [2026-08-05] (stage: Maintenance) `frontend/src/components/WorkPicker.tsx` is
+  579 lines, over CODE_STANDARDS.md's 500-line `.tsx` budget - grew during the
+  work-comparison-picker-redesign feature (MUI Autocomplete rebuild + the
+  bulk-select-bar-as-listbox-sibling accessibility fix, see
+  `docs/plans/work-comparison-picker-redesign.md`). Not split here per "no
+  unrelated refactoring" during a targeted feature; a reasonable split would be
+  extracting the hand-rolled icon components (`CloseIcon`/`CheckIcon`/`TriStateIcon`)
+  and/or the `BulkSelectPaper`/`renderBulkSelectBar` pairing into their own
+  module(s). Flag for Review/Retrospective to decide.
