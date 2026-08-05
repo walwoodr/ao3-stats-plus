@@ -555,3 +555,22 @@
   extracting the hand-rolled icon components (`CloseIcon`/`CheckIcon`/`TriStateIcon`)
   and/or the `BulkSelectPaper`/`renderBulkSelectBar` pairing into their own
   module(s). Flag for Review/Retrospective to decide.
+- [2026-08-05] (stage: Review) `WorkComparisonSection.tsx` mutates the external
+  `useWorkComparisonStore` during the render phase in two places: the
+  `styleAssignment` lazy `useState` initializer calls `store.setSelection(...)`
+  when reconciliation changes the restored ids (line ~159), and the render body
+  calls `setRangeInStore(username, null)` in the gate-drop reset when the slider
+  disappears (line ~188). Both are the "adjust state during render" pattern that
+  React sanctions for its OWN `useState` setters (where a discarded render also
+  discards the queued update), but zustand's `set` is a real external mutation
+  that a discarded/concurrent render cannot undo, and it synchronously notifies
+  every store subscriber. Today only `WorkComparisonSection` subscribes and the
+  writes are idempotent/self-terminating, so it is green across 617 unit tests +
+  the 24-test 3-browser combobox e2e subset and no cross-component "cannot update
+  while rendering" warning fires. But once the deferred bookmarks/comments/
+  subscriptions feature also subscribes to this store (the whole point of §2.1's
+  shared contract), a render-phase write here could schedule an update into that
+  other component mid-render. Safer: move the gate-drop `setRange(null)` into a
+  `useEffect`, and do the mount-time reconciliation write in an effect (or accept
+  the store already exposing the reconciled value). Deferred from Review — not a
+  reproducible defect today, flagged for the metrics-feature work / Retrospective.
