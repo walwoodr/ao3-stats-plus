@@ -80,30 +80,36 @@ test.describe("accessibility - keyboard nav, focus order, ARIA", () => {
     await expect(submitButton).toBeFocused();
   });
 
-  // Full keyboard walkthrough of the new per-work comparison surface: tab
-  // into the grouped picker, toggle a work on via the keyboard, select an
-  // entire fandom (reaching the 10-work cap), then operate both
-  // DateRangeSlider thumbs via arrow keys. Requires @mui/material +
-  // emotion peers to be installed (Implementation task 6) - fails until
-  // then, same as the rest of the DateRangeSlider coverage.
-  test("keyboard walkthrough: toggle works in the picker, select-all to the cap, and operate both slider thumbs", async ({
+  // Full keyboard walkthrough of the redesigned Autocomplete combobox
+  // picker (docs/plans/work-comparison-picker-redesign.md): open the
+  // combobox, select a work by keyboard-operated option click, select an
+  // entire fandom via the in-listbox bulk-select header (reaching the
+  // 10-work cap - §11's flagged risk: a real browser, unlike this suite's
+  // jsdom unit tests, is the right place to confirm the header stays
+  // keyboard-operable once nested in the popup), then operate both
+  // DateRangeSlider thumbs via arrow keys.
+  test("keyboard walkthrough: select works via the combobox, select-all to the cap via the fandom header, and operate both slider thumbs", async ({
     page,
   }) => {
     await mockStatsForUser(page, MULTI_WORK_STATS_RESPONSE);
     await page.goto("/u/testauthor?token=tok_valid123");
-    await expect(page.getByRole("checkbox", { name: "Comparison Work 1" })).toBeChecked();
+    await expect(page.getByLabel("Remove Comparison Work 1")).toBeVisible();
 
-    const secondWorkCheckbox = page.getByRole("checkbox", { name: "Comparison Work 2" });
-    await secondWorkCheckbox.focus();
-    await expect(secondWorkCheckbox).toBeFocused();
-    await page.keyboard.press("Space");
-    await expect(secondWorkCheckbox).toBeChecked();
+    const combobox = page.getByRole("combobox", { name: /works to compare/i });
+    await combobox.click();
+    await expect(page.getByRole("listbox")).toBeVisible();
+    await page.getByRole("option", { name: "Comparison Work 2" }).click();
+    await expect(page.getByLabel("Remove Comparison Work 2")).toBeVisible();
 
     const selectAllButton = page.getByRole("button", { name: /select all.*shared fandom/i });
     await selectAllButton.focus();
+    await expect(selectAllButton).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(page.getByRole("status")).toContainText(/maximum of 10 works reached/i);
-    await expect(page.getByRole("checkbox", { name: "Comparison Work 11" })).toBeDisabled();
+    await expect(page.getByRole("option", { name: "Comparison Work 11" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
 
     const startThumb = page.getByRole("slider", { name: /range start \(year\)/i });
     await startThumb.focus();
@@ -118,6 +124,19 @@ test.describe("accessibility - keyboard nav, focus order, ARIA", () => {
     const endBefore = await endThumb.getAttribute("aria-valuenow");
     await page.keyboard.press("ArrowLeft");
     await expect(endThumb).not.toHaveAttribute("aria-valuenow", endBefore ?? "");
+  });
+
+  test("the works combobox chip delete control is named 'Remove {title}' and removes the work on click", async ({
+    page,
+  }) => {
+    await mockStatsForUser(page, MULTI_WORK_STATS_RESPONSE);
+    await page.goto("/u/testauthor?token=tok_valid123");
+
+    const removeChip = page.getByLabel("Remove Comparison Work 1");
+    await expect(removeChip).toBeVisible();
+    await removeChip.click();
+
+    await expect(page.getByLabel("Remove Comparison Work 1")).not.toBeVisible();
   });
 });
 
@@ -181,20 +200,40 @@ test.describe("accessibility - automated axe scans", () => {
     expect(results.violations).toEqual([]);
   });
 
-  // The three new populated-comparison-view states called out by the plan's
-  // Accessibility section: multi-select active (2+ works checked, slider
-  // visible), and the 10-work cap (disabled checkboxes + role=status
-  // announcement). Distinct from the single-default-work populated state
-  // already covered above.
-  test("the comparison view with multiple works selected (slider visible) has no detectable a11y violations", async ({
+  // The populated-comparison-view states called out by the plan's
+  // Accessibility section (§11): multi-select active with chips (2+ works
+  // selected, slider visible), the open combobox popup (grouped options +
+  // the fandom-header bulk-select control), and the 10-work cap
+  // (aria-disabled options + role=status announcement). Distinct from the
+  // single-default-work populated state already covered above. Each is
+  // scanned in both light and dark, per the plan's token-theming
+  // requirements (§7/§9) - color/contrast violations can differ by theme.
+  test("the comparison view with multiple works selected (chips + slider visible) has no detectable a11y violations", async ({
     page,
   }) => {
     await mockStatsForUser(page, MULTI_WORK_STATS_RESPONSE);
     await page.goto("/u/testauthor?token=tok_valid123");
-    await expect(page.getByRole("checkbox", { name: "Comparison Work 1" })).toBeChecked();
+    await expect(page.getByLabel("Remove Comparison Work 1")).toBeVisible();
 
-    await page.getByRole("checkbox", { name: "Comparison Work 2" }).check();
+    await page.getByRole("combobox", { name: /works to compare/i }).click();
+    await page.getByRole("option", { name: "Comparison Work 2" }).click();
+    await expect(page.getByLabel("Remove Comparison Work 2")).toBeVisible();
     await expect(page.getByRole("slider", { name: /range start \(year\)/i })).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).analyze();
+
+    expect(results.violations).toEqual([]);
+  });
+
+  test("the works combobox open (grouped options + fandom-header bulk-select) has no detectable a11y violations", async ({
+    page,
+  }) => {
+    await mockStatsForUser(page, MULTI_WORK_STATS_RESPONSE);
+    await page.goto("/u/testauthor?token=tok_valid123");
+
+    await page.getByRole("combobox", { name: /works to compare/i }).click();
+    await expect(page.getByRole("listbox")).toBeVisible();
+    await expect(page.getByRole("button", { name: /select all.*shared fandom/i })).toBeVisible();
 
     const results = await new AxeBuilder({ page }).analyze();
 
@@ -207,9 +246,73 @@ test.describe("accessibility - automated axe scans", () => {
     await mockStatsForUser(page, MULTI_WORK_STATS_RESPONSE);
     await page.goto("/u/testauthor?token=tok_valid123");
 
+    await page.getByRole("combobox", { name: /works to compare/i }).click();
     await page.getByRole("button", { name: /select all.*shared fandom/i }).click();
     await expect(page.getByRole("status")).toContainText(/maximum of 10 works reached/i);
-    await expect(page.getByRole("checkbox", { name: "Comparison Work 11" })).toBeDisabled();
+    await expect(page.getByRole("option", { name: "Comparison Work 11" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+
+    const results = await new AxeBuilder({ page }).analyze();
+
+    expect(results.violations).toEqual([]);
+  });
+});
+
+test.describe("accessibility - automated axe scans (dark mode)", () => {
+  // Same three combobox states as the light-mode block above, forced to
+  // `prefers-color-scheme: dark` via Playwright's `colorScheme` context
+  // option - the app's own token theming (§7/§9, useChartColors) branches
+  // on this media feature, so contrast/focus-ring violations can differ by
+  // theme and aren't guaranteed by the light-mode scans alone.
+  test.use({ colorScheme: "dark" });
+
+  test("the comparison view with multiple works selected (chips + slider visible) has no detectable a11y violations in dark mode", async ({
+    page,
+  }) => {
+    await mockStatsForUser(page, MULTI_WORK_STATS_RESPONSE);
+    await page.goto("/u/testauthor?token=tok_valid123");
+    await expect(page.getByLabel("Remove Comparison Work 1")).toBeVisible();
+
+    await page.getByRole("combobox", { name: /works to compare/i }).click();
+    await page.getByRole("option", { name: "Comparison Work 2" }).click();
+    await expect(page.getByLabel("Remove Comparison Work 2")).toBeVisible();
+    await expect(page.getByRole("slider", { name: /range start \(year\)/i })).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).analyze();
+
+    expect(results.violations).toEqual([]);
+  });
+
+  test("the works combobox open (grouped options + fandom-header bulk-select) has no detectable a11y violations in dark mode", async ({
+    page,
+  }) => {
+    await mockStatsForUser(page, MULTI_WORK_STATS_RESPONSE);
+    await page.goto("/u/testauthor?token=tok_valid123");
+
+    await page.getByRole("combobox", { name: /works to compare/i }).click();
+    await expect(page.getByRole("listbox")).toBeVisible();
+    await expect(page.getByRole("button", { name: /select all.*shared fandom/i })).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).analyze();
+
+    expect(results.violations).toEqual([]);
+  });
+
+  test("the comparison view at the 10-work selection cap has no detectable a11y violations in dark mode", async ({
+    page,
+  }) => {
+    await mockStatsForUser(page, MULTI_WORK_STATS_RESPONSE);
+    await page.goto("/u/testauthor?token=tok_valid123");
+
+    await page.getByRole("combobox", { name: /works to compare/i }).click();
+    await page.getByRole("button", { name: /select all.*shared fandom/i }).click();
+    await expect(page.getByRole("status")).toContainText(/maximum of 10 works reached/i);
+    await expect(page.getByRole("option", { name: "Comparison Work 11" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
 
     const results = await new AxeBuilder({ page }).analyze();
 
