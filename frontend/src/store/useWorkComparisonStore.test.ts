@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useWorkComparisonStore } from "./useWorkComparisonStore";
 import { MAX_SELECTED_WORKS } from "../lib/comparisonSelection";
 
@@ -25,6 +25,24 @@ describe("useWorkComparisonStore", () => {
 
     it("getRange returns null", () => {
       expect(useWorkComparisonStore.getState().getRange("someauthor")).toBeNull();
+    });
+
+    // Concrete regression guard, not a hypothetical: a naive
+    // `byUsername[username] ?? { selectedWorkIds: [], range: null }`
+    // fallback allocates a NEW array/object on every call. Since
+    // WorkComparisonSection reads this store via a
+    // `useWorkComparisonStore((state) => state.getSelection(username))`
+    // selector (React's `useSyncExternalStore` under the hood), a
+    // non-referentially-stable empty-state snapshot fails React's
+    // Object.is snapshot-stability check and produces an infinite render
+    // loop ("The result of getSnapshot should be cached") - confirmed
+    // against a Testing-stage reference implementation, not a hypothetical
+    // concern.
+    it("returns a referentially-stable empty selection array across repeated calls for the same unseen username", () => {
+      const first = useWorkComparisonStore.getState().getSelection("neverseen");
+      const second = useWorkComparisonStore.getState().getSelection("neverseen");
+
+      expect(first).toBe(second);
     });
   });
 
@@ -166,13 +184,22 @@ describe("useWorkComparisonStore", () => {
       useWorkComparisonStore.getState().setSelection("persisted_author", [7, 8]);
       useWorkComparisonStore.getState().setRange("persisted_author", { start: 2019, end: 2021 });
 
-      // Simulate a fresh mount reading whatever's on disk, independent of
-      // this test's own in-memory mutations above.
-      useWorkComparisonStore.setState({ byUsername: {} });
-      await useWorkComparisonStore.persist.rehydrate();
+      // A real remount creates a brand-new store instance that auto-
+      // hydrates from whatever's on disk at that moment (persist runs
+      // hydrate() once at store creation, per the installed middleware) -
+      // vi.resetModules() + a fresh dynamic import is what actually
+      // exercises that path. Reusing this file's already-imported
+      // singleton and just calling setState({byUsername: {}}) first would
+      // NOT be an equivalent simulation: zustand's persist middleware
+      // wraps setState to also re-persist on every call, so that call
+      // would silently clobber the very data on disk this test means to
+      // read back.
+      vi.resetModules();
+      const { useWorkComparisonStore: freshStore } = await import("./useWorkComparisonStore");
+      await freshStore.persist.rehydrate();
 
-      expect(useWorkComparisonStore.getState().getSelection("persisted_author")).toEqual([7, 8]);
-      expect(useWorkComparisonStore.getState().getRange("persisted_author")).toEqual({
+      expect(freshStore.getState().getSelection("persisted_author")).toEqual([7, 8]);
+      expect(freshStore.getState().getRange("persisted_author")).toEqual({
         start: 2019,
         end: 2021,
       });
