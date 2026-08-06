@@ -5,17 +5,25 @@ import userEvent from "@testing-library/user-event";
 import { WorkPicker, type WorkPickerProps } from "./WorkPicker";
 import type { PerWorkSeries } from "../queries/useStatsForUser";
 
-// WorkPicker is rebuilt as an MUI `Autocomplete` combobox (docs/plans/
-// work-comparison-picker-redesign.md, resolved decisions 1-5): chips in the
-// closed field (`renderValue`), fandom subsections via `groupBy` +
-// `renderGroup` with a clickable tri-state bulk-select header, type-to-
-// filter by title AND fandom, cap-aware `getOptionDisabled`. It stays a
-// controlled component (props unchanged: `perWorkSeries`, `selectedWorkIds`,
-// `onChange`, `extraStatusMessage`) - only its internals change from the old
-// grouped-checkbox markup. `ControlledWorkPicker` mimics the real
-// WorkComparisonSection round trip for tests that need to observe a change
-// reflected back (e.g. a multi-fandom work's other appearance, or select-all
-// applied twice).
+// WorkPicker is an MUI `Autocomplete` combobox (docs/plans/work-comparison-
+// picker-redesign.md, then refined by docs/plans/work-comparison-picker-
+// refinements.md). This file covers the core interaction surface that's
+// UNCHANGED by the refinements plan (chip rendering/removal, select/
+// deselect, type-to-filter, the 10-work cap) plus requirement 7's static
+// label (T1). The fandom-header-as-option behavior (requirement 1, T2-T4)
+// lives in WorkPicker.header.test.tsx; icon recolor/selected-row tint/hover/
+// Clear all (requirement 2/5/8/4, T5-T8) live in WorkPicker.styling.test.tsx;
+// the removed bulk-select-bar + uncontrolled-open regression (T9) lives in
+// WorkPicker.popupOpen.test.tsx - split for the same per-concern,
+// file-length reason WorkComparisonSection's suite is already split.
+//
+// The fandom header is now a genuine synthetic `role="option"` entry in
+// `options` (not a `role="button"` bar sibling - the refinements plan's
+// load-bearing decision, §1), so every helper below that used to click a
+// `role="button"` bulk-select control now clicks a `role="option"` header
+// instead. `ControlledWorkPicker` mimics the real WorkComparisonSection
+// round trip for tests that need to observe a change reflected back (e.g. a
+// multi-fandom work's other appearance, or select-all applied twice).
 function ControlledWorkPicker(props: Omit<WorkPickerProps, "selectedWorkIds" | "onChange">) {
   const [selectedWorkIds, setSelectedWorkIds] = useState<number[]>([]);
   return <WorkPicker {...props} selectedWorkIds={selectedWorkIds} onChange={setSelectedWorkIds} />;
@@ -31,18 +39,24 @@ const TWO_FANDOM_WORKS: PerWorkSeries[] = [
   work({ ao3WorkId: 3, title: "Gamma", fandoms: "Fandom Two" }),
 ];
 
-// The combobox's accessible name (via its TextField label). Every test opens
-// it through this same query rather than hand-rolling `getByRole("textbox")`
-// - matching the WAI-ARIA combobox pattern §11 says `Autocomplete` provides
-// out of the box (verified against installed `useAutocomplete.js`: the input
-// carries `role="combobox"`, the popup `role="listbox"`, each option
-// `role="option"` with `aria-selected`/`aria-disabled`).
+// The combobox's accessible name. Every test opens it through this same
+// query rather than hand-rolling `getByRole("textbox")` - matching the
+// WAI-ARIA combobox pattern `Autocomplete` provides out of the box (the
+// input carries `role="combobox"`, the popup `role="listbox"`, each option
+// `role="option"` with `aria-selected`/`aria-disabled`). Works identically
+// whether the accessible name is computed from a MUI floating label or (per
+// requirement 7) `aria-labelledby` to a plain static span - this helper
+// doesn't care how the name was computed, only that it resolves.
 function getCombobox() {
   return screen.getByRole("combobox", { name: /works to compare/i });
 }
 
 async function openPicker(user: ReturnType<typeof userEvent.setup>) {
   await user.click(getCombobox());
+}
+
+function getFandomHeaderOption(fandomFragment: string) {
+  return screen.getByRole("option", { name: new RegExp(fandomFragment, "i") });
 }
 
 describe("WorkPicker", () => {
@@ -55,7 +69,7 @@ describe("WorkPicker", () => {
       expect(getCombobox()).toBeInTheDocument();
     });
 
-    it("shows grouped fandom options once opened (each fandom's bulk-select header plus its works)", async () => {
+    it("shows grouped fandom options once opened (work rows for every fandom)", async () => {
       const user = userEvent.setup();
       render(
         <WorkPicker perWorkSeries={TWO_FANDOM_WORKS} selectedWorkIds={[]} onChange={vi.fn()} />,
@@ -67,8 +81,6 @@ describe("WorkPicker", () => {
       expect(screen.getByRole("option", { name: "Alpha" })).toBeInTheDocument();
       expect(screen.getByRole("option", { name: "Beta" })).toBeInTheDocument();
       expect(screen.getByRole("option", { name: "Gamma" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /select all.*fandom one/i })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /select all.*fandom two/i })).toBeInTheDocument();
     });
 
     it("renders selectedWorkIds as removable chips in the closed field, without opening the popup", () => {
@@ -79,6 +91,45 @@ describe("WorkPicker", () => {
       expect(screen.getByLabelText("Remove Alpha")).toBeInTheDocument();
       expect(screen.queryByLabelText("Remove Beta")).not.toBeInTheDocument();
       expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    });
+  });
+
+  // Requirement 7 (§7/T1): both controls get a plain static label matching
+  // DateRangeSlider's own `<span>Date range</span>` pattern, and the MUI
+  // floating `TextField label` (with its animated `.MuiInputLabel-root`) is
+  // dropped entirely. A placeholder is NOT an accessible name (§Accessibility
+  // - the single highest a11y risk this plan calls out), so the combobox's
+  // name must survive via `aria-labelledby` to the static span, not vanish.
+  describe("static label (requirement 7 - no MUI floating label)", () => {
+    it("renders a static 'Works to compare' label as a plain element, not an MUI InputLabel", () => {
+      render(
+        <WorkPicker perWorkSeries={TWO_FANDOM_WORKS} selectedWorkIds={[]} onChange={vi.fn()} />,
+      );
+
+      expect(screen.getByText("Works to compare")).toBeInTheDocument();
+      expect(document.querySelector(".MuiInputLabel-root")).not.toBeInTheDocument();
+      expect(document.querySelector(".MuiFormLabel-root")).not.toBeInTheDocument();
+    });
+
+    it("associates the combobox's accessible name with the static label via aria-labelledby", () => {
+      render(
+        <WorkPicker perWorkSeries={TWO_FANDOM_WORKS} selectedWorkIds={[]} onChange={vi.fn()} />,
+      );
+
+      const label = screen.getByText("Works to compare");
+      const combobox = getCombobox();
+
+      expect(combobox).toHaveAccessibleName("Works to compare");
+      expect(label.id).toBeTruthy();
+      expect(combobox.getAttribute("aria-labelledby")).toContain(label.id);
+    });
+
+    it("keeps the 'Search title or fandom' placeholder hint", () => {
+      render(
+        <WorkPicker perWorkSeries={TWO_FANDOM_WORKS} selectedWorkIds={[]} onChange={vi.fn()} />,
+      );
+
+      expect(getCombobox()).toHaveAttribute("placeholder", "Search title or fandom");
     });
   });
 
@@ -130,7 +181,7 @@ describe("WorkPicker", () => {
     });
   });
 
-  describe("fandom-header bulk select (requirement 8's tri-state semantics)", () => {
+  describe("fandom-header bulk select via the synthetic option (semantics unchanged from the prior bulk-select-bar)", () => {
     it("selects all works in a fandom, additively, when none of them are selected", async () => {
       const user = userEvent.setup();
       const onChange = vi.fn();
@@ -139,7 +190,7 @@ describe("WorkPicker", () => {
       );
 
       await openPicker(user);
-      await user.click(screen.getByRole("button", { name: /select all.*fandom one/i }));
+      await user.click(getFandomHeaderOption("fandom one"));
 
       expect(onChange).toHaveBeenCalledWith(expect.arrayContaining([1, 2, 3]));
       expect(onChange.mock.calls[0][0]).toHaveLength(3);
@@ -157,23 +208,9 @@ describe("WorkPicker", () => {
       );
 
       await openPicker(user);
-      await user.click(screen.getByRole("button", { name: /deselect all.*fandom one/i }));
+      await user.click(getFandomHeaderOption("fandom one"));
 
       expect(onChange).toHaveBeenCalledWith([3]);
-    });
-
-    it("fills a partially-selected fandom to 100% (adds the rest) rather than deselecting any", async () => {
-      const user = userEvent.setup();
-      const onChange = vi.fn();
-      render(
-        <WorkPicker perWorkSeries={TWO_FANDOM_WORKS} selectedWorkIds={[1]} onChange={onChange} />,
-      );
-
-      await openPicker(user);
-      await user.click(screen.getByRole("button", { name: /select all.*fandom one/i }));
-
-      expect(onChange).toHaveBeenCalledWith(expect.arrayContaining([1, 2]));
-      expect(onChange.mock.calls[0][0]).toHaveLength(2);
     });
 
     it("truncates a select-all that would exceed the cap and announces the truncation", async () => {
@@ -184,7 +221,7 @@ describe("WorkPicker", () => {
       render(<ControlledWorkPicker perWorkSeries={ELEVEN_WORKS} />);
 
       await openPicker(user);
-      await user.click(screen.getByRole("button", { name: /select all.*big fandom/i }));
+      await user.click(getFandomHeaderOption("big fandom"));
 
       expect(screen.getAllByLabelText(/^Remove /)).toHaveLength(10);
       expect(screen.getByRole("status")).toHaveTextContent(/added 10 of 11 works/i);
@@ -199,7 +236,7 @@ describe("WorkPicker", () => {
       work({ ao3WorkId: 3, title: "Gamma", fandoms: "Fandom Two" }),
     ];
 
-    it("renders one option per fandom it belongs to (option-flattening, §3)", async () => {
+    it("renders one option per fandom it belongs to (option-flattening)", async () => {
       const user = userEvent.setup();
       render(
         <WorkPicker perWorkSeries={MULTI_FANDOM_WORKS} selectedWorkIds={[]} onChange={vi.fn()} />,
@@ -228,8 +265,8 @@ describe("WorkPicker", () => {
       render(<ControlledWorkPicker perWorkSeries={MULTI_FANDOM_WORKS} />);
 
       await openPicker(user);
-      await user.click(screen.getByRole("button", { name: /select all.*fandom one/i }));
-      await user.click(screen.getByRole("button", { name: /select all.*fandom two/i }));
+      await user.click(getFandomHeaderOption("fandom one"));
+      await user.click(getFandomHeaderOption("fandom two"));
 
       // Three underlying works total (Crossover Fic, Beta, Gamma) - exactly
       // three chips, not four, even though Crossover Fic has two option rows.
@@ -256,7 +293,7 @@ describe("WorkPicker", () => {
       await openPicker(user);
 
       expect(screen.getByRole("option", { name: "Standalone" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /select all.*no fandom/i })).toBeInTheDocument();
+      expect(getFandomHeaderOption("no fandom")).toBeInTheDocument();
     });
   });
 
@@ -303,6 +340,25 @@ describe("WorkPicker", () => {
       expect(screen.getByLabelText("Remove Work 1")).toBeInTheDocument();
     });
 
+    // Corner case (plan's Corner cases section): a full fandom must stay
+    // deselectable even at cap, so the header option is never aria-disabled
+    // - unlike work options, which do get aria-disabled once unselected and
+    // the cap is reached.
+    it("never aria-disables the fandom-header option, even at the cap", async () => {
+      const user = userEvent.setup();
+      render(
+        <WorkPicker
+          perWorkSeries={ELEVEN_WORKS}
+          selectedWorkIds={TEN_SELECTED}
+          onChange={vi.fn()}
+        />,
+      );
+
+      await openPicker(user);
+
+      expect(getFandomHeaderOption("big fandom")).not.toHaveAttribute("aria-disabled", "true");
+    });
+
     it("announces the cap via a role=status polite live region", () => {
       render(
         <WorkPicker
@@ -324,7 +380,7 @@ describe("WorkPicker", () => {
     });
   });
 
-  describe("type-to-filter (matches title AND fandom name, §0.5)", () => {
+  describe("type-to-filter (matches title AND fandom name)", () => {
     it("filters options by title", async () => {
       const user = userEvent.setup();
       render(
@@ -365,7 +421,7 @@ describe("WorkPicker", () => {
       expect(screen.queryAllByRole("option")).toHaveLength(0);
     });
 
-    it("hides a fandom's bulk-select header once every one of its works is filtered out", async () => {
+    it("hides a fandom's header option once every one of its works is filtered out", async () => {
       const user = userEvent.setup();
       render(
         <WorkPicker perWorkSeries={TWO_FANDOM_WORKS} selectedWorkIds={[]} onChange={vi.fn()} />,
@@ -374,18 +430,11 @@ describe("WorkPicker", () => {
       await openPicker(user);
       await user.type(getCombobox(), "Fandom One");
 
-      expect(screen.getByRole("button", { name: /select all.*fandom one/i })).toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", { name: /select all.*fandom two/i }),
-      ).not.toBeInTheDocument();
+      expect(getFandomHeaderOption("fandom one")).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: /fandom two/i })).not.toBeInTheDocument();
     });
   });
 
-  // §11 "Accessibility (first-class - verify, don't assume)": the chip
-  // delete affordance's accessible name isn't reliable by default, the
-  // fandom-header button is a non-standard control inside a combobox
-  // listbox (flagged risk), and only one role=status region should exist in
-  // the merged tree (WorkPicker's own, carrying extraStatusMessage too).
   describe("accessibility", () => {
     it("names each chip's delete control 'Remove {title}'", () => {
       render(
@@ -411,40 +460,6 @@ describe("WorkPicker", () => {
       await user.keyboard("{Backspace}");
 
       expect(onChange).toHaveBeenCalledWith([1]);
-    });
-
-    // §11 flags a genuine, unresolved risk here: "a clickable control inside
-    // a listbox/combobox popup deviates from the strict WAI-ARIA combobox
-    // pattern (arrow-key roving focus does not naturally land on a header
-    // <button>)." A Testing-stage reference implementation confirmed this
-    // concretely: MUI's own useAutocomplete `handleBlur` special-cases focus
-    // moving to something inside the listbox (`unstable_isActiveElementIn-
-    // Listbox`) by yanking focus straight back to the combobox input to
-    // keep the popup open - a real behavior of the installed MUI version,
-    // not a test-environment artifact, and one that's timing-sensitive
-    // enough that an imperative `.focus()` on the header can race it and
-    // close the popup instead (unmounting the header) before a keyboard
-    // Enter can be synthesized on it. Mouse clicks are unaffected (see the
-    // tri-state tests above), so rather than assert one specific resolution
-    // of this open design question with a flaky imperative-focus
-    // simulation, this asserts the property §11 actually requires
-    // regardless of how it's resolved: a REAL `<button>` (native keyboard-
-    // activation semantics, not a fake clickable div/span) that isn't
-    // deliberately excluded from the tab order. If real keyboard use
-    // reveals Enter-while-focused genuinely can't survive end to end, §11's
-    // own fallback applies: render the bulk-select control just outside the
-    // popup listbox per group.
-    it("gives the fandom-header bulk-select control real, tab-reachable button semantics", async () => {
-      const user = userEvent.setup();
-      render(
-        <WorkPicker perWorkSeries={TWO_FANDOM_WORKS} selectedWorkIds={[]} onChange={vi.fn()} />,
-      );
-
-      await openPicker(user);
-      const header = screen.getByRole("button", { name: /select all.*fandom one/i });
-
-      expect(header.tagName).toBe("BUTTON");
-      expect(header).not.toHaveAttribute("tabindex", "-1");
     });
 
     it("keeps exactly one role=status live region in the rendered tree", () => {
