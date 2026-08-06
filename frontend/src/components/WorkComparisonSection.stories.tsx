@@ -80,10 +80,14 @@ export const TenWorkFandomAtCap: Story = {
   },
 };
 
-export const SingleWorkNoSlider: Story = {
+// Refinements plan §3.2: the slider is now ALWAYS rendered, so a <=2
+// union-point selection shows it DISABLED (full domain, greyed out) rather
+// than omitting it entirely - renamed from the pre-refinements
+// "SingleWorkNoSlider" to reflect that.
+export const SingleWorkDisabledSlider: Story = {
   args: {
     perWorkSeries: [GROUPED_WORKS[0], GROUPED_WORKS[1]],
     earliestPostYear: 2018,
-    username: "story-single-no-slider",
+    username: "story-single-disabled-slider",
   },
 };

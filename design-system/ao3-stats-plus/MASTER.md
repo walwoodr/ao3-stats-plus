@@ -396,43 +396,65 @@ empirically (not assumed), per the manual sign-off pass above. Re-validated afte
 see `docs/maintenance/usds-shape-set-correction-distinguishability-pass.md` for that pass. If
 any pair collides, hexagon and wye (Y) are held in reserve as swaps.
 
-### Multi-select combobox picker (chips + fandom subsections + tri-state bulk-select)
+### Multi-select combobox picker (chips + fandom-header synthetic option)
 
-**Superseded 2026-08-04** (`docs/plans/work-comparison-picker-redesign.md`) — the original
-grouped-checkbox `<fieldset>` pattern below is replaced by an MUI `Autocomplete` (`multiple`)
-combobox, chosen because `Select` (even with `multiple` + `renderValue` chips) has no
-type-to-filter, while `Autocomplete` natively delivers chips-in-the-field, type-to-filter, AND
+**Superseded 2026-08-04** (`docs/plans/work-comparison-picker-redesign.md`), **refined
+2026-08-05** (`docs/plans/work-comparison-picker-refinements.md`) — an MUI `Autocomplete`
+(`multiple`) combobox, chosen because `Select` (even with `multiple` + `renderValue` chips) has
+no type-to-filter, while `Autocomplete` natively delivers chips-in-the-field, type-to-filter, AND
 grouped/sectioned options together (WAI-ARIA combobox pattern, keyboard-operable out of the box).
 
-- **Field:** a single MUI `TextField`-backed combobox labeled "Works to compare" (the label IS
-  the control's accessible name — no outer `<fieldset>`/`<legend>` wrapper anymore; the
-  surrounding controls-island `.card` provides the visual surround instead). Selected works
-  render as removable `Chip`s inside the closed field via `renderValue` (v9's replacement for
-  the removed `renderTags`).
+- **Static label, not a floating MUI label:** a plain `<span id="work-picker-label">Works to
+  compare</span>` sits above the field (matching the Slider's own `<span>Date range</span>`
+  pattern below) instead of `TextField`'s animated floating `label`. A placeholder is NOT an
+  accessible name, so the combobox's name is re-established via `aria-labelledby` pointing at
+  that span's id (merged into MUI's `slotProps.htmlInput`, not overwritten) — verified with an
+  axe scan plus a named-combobox assertion, the single highest a11y risk in this pattern.
+  `placeholder="Search title or fandom"` stays as a plain HTML hint.
 - **Grouping:** options are flattened to one `{id, title, fandom}` row per (work × fandom)
   appearance (`groupBy`), since a multi-fandom work must appear under each of its fandoms but
   MUI's `groupBy` can only place one option object in one group. `isOptionEqualToValue` matches
   by `id`, so toggling any appearance toggles the one underlying work, and it renders exactly one
   chip regardless of how many fandom groups it appears under.
-- **Fandom-header tri-state bulk-select:** `renderGroup` renders a real `<button type="button">`
-  per fandom group (inside the popup listbox), naming its action + fandom ("Select all in Fandom
-  One" / "Deselect all in Fandom One"), plus a tri-state indicator (none/some/all) shown via
-  **icon shape + text** next to it, never color alone. Semantics: a fully-selected fandom
-  deselects all of it; none/partial fills it to 100% (additive, cap-respecting) — acting on the
-  fandom's full work set, not the filter-visible subset. A clickable control inside a
-  listbox/combobox popup is a known deviation from the strict WAI-ARIA combobox pattern (arrow-key
-  roving focus doesn't naturally reach it); the documented fallback, if real keyboard use ever
-  shows this is genuinely broken, is to render the bulk-select control just outside the popup
-  listbox per group instead.
-- **Type-to-filter:** matches title AND fandom name (`createFilterOptions({ stringify: o =>
-  \`${o.title} ${o.fandom}\` })`) — filtering by fandom keeps that whole group visible rather than
-  confusingly emptying the list when a user types a fandom name.
-- **Cap handling:** `getOptionDisabled` disables (`aria-disabled`) unselected options once at the
-  10-work cap; selected options/chips stay removable. Cap/truncation messages go to a single
+- **Fandom-header bulk-select — a genuine synthetic `role="option"`, not a button bar:** each
+  fandom group's `options` array gets one synthetic `{ kind: "header", fandom, workIds }`
+  sentinel ahead of that fandom's work options, so it's a real MUI-tracked option — stamped by
+  `getOptionProps` with `data-option-index`/`tabIndex=-1` the same as any work row. Verified
+  against the installed `useAutocomplete.js`: only tracked options get arrow-key roving highlight
+  and Enter/click, so this delivers full keyboard parity for free, and `role="option"` is a legal
+  `listbox` child (satisfying axe's `aria-required-children`, unlike an in-listbox `<button>`,
+  which is never a legal owned role there). Rendered bold, body-sized (`text-sm font-semibold`,
+  no uppercase/status text), with a tri-state icon (box/dash/check, shape not color) plus an
+  `aria-label` carrying status + action for screen readers (e.g. "Fandom One — some works
+  selected, activate to select all remaining") since the header has no visible status text and is
+  never itself in `value` (so `aria-selected` on it is always `false`, not a status signal).
+  Semantics: a fully-selected fandom deselects all of it; none/partial fills it to 100%
+  (additive, cap-respecting, truncation announced) — acting on the fandom's full work set, not
+  the filter-visible subset. Never `aria-disabled`, even at the 10-work cap (a full fandom must
+  stay deselectable). The group wrapper carries the divider (`border-t border-ink/10
+  first:border-t-0`) ABOVE each header, not below.
+- **Type-to-filter:** matches title AND fandom name via a custom `filterOptions` that runs the
+  existing `createFilterOptions({ stringify: o => \`${o.title} ${o.fandom}\` })` matcher over
+  work options only, then re-emits each surviving fandom's header sentinel ahead of its matches
+  (auto-hiding a header whose fandom has zero visible works) — filtering by fandom keeps that
+  whole group visible rather than confusingly emptying the list.
+- **Selected/hover states:** a selected work row is NOT bolded — an ink-colored check glyph plus
+  an `bg-accent/8` row background tint (background use of accent is explicitly permitted; the two
+  state-signifier icons, `CheckIcon`/`TriStateIcon`, are `--color-ink`, not accent — see the
+  contrast note below). Unselected rows get a neutral `hover:bg-ink/5` (also applied to MUI's own
+  keyboard-highlight class, `[&.Mui-focused]:bg-ink/5`, so mouse hover and arrow-key highlight
+  look identical); a SELECTED row uses a deeper `hover:bg-accent/12` instead, so the transient
+  hover state doesn't visually clobber the persistent selected tint.
+- **Cap handling:** `getOptionDisabled` disables (`aria-disabled`) unselected WORK options once at
+  the 10-work cap; selected options/chips stay removable. Cap/truncation messages go to a single
   `role="status"` polite live region shared with any other dynamic announcement for the same
   section (e.g. a "Comparing N works, START to END" summary), rather than one live region per
   sub-component, so assistive tech doesn't have to track multiple simultaneous regions for one
   logical update.
+- **"Clear all":** `clearText="Clear all"` applies to both the clear button's `aria-label` and
+  `title` (MUI default is `"Clear"`). The clear indicator is forced `visibility: visible` (MUI's
+  default hover/focus-only reveal is a discoverability regression for a stable, always-findable
+  affordance whenever there's something to clear).
 - **Chip accessible delete:** MUI's chip delete icon has no reliable accessible name out of the
   box. `Chip` has no `slotProps.deleteIcon` in the installed v9.2.0 (`ChipOwnerState`/
   `ChipOwnProps` expose no such slot) — the accessible name (`aria-label="Remove {title}"`) is set
@@ -444,8 +466,10 @@ grouped/sectioned options together (WAI-ARIA combobox pattern, keyboard-operable
 - **Theming:** field/chips/popup/options themed via `useChartColors()` + `sx` (MUI takes no
   Tailwind classes), following the same `hexToRgba` accent-ring-at-15% pattern as the MUI Slider
   below — `.input`-equivalent field styling, `.card`-equivalent popup surface, visible accent
-  focus rings throughout, selected-option/tri-state distinguished by shape/check + text, never
-  color alone.
+  focus rings throughout. `--color-ink` (not accent) is used for the two state-signifier icons —
+  verified ≥3:1 (WCAG 1.4.11) against `--color-card` in both modes, and chosen over `--color-
+  growth` to avoid colliding with that token's established chart "positive trend" meaning on a
+  neutral checkbox-style control.
 - **State:** the selection/range this control drives now lives in a persisted per-username
   Zustand store (`useWorkComparisonStore`, `docs/plans/work-comparison-picker-redesign.md` §2),
   not view-local `useState` — `WorkPicker` itself stays a controlled, store-agnostic component
@@ -468,6 +492,19 @@ properties. Per-thumb `getAriaLabel`/`getAriaValueText` props supply "Range star
 names and plain-year spoken values; `disableSwap` gives thumb-crossover clamping instead of the
 default swap-on-cross behavior, which would otherwise make a thumb's aria label misleadingly
 jump between roles mid-drag.
+
+**Always rendered, disabled below threshold (refined 2026-08-05,**
+`docs/plans/work-comparison-picker-refinements.md` **§3.2):** the component no longer unmounts
+(returns `null`) below the >2 union-capture-dates threshold — it stays mounted and hands
+`disabled = unionPointCount <= 2` straight to MUI Slider's own `disabled` prop, so the control's
+presence and the "Date range" heading are always visible, giving the picker column's sibling in
+the two-column grid a stable width regardless of selection state. No dedicated "disabled input"
+token exists yet, so the disabled treatment reuses `--color-ink` at low opacity for track/thumb
+(NOT accent — a disabled control must not read as active) and dims the heading/readout text to
+`--color-ink-soft`, aligning with the project's existing `aria-disabled:opacity-40` convention on
+capped picker rows. The drag-fix `onChange`/`onChangeCommitted` split (live-drag feedback
+decoupled from the expensive store-write callback) is unaffected — a disabled MUI Slider simply
+never fires either callback.
 
 ---
 
