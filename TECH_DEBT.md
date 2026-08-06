@@ -574,3 +574,33 @@
   `useEffect`, and do the mount-time reconciliation write in an effect (or accept
   the store already exposing the reconciled value). Deferred from Review — not a
   reproducible defect today, flagged for the metrics-feature work / Retrospective.
+- [2026-08-05] (stage: Implementation) Two tests in
+  `frontend/tests/accessibility.pickerRefinements.spec.ts` fail against a
+  correct implementation of `docs/plans/work-comparison-picker-refinements.md`
+  §1 (the synthetic tracked `role="option"` header), for two distinct
+  test-authoring reasons rather than an app defect - not fixed here per
+  "don't modify tests to make them pass," flagged for Testing/Planning to
+  revisit instead: (1) "the works combobox's accessible name comes from the
+  static label..." calls `page.goto("/u/testauthor")` with no token and no
+  `mockStatsForUser` - `DashboardPage.tsx`'s no-token state renders
+  `TokenEntryForm`, not `WorkComparisonSection`, so the combobox never
+  exists on that page at all, regardless of implementation; needs a
+  `?token=` + `mockStatsForUser` call like every sibling test in the file.
+  (2) "the fandom-header option is reachable via ArrowDown from a freshly
+  opened popup..." assumes a freshly-opened popup's roving highlight starts
+  at -1 (so one ArrowDown reaches the first tracked option, the header) -
+  true only when NO option is yet selected. `WorkComparisonSection` always
+  auto-selects the first work on mount, so in the real app (and this test's
+  own `MULTI_WORK_STATS_RESPONSE` fixture) a value always already exists
+  when the popup opens; MUI's own `useAutocomplete.js` `syncHighlightedIndex`
+  pre-highlights the option matching `value[0]` on open in that case (not
+  -1), so one ArrowDown lands one option past the pre-selected work, not on
+  the header. Manually verified live (Playwright, chromium) that the header
+  IS still genuinely keyboard-reachable and Enter-operable in this exact
+  scenario - just via one ArrowUp from the pre-highlighted selection, not
+  one ArrowDown from an assumed-empty highlight - confirming §1.1's
+  underlying tracked-option/keyboard-parity finding still holds; only the
+  test's specific "first ArrowDown" framing is wrong. Fix: rewrite the
+  assertion to either deselect first, or navigate via ArrowUp/repeated
+  ArrowDown+wraparound to actually reach the header from the pre-selected
+  highlight, matching real app state.
