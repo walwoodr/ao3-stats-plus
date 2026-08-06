@@ -80,14 +80,18 @@ test.describe("accessibility - keyboard nav, focus order, ARIA", () => {
     await expect(submitButton).toBeFocused();
   });
 
-  // Full keyboard walkthrough of the redesigned Autocomplete combobox
-  // picker (docs/plans/work-comparison-picker-redesign.md): open the
+  // Full keyboard walkthrough of the Autocomplete combobox picker
+  // (docs/plans/work-comparison-picker-redesign.md, refined by
+  // docs/plans/work-comparison-picker-refinements.md §1): open the
   // combobox, select a work by keyboard-operated option click, select an
-  // entire fandom via the in-listbox bulk-select header (reaching the
-  // 10-work cap - §11's flagged risk: a real browser, unlike this suite's
-  // jsdom unit tests, is the right place to confirm the header stays
-  // keyboard-operable once nested in the popup), then operate both
-  // DateRangeSlider thumbs via arrow keys.
+  // entire fandom via the fandom-header row (now a genuine `role="option"`
+  // INSIDE the listbox, not a `role="button"` bar sibling - reaching the
+  // 10-work cap), then operate both DateRangeSlider thumbs via arrow keys.
+  // The header's specific arrow-key + Enter reachability (§1.1's load-
+  // bearing verified finding) gets its own isolated test in
+  // accessibility.pickerRefinements.spec.ts, where a freshly-opened popup
+  // makes the roving-highlight starting position deterministic; this test
+  // stays focused on the end-to-end selection/cap/slider flow.
   test("keyboard walkthrough: select works via the combobox, select-all to the cap via the fandom header, and operate both slider thumbs", async ({
     page,
   }) => {
@@ -101,10 +105,7 @@ test.describe("accessibility - keyboard nav, focus order, ARIA", () => {
     await page.getByRole("option", { name: "Comparison Work 2" }).click();
     await expect(page.getByLabel("Remove Comparison Work 2")).toBeVisible();
 
-    const selectAllButton = page.getByRole("button", { name: /select all.*shared fandom/i });
-    await selectAllButton.focus();
-    await expect(selectAllButton).toBeFocused();
-    await page.keyboard.press("Enter");
+    await page.getByRole("option", { name: /shared fandom/i }).click();
     await expect(page.getByRole("status")).toContainText(/maximum of 10 works reached/i);
     await expect(page.getByRole("option", { name: "Comparison Work 11" })).toHaveAttribute(
       "aria-disabled",
@@ -233,7 +234,7 @@ test.describe("accessibility - automated axe scans", () => {
 
     await page.getByRole("combobox", { name: /works to compare/i }).click();
     await expect(page.getByRole("listbox")).toBeVisible();
-    await expect(page.getByRole("button", { name: /select all.*shared fandom/i })).toBeVisible();
+    await expect(page.getByRole("option", { name: /shared fandom/i })).toBeVisible();
 
     const results = await new AxeBuilder({ page }).analyze();
 
@@ -247,7 +248,7 @@ test.describe("accessibility - automated axe scans", () => {
     await page.goto("/u/testauthor?token=tok_valid123");
 
     await page.getByRole("combobox", { name: /works to compare/i }).click();
-    await page.getByRole("button", { name: /select all.*shared fandom/i }).click();
+    await page.getByRole("option", { name: /shared fandom/i }).click();
     await expect(page.getByRole("status")).toContainText(/maximum of 10 works reached/i);
     await expect(page.getByRole("option", { name: "Comparison Work 11" })).toHaveAttribute(
       "aria-disabled",
@@ -293,7 +294,7 @@ test.describe("accessibility - automated axe scans (dark mode)", () => {
 
     await page.getByRole("combobox", { name: /works to compare/i }).click();
     await expect(page.getByRole("listbox")).toBeVisible();
-    await expect(page.getByRole("button", { name: /select all.*shared fandom/i })).toBeVisible();
+    await expect(page.getByRole("option", { name: /shared fandom/i })).toBeVisible();
 
     const results = await new AxeBuilder({ page }).analyze();
 
@@ -307,7 +308,7 @@ test.describe("accessibility - automated axe scans (dark mode)", () => {
     await page.goto("/u/testauthor?token=tok_valid123");
 
     await page.getByRole("combobox", { name: /works to compare/i }).click();
-    await page.getByRole("button", { name: /select all.*shared fandom/i }).click();
+    await page.getByRole("option", { name: /shared fandom/i }).click();
     await expect(page.getByRole("status")).toContainText(/maximum of 10 works reached/i);
     await expect(page.getByRole("option", { name: "Comparison Work 11" })).toHaveAttribute(
       "aria-disabled",
