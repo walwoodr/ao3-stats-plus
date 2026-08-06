@@ -179,12 +179,13 @@ export function WorkComparisonSection({
   const unionDates = unionCapturedOnDates(orderedSelectedWorks);
   const showSlider = shouldShowRangeSlider(unionDates);
 
-  // Q5's boundary-crossing corner case: once the selection drops back to
-  // <= 2 union points, the slider unmounts (DateRangeSlider's own gate) AND
-  // the window resets to full - no stale filter left applied invisibly.
-  // Adjusts the store during render (the same "you might not need an
-  // effect" pattern this file already used for the pre-redesign local
-  // `range` useState) rather than in a useEffect.
+  // Q5's boundary-crossing corner case, preserved by §3.2: once the
+  // selection drops back to <= 2 union points, the slider becomes DISABLED
+  // (no longer unmounts - see DateRangeSlider's own `disabled` derivation)
+  // AND the window resets to full - no stale filter left applied
+  // invisibly. Adjusts the store during render (the same "you might not
+  // need an effect" pattern this file already used for the pre-redesign
+  // local `range` useState) rather than in a useEffect.
   if (!showSlider && rawRange !== null) {
     setRangeInStore(username, null);
   }
@@ -260,8 +261,15 @@ export function WorkComparisonSection({
         data-testid="controls-island"
         className="flex flex-col gap-3 rounded-lg border border-ink/12 bg-card p-6"
       >
-        <div className="flex flex-col gap-6 md:flex-row md:items-start">
-          <div className="md:flex-1">
+        {/* Requirement 3/§3.1: a deterministic two-column CSS grid, NOT a
+            flex row - `minmax(0,1fr)` on the picker track is what stops
+            accumulating chips from ever widening the column (a plain `1fr`
+            track's implicit min-width is min-content, which chips WOULD
+            grow). The slider column is a fixed `18rem` and the slider is
+            now ALWAYS rendered into it (disabled below the threshold,
+            never omitted) - see DateRangeSlider.tsx's own `disabled` gate. */}
+        <div className="flex flex-col gap-6 md:grid md:grid-cols-[minmax(0,1fr)_18rem] md:items-start">
+          <div>
             <WorkPicker
               perWorkSeries={perWorkSeries}
               selectedWorkIds={selectedWorkIds}
@@ -270,20 +278,15 @@ export function WorkComparisonSection({
             />
           </div>
 
-          {/* Omitted (not just gated-null inside DateRangeSlider itself) so
-              the picker fills the row rather than leaving a stray fixed-
-              width empty column - plan §8/§11's "no empty column." */}
-          {showSlider && (
-            <div className="md:w-72 md:shrink-0">
-              <DateRangeSlider
-                min={domain.start}
-                max={domain.end}
-                value={sliderValue}
-                onChange={handleRangeChange}
-                unionPointCount={unionDates.length}
-              />
-            </div>
-          )}
+          <div>
+            <DateRangeSlider
+              min={domain.start}
+              max={domain.end}
+              value={sliderValue}
+              onChange={handleRangeChange}
+              unionPointCount={unionDates.length}
+            />
+          </div>
         </div>
       </div>
 
