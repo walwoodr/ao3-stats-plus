@@ -23,7 +23,8 @@ test.describe("accessibility - picker refinements (keyboard/ARIA)", () => {
   test("the works combobox's accessible name comes from the static label, not a floating MUI label", async ({
     page,
   }) => {
-    await page.goto("/u/testauthor");
+    await mockStatsForUser(page, MULTI_WORK_STATS_RESPONSE);
+    await page.goto("/u/testauthor?token=tok_valid123");
 
     const combobox = page.getByRole("combobox", { name: "Works to compare" });
     await expect(combobox).toBeVisible();
@@ -35,11 +36,16 @@ test.describe("accessibility - picker refinements (keyboard/ARIA)", () => {
   });
 
   // §1.1's load-bearing verified finding, confirmed live (not just in the
-  // jsdom unit suite): a freshly-opened popup's roving highlight starts at
-  // -1, so a single ArrowDown deterministically reaches the FIRST tracked
-  // option - the fandom header, since flattenToWorkOptions emits it before
-  // any of its fandom's work options.
-  test("the fandom-header option is reachable via ArrowDown from a freshly opened popup and toggles the whole fandom on Enter", async ({
+  // jsdom unit suite): a freshly-opened popup's roving highlight does NOT
+  // start at -1 here, because WorkComparisonSection always auto-selects the
+  // first work by default - MUI's useAutocomplete pre-highlights that
+  // already-SELECTED option on open, per its own source. Since
+  // flattenToWorkOptions emits the fandom header immediately before its
+  // fandom's first work (MULTI_WORK_STATS_RESPONSE's 11 works all share one
+  // fandom), the pre-highlighted "Comparison Work 1" sits one slot after the
+  // header - so a single ArrowUp (not ArrowDown) deterministically reaches
+  // the header.
+  test("the fandom-header option is reachable via ArrowUp from a freshly opened popup (given the default first-work selection) and toggles the whole fandom on Enter", async ({
     page,
   }) => {
     await mockStatsForUser(page, MULTI_WORK_STATS_RESPONSE);
@@ -49,7 +55,7 @@ test.describe("accessibility - picker refinements (keyboard/ARIA)", () => {
     await combobox.click();
     await expect(page.getByRole("listbox")).toBeVisible();
 
-    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("ArrowUp");
     const header = page.getByRole("option", { name: /shared fandom/i });
     const headerId = await header.getAttribute("id");
     await expect(combobox).toHaveAttribute("aria-activedescendant", headerId ?? "");
