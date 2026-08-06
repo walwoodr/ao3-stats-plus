@@ -36,8 +36,10 @@ function getAriaValueText(value: number): string {
 // bound (`min`/`max`, the plan's `[earliestPostYear .. current year]`) is
 // separate from the chart's categorical (index) axis - this only filters
 // which real points are in the window, per the plan's Q5 reconciliation.
-// Rendered only when the `>2` union-points gate (also Q5) passes, so the
-// gate lives here rather than being duplicated by every caller.
+// Always rendered (docs/plans/work-comparison-picker-refinements.md §3.2 -
+// supersedes the original always-vs-gated Q5 resolution); the `>2`
+// union-points gate now only controls the `disabled` prop below, so callers
+// mount this unconditionally instead of gating on it themselves.
 export function DateRangeSlider({
   min,
   max,
@@ -77,7 +79,13 @@ export function DateRangeSlider({
     setLiveValue(value);
   }
 
-  if (unionPointCount <= 2) return null;
+  // §3.2: the old `unionPointCount <= 2` null-return gate is removed - the
+  // component is now ALWAYS rendered, and this boolean is handed straight
+  // to MUI Slider's own `disabled` prop instead. A disabled MUI Slider
+  // suppresses pointer/keyboard interaction entirely, so `onChange`/
+  // `onChangeCommitted` simply never fire in that state - no new coupling
+  // with the drag-fix split above.
+  const disabled = unionPointCount <= 2;
 
   return (
     <div className="flex flex-col gap-2">
@@ -86,8 +94,12 @@ export function DateRangeSlider({
           thumbs' hidden inputs, and per the accessible-name computation
           order aria-labelledby wins over aria-label, which would clobber
           each thumb's own getAriaLabel-derived "Range start/end (year)"
-          name with this shared heading text instead. */}
-      <span className="text-sm font-medium text-ink">Date range</span>
+          name with this shared heading text instead. Stays visible in
+          both states (§3.3) so the control's purpose is always clear, even
+          disabled. */}
+      <span className={`text-sm font-medium ${disabled ? "text-ink-soft" : "text-ink"}`}>
+        Date range
+      </span>
       <Slider
         value={liveValue}
         onChange={(_event, newValue) => {
@@ -104,6 +116,7 @@ export function DateRangeSlider({
         marks
         valueLabelDisplay="auto"
         disableSwap
+        disabled={disabled}
         tabIndex={0}
         getAriaLabel={getAriaLabel}
         getAriaValueText={getAriaValueText}
@@ -118,9 +131,21 @@ export function DateRangeSlider({
           "& .MuiSlider-track": { backgroundColor: colors.accent },
           "& .MuiSlider-rail": { backgroundColor: colors.ink, opacity: 0.2 },
           "& .MuiSlider-valueLabel": { fontFamily: "var(--font-mono)" },
+          // Disabled state (§3.3): no dedicated "disabled input" token
+          // exists in MASTER.md, so this reuses `ink` at a low opacity
+          // (NOT accent - a disabled control must not look active) rather
+          // than falling back to MUI's own grey default, aligning with the
+          // project's ~40% disabled convention (aria-disabled:opacity-40
+          // on capped WorkPicker rows).
+          "&.Mui-disabled": {
+            color: hexToRgba(colors.ink, 0.4),
+            "& .MuiSlider-thumb": { backgroundColor: hexToRgba(colors.ink, 0.4) },
+            "& .MuiSlider-track": { backgroundColor: hexToRgba(colors.ink, 0.4) },
+            "& .MuiSlider-rail": { backgroundColor: colors.ink, opacity: 0.2 },
+          },
         }}
       />
-      <p className="font-mono text-sm text-ink">
+      <p className={`font-mono text-sm ${disabled ? "text-ink-soft" : "text-ink"}`}>
         {liveValue[0]} – {liveValue[1]}
       </p>
     </div>
