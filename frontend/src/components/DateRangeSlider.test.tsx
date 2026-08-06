@@ -6,14 +6,21 @@ import { DateRangeSlider, type DateRangeSliderProps } from "./DateRangeSlider";
 
 // DateRangeSlider wraps MUI `Slider` in range mode (decision B, resolved by
 // the user - see the plan's "Resolved design decisions"). @mui/material,
-// @emotion/react, and @emotion/styled are not installed yet (that's
-// Implementation's job, task 6) - every test in this file is expected to
-// fail on import ("Cannot find module '@mui/material'" / similar), not for
-// any other reason. That's the correct red state for this stage.
+// @emotion/react, and @emotion/styled are installed and used by other
+// already-shipped components in this codebase, so - unlike when this file
+// was first written - these tests are NOT expected to fail on import.
 //
-// The `>2` union-points visibility gate (Q5) is owned by this component via
-// `unionPointCount`, so WorkComparisonSection doesn't need to duplicate the
-// gate check before deciding whether to mount it.
+// docs/plans/work-comparison-picker-refinements.md §3.2 REMOVES the old
+// `unionPointCount <= 2` null-return gate: the component now always
+// renders, and instead derives `disabled = unionPointCount <= 2` and passes
+// it straight to MUI's own `Slider` `disabled` prop. WorkComparisonSection
+// (not this component) now always mounts DateRangeSlider unconditionally -
+// see WorkComparisonSection.test.tsx/.regression.test.tsx (T11) for that
+// side of the change. The drag-fix regression tests below (onChange vs.
+// onChangeCommitted) are UNCHANGED and must keep passing unmodified -
+// disabling the control doesn't touch that split at all (a disabled MUI
+// Slider simply never fires either callback, so there's nothing for the
+// split to interact with).
 function ControlledDateRangeSlider(
   props: Omit<DateRangeSliderProps, "value" | "onChange"> & {
     initialValue: [number, number];
@@ -24,8 +31,11 @@ function ControlledDateRangeSlider(
 }
 
 describe("DateRangeSlider", () => {
-  describe("the >2 union-points visibility gate", () => {
-    it("renders nothing when unionPointCount is 0", () => {
+  // Requirement 3 (§3.2): the component is now ALWAYS rendered - the old
+  // `unionPointCount <= 2` null-return gate is removed and replaced by
+  // deriving `disabled` and handing it to MUI Slider's own `disabled` prop.
+  describe("always rendered - disabled below the >2 union-points threshold", () => {
+    it("renders (never returns null) when unionPointCount is 0", () => {
       const { container } = render(
         <DateRangeSlider
           min={2018}
@@ -36,11 +46,26 @@ describe("DateRangeSlider", () => {
         />,
       );
 
-      expect(container).toBeEmptyDOMElement();
+      expect(container).not.toBeEmptyDOMElement();
+      expect(screen.getAllByRole("slider")).toHaveLength(2);
     });
 
-    it("renders nothing when unionPointCount is exactly 2 (boundary - not '>2')", () => {
-      const { container } = render(
+    it("is disabled when unionPointCount is 0", () => {
+      render(
+        <DateRangeSlider
+          min={2018}
+          max={2026}
+          value={[2018, 2026]}
+          onChange={vi.fn()}
+          unionPointCount={0}
+        />,
+      );
+
+      screen.getAllByRole("slider").forEach((thumb) => expect(thumb).toBeDisabled());
+    });
+
+    it("is disabled when unionPointCount is exactly 2 (boundary - not '>2')", () => {
+      render(
         <DateRangeSlider
           min={2018}
           max={2026}
@@ -50,10 +75,10 @@ describe("DateRangeSlider", () => {
         />,
       );
 
-      expect(container).toBeEmptyDOMElement();
+      screen.getAllByRole("slider").forEach((thumb) => expect(thumb).toBeDisabled());
     });
 
-    it("renders when unionPointCount is exactly 3 (boundary - '>2' means >= 3)", () => {
+    it("is enabled (not disabled) when unionPointCount is exactly 3 (boundary - '>2' means >= 3)", () => {
       render(
         <DateRangeSlider
           min={2018}
@@ -65,6 +90,73 @@ describe("DateRangeSlider", () => {
       );
 
       expect(screen.getAllByRole("slider")).toHaveLength(2);
+      screen.getAllByRole("slider").forEach((thumb) => expect(thumb).not.toBeDisabled());
+    });
+  });
+
+  describe("disabled-state visual/data treatment (§3.2/§3.3)", () => {
+    it("still shows the passed-in value range in the visible readout while disabled", () => {
+      render(
+        <DateRangeSlider
+          min={2018}
+          max={2026}
+          value={[2018, 2026]}
+          onChange={vi.fn()}
+          unionPointCount={1}
+        />,
+      );
+
+      expect(screen.getByText(/2018\s*[–-]\s*2026/)).toBeInTheDocument();
+    });
+
+    it("keeps the 'Date range' heading visible while disabled, so the control's purpose stays clear", () => {
+      render(
+        <DateRangeSlider
+          min={2018}
+          max={2026}
+          value={[2018, 2026]}
+          onChange={vi.fn()}
+          unionPointCount={0}
+        />,
+      );
+
+      expect(screen.getByText("Date range")).toBeInTheDocument();
+    });
+
+    it("still exposes correct min/max bounds on the disabled thumbs (aria-valuemin/aria-valuemax)", () => {
+      render(
+        <DateRangeSlider
+          min={2018}
+          max={2026}
+          value={[2018, 2026]}
+          onChange={vi.fn()}
+          unionPointCount={0}
+        />,
+      );
+
+      const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
+      expect(startThumb).toHaveAttribute("aria-valuemin", "2018");
+      expect(startThumb).toHaveAttribute("aria-valuemax", "2026");
+    });
+
+    it("does not call onChange in response to a keyboard step while disabled (interaction genuinely suppressed)", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      render(
+        <DateRangeSlider
+          min={2018}
+          max={2026}
+          value={[2018, 2026]}
+          onChange={onChange}
+          unionPointCount={0}
+        />,
+      );
+
+      const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
+      startThumb.focus();
+      await user.keyboard("{ArrowRight}");
+
+      expect(onChange).not.toHaveBeenCalled();
     });
   });
 
