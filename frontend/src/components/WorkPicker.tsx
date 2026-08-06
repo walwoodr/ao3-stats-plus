@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Autocomplete, {
   createFilterOptions,
   type AutocompleteChangeDetails,
@@ -6,8 +6,8 @@ import Autocomplete, {
   type AutocompleteRenderGroupParams,
   type AutocompleteRenderInputParams,
 } from "@mui/material/Autocomplete";
+import type { FilterOptionsState } from "@mui/material/useAutocomplete";
 import Chip from "@mui/material/Chip";
-import Paper, { type PaperProps } from "@mui/material/Paper";
 import TextField from "@mui/material/TextField";
 import type { PerWorkSeries } from "../queries/useStatsForUser";
 import { groupWorksByFandom } from "../lib/groupWorksByFandom";
@@ -21,75 +21,55 @@ import {
 import { useChartColors } from "../lib/useChartColors";
 import type { ColorTokens } from "../lib/colorTokens";
 
-// Lets `slotProps.paper` carry a real, typed `bulkSelectBar` prop through to
-// BulkSelectPaper below (MUI's documented extension point for this - see
-// AutocompletePaperSlotPropsOverrides in Autocomplete.d.ts).
-declare module "@mui/material/Autocomplete" {
-  interface AutocompletePaperSlotPropsOverrides {
-    bulkSelectBar?: React.ReactNode;
-  }
-}
-
-// Custom `paper` slot: a thin wrapper around MUI's own Paper that injects
-// the bulk-select bar as a real DOM sibling of the listbox <ul>, not a
-// descendant - see renderFandomGroup/renderBulkSelectBar's comments in
-// WorkPicker below for why a real button can't live inside
-// <ul role="listbox"> at all.
-//
-// Deliberately defined at MODULE level (not inside WorkPicker) and reading
-// its content via a plain prop, not a closure: `slots.paper` becomes the
-// Autocomplete popup's element type, and a component defined fresh inside
-// WorkPicker's own render body would get a NEW function identity every
-// render - a NEW component type to React, which unmounts and remounts the
-// entire popup (listbox, all options, the bar itself) on every single
-// state change. That's disruptive on its own, and in practice meant the
-// bulk-select button could vanish mid-interaction (confirmed via a live
-// keyboard-walkthrough e2e run: selecting an option, which updates
-// WorkPicker's own state, was enough to unmount the button before a
-// subsequent `.focus()` could find it). A module-level component only
-// exists once, ever, so `slots={{ paper: BulkSelectPaper }}` is the exact
-// same reference on every WorkPicker render.
-function BulkSelectPaper({
-  bulkSelectBar,
-  children,
-  ...paperProps
-}: PaperProps & { bulkSelectBar?: React.ReactNode }) {
-  return (
-    <Paper {...paperProps}>
-      {bulkSelectBar}
-      {children}
-    </Paper>
-  );
-}
-
 export interface WorkPickerProps {
   perWorkSeries: PerWorkSeries[];
   selectedWorkIds: number[];
   onChange: (selectedWorkIds: number[]) => void;
   // An additional message merged into this component's OWN role="status"
-  // live region (rather than WorkComparisonSection rendering a second,
-  // separate region) - keeps exactly one status region in the combined
-  // tree, e.g. for the "Comparing N works, START to END." summary
-  // announcement (see WorkComparisonSection.tsx). Undefined/omitted by
-  // every WorkPicker-only test, so default behavior is unaffected.
+  // live region (rather than WorkComparisonSection rendering a second one)
+  // - keeps exactly one status region in the combined tree, e.g. for the
+  // "Comparing N works, START to END." summary (see WorkComparisonSection.tsx).
   extraStatusMessage?: string;
 }
 
-// One option per (work x fandom) appearance (plan §3): MUI's `groupBy` can
-// only place an option in ONE group, but a multi-fandom work must appear
-// under each of its fandoms (matching the shipped checkbox UI's behavior).
-// groupWorksByFandom's contiguous per-fandom groups keep this pre-sorted by
-// group, which MUI's `groupBy` requires.
-interface WorkOption {
+// One option per (work x fandom) appearance, PLUS a synthetic "header"
+// option per fandom group (docs/plans/work-comparison-picker-refinements.md
+// §1 - the load-bearing decision): a header rendered OUTSIDE MUI's tracked
+// `options` array would have no `data-option-index`/`tabIndex` and be
+// invisible to arrow-key roving highlight (verified against
+// useAutocomplete.js's `validOptionIndex`/`getOptionProps`). A tracked
+// option (kind: "header") gets full keyboard + click parity for free, and
+// satisfies axe's aria-required-children rule (role="option" is a legal
+// listbox child; the old role="button" bar was not).
+interface WorkOptionWork {
+  kind: "work";
   id: number;
   title: string;
   fandom: string;
 }
+interface WorkOptionHeader {
+  kind: "header";
+  fandom: string;
+  workIds: number[];
+}
+type WorkOption = WorkOptionWork | WorkOptionHeader;
 
+// Builds, per fandom group (in groupWorksByFandom order): one header
+// sentinel first, then that fandom's work options - contiguity per fandom
+// is preserved, which MUI's `groupBy` requires (options pre-sorted by
+// group).
 function flattenToWorkOptions(perWorkSeries: PerWorkSeries[]): WorkOption[] {
-  return groupWorksByFandom(perWorkSeries).flatMap((group) =>
-    group.works.map((work) => ({ id: work.ao3WorkId, title: work.title, fandom: group.fandom })),
-  );
+  return groupWorksByFandom(perWorkSeries).flatMap((group) => {
+    const workIds = group.works.map((work) => work.ao3WorkId);
+    const header: WorkOption = { kind: "header", fandom: group.fandom, workIds };
+    const works: WorkOption[] = group.works.map((work) => ({
+      kind: "work",
+      id: work.ao3WorkId,
+      title: work.title,
+      fandom: group.fandom,
+    }));
+    return [header, ...works];
+  });
 }
 
 // Converts a `#rrggbb` hex into an rgba() string at the given alpha - same
@@ -103,14 +83,11 @@ function hexToRgba(hex: string, alpha: number): string {
 }
 
 // Hand-rolled inline "x" glyph - no icon library is installed/approved in
-// this project (plan §9's 2026-08-04 correction), so this follows
-// markerShapes.tsx's existing bare-SVG-primitive pattern instead of adding
-// one. The accessible name is set directly on this element (`aria-label`);
-// MUI's Chip clones this element to attach its own `onClick`/`className`
-// (verified against the installed Chip.js - only those two props are
-// overridden), so - unlike a library icon component that forwards ...rest
-// props automatically - this must explicitly spread them onto the real
-// <svg> itself, or the cloned onClick silently never reaches the DOM.
+// this project, so this follows markerShapes.tsx's bare-SVG-primitive
+// pattern. MUI's Chip clones this element to attach its own `onClick`/
+// `className` (only those two props, verified against Chip.js) - unlike a
+// library icon that forwards ...rest automatically, `rest` must be spread
+// onto the real <svg> explicitly or the cloned onClick never reaches the DOM.
 function CloseIcon({
   "aria-label": ariaLabel,
   ...rest
@@ -123,8 +100,7 @@ function CloseIcon({
   );
 }
 
-// Hand-rolled check glyph for selected option rows - shape (not color
-// alone) is what signals "selected" (MASTER.md's no-color-alone rule).
+// Hand-rolled check glyph - shape (not color alone) signals "selected".
 function CheckIcon({ color }: { color: string }) {
   return (
     <svg width={14} height={14} viewBox="0 0 14 14" aria-hidden="true" focusable="false">
@@ -135,9 +111,9 @@ function CheckIcon({ color }: { color: string }) {
 
 type FandomTriState = "none" | "partial" | "all";
 
-// The fandom-header tri-state indicator (plan §5/§0.6): distinct icon shape
-// per state (empty box / dash / check) PLUS a text label - never color
-// alone, echoing CheckIcon's shape-based selected-row treatment.
+// Fandom-header tri-state indicator: distinct shape per state (empty box /
+// dash / check) - shape, not color, carries the signal (recolored to
+// colors.ink per requirement 2 at the call site).
 function TriStateIcon({ state, color }: { state: FandomTriState; color: string }) {
   return (
     <svg width={14} height={14} viewBox="0 0 14 14" aria-hidden="true" focusable="false">
@@ -161,27 +137,57 @@ function TriStateIcon({ state, color }: { state: FandomTriState; color: string }
   );
 }
 
-function triStateLabel(state: FandomTriState): string {
-  if (state === "all") return "All selected";
-  if (state === "partial") return "Some selected";
-  return "None selected";
-}
-
-// Shared by the in-listbox header label and the bulk-select bar's buttons
-// (requirement 8/§5) - a fandom is "all" only once every one of its works is
-// selected, "partial" if some but not all are, else "none".
+// "all" only once every work is selected, "partial" if some but not all
+// are, else "none".
 function fandomTriState(fandomWorkIds: number[], selectedIds: Set<number>): FandomTriState {
   const allSelected = fandomWorkIds.length > 0 && fandomWorkIds.every((id) => selectedIds.has(id));
   if (allSelected) return "all";
   return fandomWorkIds.some((id) => selectedIds.has(id)) ? "partial" : "none";
 }
 
-// Matches title AND fandom name (§0.5): because options are grouped by
-// fandom, typing a fandom name should keep that whole group visible rather
-// than confusingly emptying the list.
-const filterWorkOptions = createFilterOptions<WorkOption>({
+// Requirement 6 + §Accessibility: removing the header's visible "None/Some/
+// All selected" text means its status must reach screen readers some other
+// way - this aria-label is that carrier (sighted users get the icon shape).
+function headerAriaLabel(fandom: string, state: FandomTriState): string {
+  if (state === "all") return `${fandom} — all works selected, activate to deselect all`;
+  if (state === "partial")
+    return `${fandom} — some works selected, activate to select all remaining`;
+  return `${fandom} — no works selected, activate to select all`;
+}
+
+// Matches title AND fandom name (§0.5): typing a fandom name keeps that
+// whole group visible rather than confusingly emptying the list. Runs over
+// WORK options only - headers are re-derived around the results below (§1.3).
+const filterWorkOptions = createFilterOptions<WorkOptionWork>({
   stringify: (option) => `${option.title} ${option.fandom}`,
 });
+
+// Custom filterOptions (§1.3): headers can't be stringify-matched like
+// works, so this filters the WORK options through the matcher above, then
+// rebuilds the array by re-emitting each fandom's header sentinel (already
+// groupWorksByFandom-contiguous) immediately before its surviving works,
+// only when at least one survives - auto-hiding a header whose fandom has
+// no visible matches, matching the prior filtered-out-fandom behavior.
+function filterWorkPickerOptions(
+  options: WorkOption[],
+  state: FilterOptionsState<WorkOption>,
+): WorkOption[] {
+  const headers = options.filter((option): option is WorkOptionHeader => option.kind === "header");
+  const works = options.filter((option): option is WorkOptionWork => option.kind === "work");
+  const filteredWorks = filterWorkOptions(works, {
+    ...state,
+    getOptionLabel: (option) => option.title,
+  });
+
+  const result: WorkOption[] = [];
+  for (const header of headers) {
+    const worksForFandom = filteredWorks.filter((work) => work.fandom === header.fandom);
+    if (worksForFandom.length > 0) {
+      result.push(header, ...worksForFandom);
+    }
+  }
+  return result;
+}
 
 function inputSx(colors: ColorTokens) {
   return {
@@ -196,9 +202,13 @@ function inputSx(colors: ColorTokens) {
         borderWidth: "1px",
         boxShadow: `0 0 0 3px ${hexToRgba(colors.accent, 0.15)}`,
       },
+      // MUI's default clear indicator is only revealed on hover/focus
+      // (visibility: hidden otherwise) - a discoverability regression for
+      // anyone not currently hovering the field. "Clear all" (requirement
+      // 4) should be a stable, always-visible affordance whenever there's
+      // something to clear, not a hover-only one.
+      "& .MuiAutocomplete-clearIndicator": { visibility: "visible" },
     },
-    "& .MuiInputLabel-root": { fontFamily: "var(--font-display)", color: colors.inkSoft },
-    "& .MuiInputLabel-root.Mui-focused": { color: colors.accent },
     "& input": { color: colors.ink },
   };
 }
@@ -211,12 +221,12 @@ function paperSx(colors: ColorTokens) {
   };
 }
 
-// Grouped-by-fandom Autocomplete combobox picker (plan §0.1-§0.6): a
-// controlled component (props unchanged from the shipped checkbox picker -
-// `perWorkSeries`, `selectedWorkIds`, `onChange`, `extraStatusMessage`), it
-// owns no selection state itself, just renders `selectedWorkIds` as chips
-// and reports every change via `onChange`. The real selection state lives
-// one level up, in WorkComparisonSection (backed by the persisted
+// Grouped-by-fandom Autocomplete combobox picker (plan §0.1-§0.8): a
+// controlled component (props unchanged - `perWorkSeries`,
+// `selectedWorkIds`, `onChange`, `extraStatusMessage`), it owns no
+// selection state itself, just renders `selectedWorkIds` as chips and
+// reports every change via `onChange`. The real selection state lives one
+// level up, in WorkComparisonSection (backed by the persisted
 // useWorkComparisonStore). The one piece of genuinely local state is the
 // cap-truncation announcement text, an ephemeral reaction to the LAST
 // select-all click rather than something derivable from props alone.
@@ -228,67 +238,34 @@ export function WorkPicker({
 }: WorkPickerProps) {
   const colors = useChartColors();
   const [truncationMessage, setTruncationMessage] = useState<string | null>(null);
-  // Mirrors the Autocomplete's own filter text (controlled `inputValue`)
-  // purely so the bulk-select bar below can compute which fandom groups are
-  // CURRENTLY visible after type-to-filter - see the bulk-select-bar
-  // comment for why this can't just read MUI's internal filtered state.
   const [inputValue, setInputValue] = useState("");
-  // Controlled `open` + a ref to the bulk-select bar's own DOM node - see
-  // the Autocomplete's `onClose` handler below for why: MUI's own "keep the
-  // popup open when focus moves to something else inside it"
-  // (`unstable_isActiveElementInListbox`/`handleBlur` in useAutocomplete.js)
-  // is scoped to the listbox itself, and empirically (confirmed via a live
-  // e2e run instrumenting real focus/blur/focusout events) does NOT
-  // reliably keep the popup open when focus moves via a genuine
-  // programmatic `.focus()` to a real, tabbable element that's a DOM
-  // SIBLING of the listbox rather than a descendant - which the bulk-select
-  // bar now is (see BulkSelectPaper/renderFandomGroup's comments for why it
-  // has to be a sibling, not nested inside <ul role="listbox">). Taking
-  // `open` under our own control lets WorkPicker override that specific
-  // "blur" close request when the new focus target is inside the bar.
-  const [open, setOpen] = useState(false);
-  const bulkSelectBarRef = useRef<HTMLDivElement | null>(null);
 
-  // Memoized (not just recomputed inline) so `workOptions`/`selectedOptions`
+  // Memoized (not just recomputed inline) so `options`/`selectedOptions`
   // keep a STABLE reference across re-renders that don't actually change
-  // `perWorkSeries`/`selectedWorkIds` - e.g. the ones triggered by typing in
-  // the combobox (`inputValue` state, below). Autocomplete's own
-  // useAutocomplete has an internal effect that resets its input text
-  // whenever its `value` prop's REFERENCE changes (`previousProps.value !==
-  // value`); a fresh, unmemoized `.map().filter()` array every render was
-  // tripping that on every keystroke, immediately clearing whatever had
-  // just been typed - confirmed live via useAutocomplete.js's
-  // `resetInputValue` effect and reproduced with a debug WorkPicker render.
-  const workOptions = useMemo(() => flattenToWorkOptions(perWorkSeries), [perWorkSeries]);
-  const fandomGroups = useMemo(() => groupWorksByFandom(perWorkSeries), [perWorkSeries]);
+  // `perWorkSeries`/`selectedWorkIds` - e.g. ones triggered by typing
+  // (`inputValue` state, below). useAutocomplete resets its input text
+  // whenever its `value` prop's REFERENCE changes; a fresh, unmemoized
+  // array every render was tripping that on every keystroke, clearing
+  // whatever had just been typed - confirmed live against the installed
+  // useAutocomplete.js's `resetInputValue` effect.
+  const options = useMemo(() => flattenToWorkOptions(perWorkSeries), [perWorkSeries]);
   const selectedIds = new Set(selectedWorkIds);
   const atCap = selectedWorkIds.length >= MAX_SELECTED_WORKS;
 
-  // Re-runs the exact same filterWorkOptions instance the Autocomplete uses
-  // internally (§0.5's title+fandom stringify), so the set of fandoms shown
-  // here always matches what's actually visible in the popup - including
-  // while the user is typing a filter.
-  const visibleWorkOptions = filterWorkOptions(workOptions, {
-    inputValue,
-    getOptionLabel: (option) => option.title,
-  });
-  const visibleFandoms = Array.from(new Set(visibleWorkOptions.map((option) => option.fandom)));
-  const visibleFandomGroups = visibleFandoms.map((fandom) => {
-    const group = fandomGroups.find((candidate) => candidate.fandom === fandom);
-    return { fandom, workIds: group?.works.map((work) => work.ao3WorkId) ?? [] };
-  });
-
-  // One representative WorkOption per selected id (first appearance) -> one
+  // One representative work option per selected id (first appearance) -> one
   // chip per selected work, even for a multi-fandom work with two option
-  // rows (§3). Memoized for the same reference-stability reason as
-  // `workOptions` above - this is exactly what's passed as Autocomplete's
-  // `value` prop.
+  // rows. Never includes a header. Memoized for the same reference-
+  // stability reason as `options` above - this is Autocomplete's `value`.
   const selectedOptions = useMemo(
     () =>
       selectedWorkIds
-        .map((id) => workOptions.find((option) => option.id === id))
-        .filter((option): option is WorkOption => option !== undefined),
-    [selectedWorkIds, workOptions],
+        .map((id) =>
+          options.find(
+            (option): option is WorkOptionWork => option.kind === "work" && option.id === id,
+          ),
+        )
+        .filter((option): option is WorkOptionWork => option !== undefined),
+    [selectedWorkIds, options],
   );
 
   const genericCapMessage = atCap ? "Maximum of 10 works reached." : "";
@@ -301,9 +278,11 @@ export function WorkPicker({
     onChange(nextSelectedWorkIds);
   }
 
-  // Does NOT trust MUI's diffed value array (§3) - reads `reason`/`details`
-  // and maps `details.option.id` through the pure addWork/removeWork so
-  // selection semantics stay entirely in comparisonSelection.ts.
+  // Does NOT trust MUI's diffed value array - reads `reason`/`details` and
+  // routes on `details.option.kind`: a header routes to the existing
+  // handleFandomHeaderClick (bulk-toggle, unchanged); a work routes
+  // through the pure addWork/removeWork. `value` never contains a header,
+  // so MUI reconciles back to `selectedOptions` exactly as it does today.
   function handleAutocompleteChange(
     _event: React.SyntheticEvent,
     _value: WorkOption[],
@@ -311,19 +290,22 @@ export function WorkPicker({
     details?: AutocompleteChangeDetails<WorkOption>,
   ) {
     if (reason === "selectOption" && details) {
-      commitSelection(addWork(selectedWorkIds, details.option.id));
-    } else if (reason === "removeOption" && details) {
+      if (details.option.kind === "header") {
+        handleFandomHeaderClick(details.option.workIds);
+      } else {
+        commitSelection(addWork(selectedWorkIds, details.option.id));
+      }
+    } else if (reason === "removeOption" && details && details.option.kind === "work") {
       commitSelection(removeWork(selectedWorkIds, details.option.id));
     } else if (reason === "clear") {
       commitSelection([]);
     }
   }
 
-  // Fandom-header tri-state semantics (requirement 8, §0.4/§5): a fully-
-  // selected fandom deselects all of it; none/partial fills to 100%
-  // (additive, cap-respecting). Always acts on the fandom's FULL work set
-  // (from groupWorksByFandom), not the filter-visible subset - matches
-  // shipped selectAllInFandom semantics.
+  // Fandom-header tri-state semantics (requirement 1/§5): a fully-selected
+  // fandom deselects all of it; none/partial fills to 100% (additive,
+  // cap-respecting). Always acts on the header's own FULL `workIds`, not
+  // the filter-visible subset.
   function handleFandomHeaderClick(fandomWorkIds: number[]) {
     const allSelected =
       fandomWorkIds.length > 0 && fandomWorkIds.every((id) => selectedIds.has(id));
@@ -351,55 +333,20 @@ export function WorkPicker({
     onChange(result.selectedIds);
   }
 
-  // Header content ONLY (tri-state icon + fandom name + state label) - no
-  // clickable control. §11's documented fallback ("render the bulk-select
-  // control just outside the popup listbox per group") turned out to be a
-  // hard requirement, not just an option: axe-core's aria-required-children
-  // check for role="listbox" (requiredOwned ["group","option"]) walks
-  // THROUGH role="group" descendants looking for real content (so nested
-  // "group" boundaries don't hide anything from it - see getOwnedRoles in
-  // axe-core/axe.js), and ANY focusable/role-bearing element it finds along
-  // the way - like a real <button> - gets recorded as an "owned role" of
-  // the listbox itself. Since "button" is never in listbox's allowed
-  // owned-roles set, a real button ANYWHERE inside <ul role="listbox">
-  // (however deeply wrapped in role="presentation"/role="group" layers)
-  // always fails this rule. The actual "Select all"/"Deselect all" button
-  // now lives in the bulk-select bar rendered by BulkSelectPaper below,
-  // which is a DOM sibling of the listbox <ul>, not a descendant.
+  // The group wrapper (§1.6/§6): still a <div role="group"> + inner
+  // <ul role="presentation"> (axe's aria-required-parent walk needs both),
+  // but no longer renders header markup itself - the tri-state icon +
+  // fandom name now live in the group's first CHILD option (the header
+  // branch of renderOptionRow below). `border-t first:border-t-0` here is
+  // requirement 6's above-header divider.
   function renderFandomGroup(params: AutocompleteRenderGroupParams) {
-    const fandomGroup = fandomGroups.find((group) => group.fandom === params.group);
-    const fandomWorkIds = fandomGroup?.works.map((work) => work.ao3WorkId) ?? [];
-    const triState = fandomTriState(fandomWorkIds, selectedIds);
-
     return (
-      // A <div>, NOT an <li>, wraps this group (MUI's own defaultRenderGroup,
-      // Autocomplete.js, uses a role-less <li> here, which is a genuine MUI/
-      // axe gap, not something safe to copy): the wrapper needs role="group"
-      // for axe's aria-required-parent walk (getMissingContext) to treat it
-      // as a valid ancestor for the option rows nested inside (a plain
-      // wrapper - no role at all - would be "skipped" by that walk, same as
-      // role="presentation" below, which would also work structurally, but
-      // <li> specifically DISALLOWS role="group": axe-core's ARIA-in-HTML
-      // `allowedRoles` table for `li` only permits
-      // menuitem/menuitemcheckbox/menuitemradio/option/none/presentation/
-      // radio/separator/tab/treeitem - "group" isn't in that list, so
-      // `<li role="group">` fails the separate "aria-allowed-role" rule.
-      // `<div>` allows any role, so it's used here instead. aria-label
-      // names the group for AT users navigating by role, same as the
-      // fandom name already in the visible header text.
-      <div key={params.key} role="group" aria-label={params.group}>
-        <div className="flex items-center gap-2 border-b border-ink/10 bg-card px-3 py-2">
-          <TriStateIcon state={triState} color={colors.accent} />
-          <span className="text-xs font-semibold text-ink">{params.group}</span>
-          <span className="text-[10px] uppercase tracking-wide text-ink-soft">
-            {triStateLabel(triState)}
-          </span>
-        </div>
-        {/* role="presentation" neutralizes this <ul>'s implicit "list"
-            role, so axe's aria-required-parent walk treats it as "no
-            role" and continues up to the role="group" <div> above rather
-            than stopping here - and (like the <div> above) explicit role
-            attributes remove it from axe's "list" rule selector too. */}
+      <div
+        key={params.key}
+        role="group"
+        aria-label={params.group}
+        className="border-t border-ink/10 first:border-t-0"
+      >
         <ul role="presentation" className="m-0 list-none p-0">
           {params.children}
         </ul>
@@ -407,51 +354,15 @@ export function WorkPicker({
     );
   }
 
-  // Real per-fandom "Select all"/"Deselect all" buttons, rendered as a bar
-  // ABOVE the popup's listbox (via BulkSelectPaper) rather than inside it -
-  // see renderFandomGroup's comment for why a real button can't live inside
-  // <ul role="listbox"> at all. Scoped to `visibleFandomGroups` so a
-  // fandom's control disappears once type-to-filter hides all its works,
-  // matching the prior in-listbox behavior.
-  function renderBulkSelectBar() {
-    if (visibleFandomGroups.length === 0) return null;
-    return (
-      <div
-        ref={bulkSelectBarRef}
-        className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-ink/10 bg-card px-3 py-2"
-        // Mirrors useAutocomplete's own getListboxProps `onMouseDown`
-        // (useAutocomplete.js): without this, a mousedown here blurs the
-        // combobox input before the click completes, which MUI reads as
-        // focus leaving the popup entirely (this bar is now a DOM sibling
-        // of <ul role="listbox">, not a descendant, so MUI's own
-        // "is the new focus target inside the listbox" check doesn't
-        // recognize it) - closing the popup and unmounting the button
-        // mid-click, so onClick never fires.
-        onMouseDown={(event) => event.preventDefault()}
-      >
-        {visibleFandomGroups.map(({ fandom, workIds }) => {
-          const action =
-            fandomTriState(workIds, selectedIds) === "all" ? "Deselect all" : "Select all";
-          return (
-            <button
-              key={fandom}
-              type="button"
-              onClick={() => handleFandomHeaderClick(workIds)}
-              className="rounded text-xs font-medium text-accent hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
-            >
-              {`${action} in ${fandom}`}
-            </button>
-          );
-        })}
-      </div>
-    );
-  }
-
+  // `value` is typed as the broader WorkOption per MUI's signature, but a
+  // header never enters `value` (§1.2) - the `kind` guard below is a type
+  // narrowing, not a real runtime branch.
   function renderChips(
     value: WorkOption[],
     getItemProps: (params: { index: number }) => Record<string, unknown>,
   ) {
     return value.map((option, index) => {
+      if (option.kind === "header") return null;
       const { key, onDelete, ...itemProps } = getItemProps({ index }) as {
         key: number;
         onDelete: (event: unknown) => void;
@@ -475,35 +386,67 @@ export function WorkPicker({
     });
   }
 
+  // Branches on `option.kind` (§1.5): the header branch renders a real
+  // role="option" row (via MUI's own `...rest`, which carries role,
+  // data-option-index, tabIndex, onClick, aria-selected - the tracked-
+  // option stamp); the work branch is the existing row with requirement 5
+  // (no bold, accent tint) and requirement 8 (hover) applied.
   function renderOptionRow(
     props: React.HTMLAttributes<HTMLLIElement> & { key: React.Key },
     option: WorkOption,
     state: { selected: boolean },
   ) {
     const { key, ...rest } = props;
+
+    if (option.kind === "header") {
+      const triState = fandomTriState(option.workIds, selectedIds);
+      return (
+        <li
+          key={key}
+          {...rest}
+          aria-label={headerAriaLabel(option.fandom, triState)}
+          className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm font-semibold text-ink hover:bg-ink/5 [&.Mui-focused]:bg-ink/5"
+        >
+          <TriStateIcon state={triState} color={colors.ink} />
+          <span>{option.fandom}</span>
+        </li>
+      );
+    }
+
+    const hoverClasses = state.selected
+      ? "hover:bg-accent/12 [&.Mui-focused]:bg-accent/12"
+      : "hover:bg-ink/5 [&.Mui-focused]:bg-ink/5";
+
     return (
       <li
         key={key}
         {...rest}
-        className={`flex items-center gap-2 px-3 py-1.5 text-sm text-ink aria-disabled:opacity-40 ${
-          state.selected ? "font-semibold" : "font-normal"
-        }`}
+        className={`flex items-center gap-2 px-3 py-1.5 text-sm font-normal text-ink aria-disabled:opacity-40 ${
+          state.selected ? "bg-accent/8" : ""
+        } ${hoverClasses}`}
       >
-        <span className="w-3.5 shrink-0">
-          {state.selected && <CheckIcon color={colors.accent} />}
-        </span>
+        <span className="w-3.5 shrink-0">{state.selected && <CheckIcon color={colors.ink} />}</span>
         {option.title}
       </li>
     );
   }
 
+  // Requirement 7: drops the MUI floating `label` entirely (and its
+  // `.MuiInputLabel-root` animation) for a plain static `<span>` above the
+  // field (rendered below, matching DateRangeSlider's pattern) -
+  // `placeholder` stays as a plain HTML hint. A placeholder is NOT an
+  // accessible name, so the name is re-established via `aria-labelledby`
+  // to that span's id (merged into MUI's own htmlInput slot, not overwritten).
   function renderThemedInput(params: AutocompleteRenderInputParams) {
     return (
       <TextField
         {...params}
-        label="Works to compare"
         placeholder="Search title or fandom"
         sx={inputSx(colors)}
+        slotProps={{
+          ...params.slotProps,
+          htmlInput: { ...params.slotProps.htmlInput, "aria-labelledby": "work-picker-label" },
+        }}
       />
     );
   }
@@ -514,65 +457,40 @@ export function WorkPicker({
         {statusText}
       </div>
 
+      <span id="work-picker-label" className="text-sm font-medium text-ink">
+        Works to compare
+      </span>
+
       <Autocomplete<WorkOption, true, false, false>
         multiple
         disableCloseOnSelect
         // Without this, the popup renders via a React portal appended to
         // document.body - outside any landmark region - which axe's
-        // "region" rule (WCAG best-practice: all content must be
-        // contained by a landmark) correctly flags. Rendering in place
-        // keeps the popup inside this component's own DOM position (still
-        // absolutely positioned via Popper, so it still floats visually);
-        // no overflow:hidden ancestor in the comparison island to clip it.
+        // "region" rule correctly flags. Rendering in place keeps it
+        // inside this component's own DOM position (still absolutely
+        // positioned via Popper); no clipping ancestor in the island.
         disablePortal
-        // Controlled (`open`/`onOpen`/`onClose`) so a "blur" close request
-        // can be overridden specifically when focus has moved into the
-        // bulk-select bar - see the `open` state's declaration comment
-        // above for why MUI's own built-in handling of this isn't enough
-        // once the bar is a listbox sibling rather than a descendant.
-        open={open}
-        onOpen={() => setOpen(true)}
-        onClose={(event, reason) => {
-          // Reads `relatedTarget` (the element ABOUT TO gain focus, per the
-          // native FocusEvent spec), NOT `document.activeElement`:
-          // `document.activeElement` is unreliable mid-blur - browsers run
-          // an intermediate "unfocus" step that (at least in Chromium)
-          // transiently sets it to <body> BEFORE the new element actually
-          // receives focus, so reading it inside this handler (which fires
-          // synchronously off the input's blur) can see <body> even though
-          // focus is, a moment later, genuinely landing on the bulk-select
-          // bar - confirmed via a live e2e run instrumenting both. MUI
-          // forwards the original blur SyntheticEvent through unchanged
-          // (handleBlur -> handleClose -> onClose in useAutocomplete.js).
-          const relatedTarget = (event as unknown as React.FocusEvent).relatedTarget;
-          if (
-            reason === "blur" &&
-            relatedTarget instanceof Node &&
-            bulkSelectBarRef.current?.contains(relatedTarget)
-          ) {
-            return;
-          }
-          setOpen(false);
-        }}
-        options={workOptions}
+        options={options}
         value={selectedOptions}
         groupBy={(option) => option.fandom}
-        getOptionLabel={(option) => option.title}
-        isOptionEqualToValue={(option, value) => option.id === value.id}
-        getOptionDisabled={(option) => atCap && !selectedIds.has(option.id)}
-        filterOptions={filterWorkOptions}
+        getOptionLabel={(option) => (option.kind === "header" ? option.fandom : option.title)}
+        isOptionEqualToValue={(option, value) =>
+          option.kind === "work" && value.kind === "work" && option.id === value.id
+        }
+        getOptionDisabled={(option) =>
+          option.kind === "work" && atCap && !selectedIds.has(option.id)
+        }
+        filterOptions={filterWorkPickerOptions}
         inputValue={inputValue}
         onInputChange={(_event, value) => setInputValue(value)}
         onChange={handleAutocompleteChange}
+        clearText="Clear all"
         renderGroup={renderFandomGroup}
         renderValue={renderChips}
         renderInput={renderThemedInput}
         renderOption={renderOptionRow}
         sx={{ width: "100%" }}
-        slots={{ paper: BulkSelectPaper }}
-        slotProps={{
-          paper: { sx: paperSx(colors), bulkSelectBar: renderBulkSelectBar() },
-        }}
+        slotProps={{ paper: { sx: paperSx(colors) } }}
       />
     </div>
   );
