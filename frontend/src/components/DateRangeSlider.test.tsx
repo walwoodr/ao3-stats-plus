@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DateRangeSlider, type DateRangeSliderProps } from "./DateRangeSlider";
 
@@ -269,6 +269,127 @@ describe("DateRangeSlider", () => {
       screen.getAllByRole("slider").forEach((thumb) => {
         expect(thumb).toHaveAttribute("tabIndex", "0");
       });
+    });
+  });
+
+  // A real architectural bug, found by the user in the live app and
+  // confirmed via extensive e2e investigation: the `onChange` prop was
+  // wired to MUI Slider's own continuous `onChange` (fires on every pixel
+  // of a drag, not just on release), which drove the parent's Zustand
+  // store write - and therefore a full WorkComparisonSection + both
+  // MultiSeriesTrendChart re-renders/repaints - on EVERY intermediate drag
+  // position, not just once at the end. Fix: split MUI Slider's own cheap,
+  // continuous `onChange` (local-only, keeps the thumb/readout visually
+  // live during a drag) from `onChangeCommitted` (fires once - on drag
+  // release, on a completed keyboard step, or on a plain rail click -
+  // verified directly against the installed MUI source, node_modules/
+  // @mui/material/Slider/useSlider.js) which is what now drives the
+  // expensive `onChange` prop callback the parent uses to update the
+  // store/filter the graphs.
+  //
+  // Separately investigated and RULED OUT as the cause of the user's
+  // report: whether a real mouse drag ever reaches MUI's value-commit path
+  // at all. Live e2e instrumentation (document-level pointermove listeners
+  // reading event.buttons) showed Playwright/CDP's very FIRST synthetic
+  // pointermove after page.mouse.down() reports buttons:0 (not yet
+  // reflecting the just-pressed button - all SUBSEQUENT synthetic moves
+  // correctly report buttons:1). MUI's useSlider.js has an explicit,
+  // legitimate guard for this real-world edge case ("cancel move in case
+  // some other element consumed a pointerup event and it was not fired") -
+  // `if (nativeEvent.type === 'pointermove' && nativeEvent.buttons === 0)
+  // { handleTouchEnd(nativeEvent); return; }` - which the CDP artifact
+  // trips on the very first move, ending the "drag" (and tearing down
+  // MUI's own document listeners) before any real movement is ever
+  // recorded. A real human's OS-reported mouse-button state does not have
+  // this first-event race, so this is judged to be a Playwright/CDP
+  // input-synthesis limitation, not a production bug - these tests
+  // therefore set `buttons: 1` explicitly on every synthesized
+  // pointermove, matching what a real held mouse button reports.
+  describe("decoupling live drag feedback from the expensive onChange prop (regression)", () => {
+    function fireDrag(thumb: HTMLElement, clientX: number) {
+      fireEvent.pointerDown(thumb, { pointerId: 1, clientX, isPrimary: true, buttons: 1 });
+      fireEvent.pointerMove(document, { pointerId: 1, clientX: clientX + 40, buttons: 1 });
+    }
+
+    it("does NOT call the onChange prop while a drag is still in progress (only MUI's own onChange fired, not onChangeCommitted)", () => {
+      const onChange = vi.fn();
+      render(
+        <DateRangeSlider
+          min={2018}
+          max={2026}
+          value={[2018, 2026]}
+          onChange={onChange}
+          unionPointCount={5}
+        />,
+      );
+
+      const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
+      fireDrag(startThumb, 0);
+
+      expect(onChange).not.toHaveBeenCalled();
+
+      fireEvent.pointerUp(document, { pointerId: 1 });
+    });
+
+    it("calls the onChange prop once the drag is released (onChangeCommitted)", () => {
+      const onChange = vi.fn();
+      render(
+        <DateRangeSlider
+          min={2018}
+          max={2026}
+          value={[2018, 2026]}
+          onChange={onChange}
+          unionPointCount={5}
+        />,
+      );
+
+      const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
+      fireDrag(startThumb, 0);
+      fireEvent.pointerUp(document, { pointerId: 1 });
+
+      expect(onChange).toHaveBeenCalledTimes(1);
+    });
+
+    it("still keeps the visible readout live-updating DURING the drag, even though the onChange prop hasn't committed yet", () => {
+      render(
+        <DateRangeSlider
+          min={2018}
+          max={2026}
+          value={[2018, 2026]}
+          onChange={vi.fn()}
+          unionPointCount={5}
+        />,
+      );
+
+      const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
+      fireDrag(startThumb, 0);
+
+      expect(screen.getByRole("slider", { name: /range start \(year\)/i })).not.toHaveAttribute(
+        "aria-valuenow",
+        "2018",
+      );
+
+      fireEvent.pointerUp(document, { pointerId: 1 });
+    });
+
+    it("still commits immediately (a single onChange call) for a keyboard-driven step, not just on drag release", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      render(
+        <DateRangeSlider
+          min={2018}
+          max={2026}
+          value={[2018, 2026]}
+          onChange={onChange}
+          unionPointCount={5}
+        />,
+      );
+
+      screen.getByRole("slider", { name: /range start \(year\)/i }).focus();
+      await user.keyboard("{ArrowRight}");
+
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(onChange).toHaveBeenCalledWith([2019, 2026]);
     });
   });
 });

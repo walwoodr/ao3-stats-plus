@@ -19,3 +19,22 @@ if (!window.matchMedia) {
       dispatchEvent: () => false,
     }) as unknown as MediaQueryList;
 }
+
+// jsdom doesn't implement the Pointer Events capture methods at all (no
+// hasPointerCapture/setPointerCapture/releasePointerCapture on Element) -
+// any component using real pointer-drag gestures (e.g. MUI's Slider, see
+// DateRangeSlider.test.tsx's drag-vs-onChangeCommitted regression tests)
+// throws as soon as a synthetic pointerup event reaches it. Stubbed as
+// permissive no-ops (matching jsdom's own convention of stubbing rather
+// than fully implementing environment APIs it doesn't support) rather than
+// per-test, since any future pointer/drag-based component test would hit
+// the same gap.
+if (!Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = () => false;
+}
+if (!Element.prototype.setPointerCapture) {
+  Element.prototype.setPointerCapture = () => {};
+}
+if (!Element.prototype.releasePointerCapture) {
+  Element.prototype.releasePointerCapture = () => {};
+}
