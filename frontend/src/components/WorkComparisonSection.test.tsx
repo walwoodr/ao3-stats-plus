@@ -19,6 +19,14 @@ import type { PerWorkSeries } from "../queries/useStatsForUser";
 // sibling WorkComparisonSection.persistence.test.tsx, split out for the same
 // per-concern-file reason WorkComparisonSection.caption.test.tsx and
 // .leadIn.test.tsx already exist as separate files.
+//
+// docs/plans/work-comparison-picker-refinements.md §3 changes two things
+// tested here: (1) the fandom-header bulk-select control is now a real
+// `role="option"` inside the popup listbox, not a `role="button"` bar
+// sibling (requirement 1) - `bulkSelectFandom` below clicks the option; (2)
+// DateRangeSlider is now ALWAYS mounted (never unmounted/absent) - it's
+// disabled instead, so assertions that used to check for zero `role="slider"`
+// elements now check for two DISABLED ones instead.
 const USERNAME = "testauthor";
 
 function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWorkSeries {
@@ -54,11 +62,11 @@ async function selectWorkViaCombobox(user: ReturnType<typeof userEvent.setup>, t
 
 async function bulkSelectFandom(user: ReturnType<typeof userEvent.setup>, fandomFragment: string) {
   await ensurePickerOpen(user);
-  await user.click(
-    screen.getByRole("button", {
-      name: new RegExp(`(select|deselect) all.*${fandomFragment}`, "i"),
-    }),
-  );
+  await user.click(screen.getByRole("option", { name: new RegExp(fandomFragment, "i") }));
+}
+
+function getGridRow(): HTMLElement {
+  return screen.getByTestId("controls-island").firstElementChild as HTMLElement;
 }
 
 function isSelected(title: string): boolean {
@@ -111,7 +119,7 @@ describe("WorkComparisonSection", () => {
     expect(within(hitsFigure).queryByText(/work two/i)).not.toBeInTheDocument();
   });
 
-  describe("the controls island layout (§8)", () => {
+  describe("the controls island layout (§8, refined by refinements-plan §3)", () => {
     // Testing-stage hook for the island's DOM structure: a
     // `data-testid="controls-island"` wrapper is the minimal structural
     // marker this suite needs to prove the picker and slider are rendered
@@ -150,14 +158,59 @@ describe("WorkComparisonSection", () => {
       expect(within(island).getAllByRole("slider").length).toBeGreaterThan(0);
     });
 
-    it("lets the picker fill the row when the slider self-gates to null (≤2 union points)", () => {
+    // Requirement 3 (§3.2): the slider is now ALWAYS mounted - it merely
+    // becomes disabled below the >2 union-points threshold, rather than
+    // being omitted from the tree entirely.
+    it("keeps the slider mounted (but disabled) inside the island when the default selection has ≤2 union points", () => {
       renderSection({ perWorkSeries: TWO_WORKS, earliestPostYear: null });
 
       const island = screen.getByTestId("controls-island");
       expect(
         within(island).getByRole("combobox", { name: /works to compare/i }),
       ).toBeInTheDocument();
-      expect(within(island).queryAllByRole("slider")).toHaveLength(0);
+      const sliders = within(island).getAllByRole("slider");
+      expect(sliders).toHaveLength(2);
+      sliders.forEach((slider) => expect(slider).toBeDisabled());
+    });
+
+    // Requirement 3 (§3.1): a deterministic two-column CSS grid
+    // (`md:grid-cols-[minmax(0,1fr)_18rem]`) is the confirmed fixed-width
+    // mechanism (plan sign-off #3) - `minmax(0,1fr)` on the picker track is
+    // what stops accumulating chips from ever widening the column.
+    it("lays the island out as a fixed-width two-column grid (picker minmax(0,1fr), slider fixed 18rem)", () => {
+      renderSection({ perWorkSeries: TWO_WORKS, earliestPostYear: null });
+
+      const gridRow = getGridRow();
+      expect(gridRow.className).toContain("md:grid");
+      expect(gridRow.className).toContain("md:grid-cols-[minmax(0,1fr)_18rem]");
+    });
+
+    it("keeps the grid layout's className identical as the selection grows (chips accumulating never changes the column widths)", async () => {
+      const user = userEvent.setup();
+      const worksWithThreeUnionPoints: PerWorkSeries[] = [
+        work({
+          ao3WorkId: 1,
+          title: "Work One",
+          fandoms: "Fandom A",
+          points: [
+            { capturedOn: "2020-01-01", hits: 1, kudos: 1 },
+            { capturedOn: "2021-01-01", hits: 2, kudos: 1 },
+          ],
+        }),
+        work({
+          ao3WorkId: 2,
+          title: "Work Two",
+          fandoms: "Fandom A",
+          points: [{ capturedOn: "2022-01-01", hits: 3, kudos: 1 }],
+        }),
+      ];
+
+      renderSection({ perWorkSeries: worksWithThreeUnionPoints, earliestPostYear: null });
+      const classNameBeforeSelecting = getGridRow().className;
+
+      await selectWorkViaCombobox(user, "Work Two");
+
+      expect(getGridRow().className).toBe(classNameBeforeSelecting);
     });
   });
 
@@ -171,13 +224,15 @@ describe("WorkComparisonSection", () => {
       expect(screen.getAllByText(/select at least one work to compare/i).length).toBeGreaterThan(0);
     });
 
-    it("hides the date-range slider with nothing selected", async () => {
+    it("still renders the (disabled) date-range slider with nothing selected, rather than omitting it", async () => {
       const user = userEvent.setup();
       renderSection({ perWorkSeries: TWO_WORKS, earliestPostYear: null });
 
       await selectWorkViaCombobox(user, "Work One");
 
-      expect(screen.queryAllByRole("slider")).toHaveLength(0);
+      const sliders = screen.getAllByRole("slider");
+      expect(sliders).toHaveLength(2);
+      sliders.forEach((slider) => expect(slider).toBeDisabled());
     });
   });
 
@@ -222,14 +277,22 @@ describe("WorkComparisonSection", () => {
     });
   });
 
-  describe("date-range slider gating tied to the union-points >2 gate", () => {
-    it("does not render the slider for the default 1-selected state with only 2 union points", () => {
+  // Requirement 3 (§3.2): the >2 union-points gate now controls DateRange-
+  // Slider's `disabled` prop, not whether it mounts at all - the slider is
+  // always in the DOM (see "the controls island layout" describe above for
+  // the always-mounted assertions); this block covers the enabled/disabled
+  // TRANSITION as the selection changes, and that the gate-drop range reset
+  // is unchanged.
+  describe("date-range slider DISABLED state tied to the union-points >2 gate", () => {
+    it("is disabled for the default 1-selected state with only 2 union points", () => {
       renderSection({ perWorkSeries: TWO_WORKS, earliestPostYear: null });
 
-      expect(screen.queryAllByRole("slider")).toHaveLength(0);
+      const sliders = screen.getAllByRole("slider");
+      expect(sliders).toHaveLength(2);
+      sliders.forEach((slider) => expect(slider).toBeDisabled());
     });
 
-    it("renders the slider once the selection's union points exceed 2", async () => {
+    it("becomes enabled once the selection's union points exceed 2", async () => {
       const user = userEvent.setup();
       const worksWithThreeUnionPoints: PerWorkSeries[] = [
         work({
@@ -253,10 +316,10 @@ describe("WorkComparisonSection", () => {
 
       await selectWorkViaCombobox(user, "Work Two");
 
-      expect(screen.getAllByRole("slider").length).toBeGreaterThan(0);
+      screen.getAllByRole("slider").forEach((slider) => expect(slider).not.toBeDisabled());
     });
 
-    it("unmounts the slider again (resetting the window) once the selection drops back to <= 2 union points", async () => {
+    it("disables the slider again (resetting the window) once the selection drops back to <= 2 union points", async () => {
       const user = userEvent.setup();
       const worksWithThreeUnionPoints: PerWorkSeries[] = [
         work({
@@ -278,11 +341,21 @@ describe("WorkComparisonSection", () => {
 
       renderSection({ perWorkSeries: worksWithThreeUnionPoints, earliestPostYear: null });
       await selectWorkViaCombobox(user, "Work Two");
-      expect(screen.getAllByRole("slider").length).toBeGreaterThan(0);
+      screen.getAllByRole("slider").forEach((slider) => expect(slider).not.toBeDisabled());
 
       await selectWorkViaCombobox(user, "Work Two");
 
-      expect(screen.queryAllByRole("slider")).toHaveLength(0);
+      const sliders = screen.getAllByRole("slider");
+      expect(sliders).toHaveLength(2);
+      sliders.forEach((slider) => expect(slider).toBeDisabled());
+      expect(useWorkComparisonStore.getState().getRange(USERNAME)).toBeNull();
+    });
+
+    it("shows the full earliestPostYear-to-current-year domain on the disabled slider's readout", () => {
+      const currentYear = new Date().getFullYear();
+      renderSection({ perWorkSeries: TWO_WORKS, earliestPostYear: 2015 });
+
+      expect(screen.getByText(new RegExp(`2015\\s*[–-]\\s*${currentYear}`))).toBeInTheDocument();
     });
   });
 
