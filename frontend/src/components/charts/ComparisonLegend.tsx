@@ -13,7 +13,7 @@ export interface ComparisonLegendProps {
 }
 
 // Visible legend mapping each work's title to its (shape, color) glyph AND
-// a worded style description ("wine circle marker") - per
+// a worded style description ("slate-blue circle marker") - per
 // docs/plans/usds-dataviz-color-scheme.md, shape alone is now the
 // accessibility-guaranteed non-color channel (dash is gone; series lines
 // are solid), so the legend spells the shape+color out in words rather than

@@ -8,8 +8,9 @@ import { LIGHT_COLOR_TOKENS } from "../../lib/colorTokens";
 // prior ComparisonLegend test file existed - this is a new spec. The
 // worded description drops the dash word entirely (dash is gone as a
 // per-series channel - see the plan's "Dash decision") and becomes
-// "{colorRole} {shape} marker" (plan's own examples: "wine circle marker",
-// "slate hollow-circle marker"). This test derives the expected wording
+// "{colorRole} {shape} marker" (plan's own examples: "slate-blue circle
+// marker", "muted violet hollow-circle marker"). This test derives the
+// expected wording
 // from the real SERIES_STYLE_SLOTS table (mirroring the pre-existing
 // convention in MultiSeriesTrendChart.test.tsx's `legendDescription`
 // helper) rather than hardcoding literal slot words, since the plan's own

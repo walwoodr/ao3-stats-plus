@@ -151,8 +151,8 @@ describe("WorkComparisonSection: persistence reconciliation (§2.3)", () => {
   // styleAssignment (workId -> style slot) stays view-local, rebuilt on
   // mount from the restored/reconciled selection ORDER - not perWorkSeries
   // order - so a restored [2, 1] selection must land Work Two on the
-  // lowest-free-index slot 0 (wine circle) and Work One on slot 1 (orange
-  // square), per seriesStyles.ts's SERIES_STYLE_SLOTS and
+  // lowest-free-index slot 0 (slate-blue circle) and Work One on slot 1
+  // (teal square), per seriesStyles.ts's SERIES_STYLE_SLOTS and
   // assignStyleSlot's lowest-free-index-on-add contract.
   it("rebuilds styleAssignment from the restored selection's own order, not perWorkSeries order", () => {
     useWorkComparisonStore.getState().setSelection(USERNAME, [2, 1]);
@@ -163,10 +163,10 @@ describe("WorkComparisonSection: persistence reconciliation (§2.3)", () => {
     // renders twice (once per chart, Hits and Kudos).
     const hitsFigure = screen.getByRole("img", { name: /^hits$/i });
     expect(
-      within(hitsFigure).getByText(/work two.*wine circle marker/i, { selector: "span" }),
+      within(hitsFigure).getByText(/work two.*slate-blue circle marker/i, { selector: "span" }),
     ).toBeInTheDocument();
     expect(
-      within(hitsFigure).getByText(/work one.*orange square marker/i, { selector: "span" }),
+      within(hitsFigure).getByText(/work one.*teal square marker/i, { selector: "span" }),
     ).toBeInTheDocument();
   });
 

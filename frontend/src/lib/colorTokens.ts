@@ -18,9 +18,13 @@
 // inline styles, so there is no corresponding `--color-series-*` custom
 // property to keep in sync in index.css. It is still mirrored into
 // MASTER.md for documentation parity, per that section's task. Every hex
-// below is pinned exactly to the plan's slot table (section 3) - each
-// value was independently WCAG-contrast- and CVD-ΔE-verified there; do not
-// substitute alternate hexes here.
+// below is pinned exactly to the plan's 2026-08-06 same-day addendum
+// (superseding that plan's original section-3 table) - the user reviewed a
+// live visual comparison of several verified candidate palettes and picked
+// "Muted Archive" for light mode, paired with a computed-and-verified
+// "Halfway" saturation point for dark mode; each value was independently
+// WCAG-contrast- and CVD-ΔE-verified there; do not substitute alternate
+// hexes here.
 export interface ColorTokens {
   paper: string;
   card: string;
@@ -40,19 +44,19 @@ export const LIGHT_COLOR_TOKENS: ColorTokens = {
   accent: "#9F1239",
   growth: "#4D7C5F",
   destructive: "#DC2626",
-  // wine, orange, amber, green, teal, azure, indigo, magenta, slate, brown
-  // (slot order 0-9, plan's 10-slot table).
+  // slate-blue, teal, sage, pine, olive, clay, dusty rose, mauve, muted
+  // violet, indigo-slate (slot order 0-9, "Muted Archive").
   series: [
-    "#9F1239",
-    "#C2410C",
-    "#854D0E",
-    "#15803D",
-    "#0F766E",
-    "#0369A1",
-    "#4338CA",
-    "#A21CAF",
-    "#334155",
-    "#7C2D12",
+    "#727F8C",
+    "#4F7074",
+    "#74918D",
+    "#4D5D52",
+    "#6C6D58",
+    "#8C6441",
+    "#A77A75",
+    "#964F6B",
+    "#8F619C",
+    "#4B5882",
   ],
 };
 
@@ -64,17 +68,20 @@ export const DARK_COLOR_TOKENS: ColorTokens = {
   accent: "#E8879E",
   growth: "#8FBFA0",
   destructive: "#F87171",
-  // Tonal-lightened variants of the same 10 light hues, same slot order.
+  // "Halfway" - a computed-and-verified midpoint saturation between the
+  // first dark-mode proposal and a much paler pastel alternative (mean
+  // chroma ~27), not an eyeballed tonal lightening. Same hue identity per
+  // slot as the light-mode counterpart, same slot order.
   series: [
-    "#E8879E",
-    "#FDBA74",
-    "#FCD34D",
-    "#86EFAC",
-    "#5EEAD4",
-    "#7DD3FC",
-    "#818CF8",
-    "#F0ABFC",
-    "#CBD5E1",
-    "#D2B48C",
+    "#B2CCE6",
+    "#ABE1E7",
+    "#8BC7BF",
+    "#6FAE86",
+    "#D5D8A0",
+    "#E2A46D",
+    "#F7CEC9",
+    "#FAB2CC",
+    "#C98ED9",
+    "#AEB7E1",
   ],
 };

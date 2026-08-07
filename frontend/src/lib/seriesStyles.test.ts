@@ -23,24 +23,28 @@ describe("SERIES_STYLE_SLOTS", () => {
   // plan doc's addendum and TECH_DEBT.md-style dated note): slots 4/5/7
   // swap plus/star/cross for hollow/outline diamond, triangle, and
   // triangle-down respectively - no plus/star/cross anywhere in the final
-  // set. Colors are untouched (colorRole per slot index is independent of
-  // shape - see colorTokens.ts). No `dash`/`dashLabel` fields at all
-  // (Partial<SeriesStyleSlot> below intentionally only checks these two
-  // fields, so it also silently accepts an implementation that still
-  // carries extra fields - the "does not have a dash/dashLabel field"
-  // tests below cover their actual absence).
+  // set. Colors were replaced in a second, same-day (2026-08-06) maintenance
+  // correction - the user reviewed a live visual comparison of verified
+  // candidate palettes and picked "Muted Archive" (light) + a computed
+  // "Halfway" saturation point (dark); see the plan doc's 2026-08-06
+  // addendum. Shape is untouched by that correction (colorRole per slot
+  // index is independent of shape - see colorTokens.ts). No `dash`/
+  // `dashLabel` fields at all (Partial<SeriesStyleSlot> below intentionally
+  // only checks these two fields, so it also silently accepts an
+  // implementation that still carries extra fields - the "does not have a
+  // dash/dashLabel field" tests below cover their actual absence).
   it("matches the corrected 10-slot table exactly, in order (basic geometric shapes only)", () => {
     const expected: Partial<SeriesStyleSlot>[] = [
-      { shape: "circle", colorRole: "wine" },
-      { shape: "square", colorRole: "orange" },
-      { shape: "triangle", colorRole: "amber" },
-      { shape: "diamond", colorRole: "green" },
-      { shape: "diamond-hollow", colorRole: "teal" },
-      { shape: "triangle-hollow", colorRole: "azure" },
-      { shape: "triangle-down", colorRole: "indigo" },
-      { shape: "triangle-down-hollow", colorRole: "magenta" },
-      { shape: "circle-hollow", colorRole: "slate" },
-      { shape: "square-hollow", colorRole: "brown" },
+      { shape: "circle", colorRole: "slate-blue" },
+      { shape: "square", colorRole: "teal" },
+      { shape: "triangle", colorRole: "sage" },
+      { shape: "diamond", colorRole: "pine" },
+      { shape: "diamond-hollow", colorRole: "olive" },
+      { shape: "triangle-hollow", colorRole: "clay" },
+      { shape: "triangle-down", colorRole: "dusty rose" },
+      { shape: "triangle-down-hollow", colorRole: "mauve" },
+      { shape: "circle-hollow", colorRole: "muted violet" },
+      { shape: "square-hollow", colorRole: "indigo-slate" },
     ];
 
     expected.forEach((slot, index) => {

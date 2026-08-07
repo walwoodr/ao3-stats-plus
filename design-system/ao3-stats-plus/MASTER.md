@@ -102,13 +102,17 @@ little room for drift if these colors get adjusted later — re-verify if any of
 No hex value needed to change to hit the bar as originally chosen.
 
 **Series palette (multi-series chart color, JS-only — no CSS variable):** unlike the tokens
-above, the 10-slot categorical `series` palette (wine/orange/amber/green/teal/azure/indigo/
-magenta/slate/brown — raised from an original 6-swatch palette by
+above, the 10-slot categorical `series` palette (slate-blue/teal/sage/pine/olive/clay/dusty
+rose/mauve/muted violet/indigo-slate — raised from an original 6-swatch palette by
 `docs/plans/usds-dataviz-color-scheme.md`) added for the per-work comparison charts is never
 consumed as a static Tailwind utility class, so it has no `--color-series-*` custom property in
 index.css — it lives only in `frontend/src/lib/colorTokens.ts`'s `ColorTokens.series` array,
-read by index straight into Recharts props. See "The 10-slot shape+color scheme" below for the
-full slot table, contrast verification, and CVD verification.
+read by index straight into Recharts props. **Corrected same-day (2026-08-06)**: the originally
+shipped USDS-modeled palette (wine/orange/amber/green/teal/azure/indigo/magenta/slate/brown) was
+replaced with a user-selected "Muted Archive" (light) + "Halfway" (dark) palette after a live
+visual comparison of several verified candidates — see "The 10-slot shape+color scheme" below
+for the full slot table, contrast verification, and CVD verification, and this plan's 2026-08-06
+addendum for the full record of the re-review.
 
 ### Typography
 
@@ -284,11 +288,17 @@ Guidance above (which stays correct and unchanged for the aggregate TrendChart/R
 section) rather than replacing it. Revised by `docs/plans/usds-dataviz-color-scheme.md`: the
 cap rose 6 → 10, all style slots were redesigned from scratch (USDS-inspired, project-tuned),
 per-series dash was dropped in favor of shape as the sole non-color channel, and a formal CVD
-(colorblind) verification step was added. **Corrected same-day (2026-08-04)**: the initially
-shipped shape set included plus, star, and cross markers; the user rejected these as not
-"basic geometric shapes" and requested hollow/outline variants of the existing diamond,
-triangle, and triangle-down shapes instead — see the "10-slot shape+color scheme" table below,
-which reflects the corrected set. Colors were never shape-dependent and are unchanged.
+(colorblind) verification step was added. **Corrected (2026-08-04)**: the initially shipped
+shape set included plus, star, and cross markers; the user rejected these as not "basic
+geometric shapes" and requested hollow/outline variants of the existing diamond, triangle, and
+triangle-down shapes instead — see the "10-slot shape+color scheme" table below, which reflects
+the corrected set. Colors were never shape-dependent by that correction and were unaffected by
+it. **Corrected again (2026-08-06)**: after shipping, the user asked for a Review-cycle
+re-examination of the *color* choice specifically (unlike the shape correction above, this one
+touches color only, not shape) — several verified candidate palettes were presented via a live
+visual comparison artifact, and the user selected "Muted Archive" for light mode paired with a
+computed "Halfway" saturation point for dark mode. The table below reflects this final palette;
+shapes are untouched by this correction.
 
 ### The 10-slot shape+color scheme
 
@@ -308,55 +318,59 @@ thing on the chart ("pre-data lead-in"), never a per-series identifier.
 
 | slot | marker shape | color role | light hex | dark hex |
 |---|---|---|---|---|
-| 0 | circle (filled) | wine (brand) | `#9F1239` | `#E8879E` |
-| 1 | square (filled) | orange | `#C2410C` | `#FDBA74` |
-| 2 | triangle-up (filled) | amber/ochre | `#854D0E` | `#FCD34D` |
-| 3 | diamond (filled) | green | `#15803D` | `#86EFAC` |
-| 4 | diamond (hollow/outline) | teal | `#0F766E` | `#5EEAD4` |
-| 5 | triangle-up (hollow/outline) | azure | `#0369A1` | `#7DD3FC` |
-| 6 | triangle-down (filled) | indigo | `#4338CA` | `#818CF8` |
-| 7 | triangle-down (hollow/outline) | magenta | `#A21CAF` | `#F0ABFC` |
-| 8 | circle (hollow/outline) | slate | `#334155` | `#CBD5E1` |
-| 9 | square (hollow/outline) | brown | `#7C2D12` | `#D2B48C` |
+| 0 | circle (filled) | slate-blue | `#727F8C` | `#B2CCE6` |
+| 1 | square (filled) | teal | `#4F7074` | `#ABE1E7` |
+| 2 | triangle-up (filled) | sage | `#74918D` | `#8BC7BF` |
+| 3 | diamond (filled) | pine | `#4D5D52` | `#6FAE86` |
+| 4 | diamond (hollow/outline) | olive | `#6C6D58` | `#D5D8A0` |
+| 5 | triangle-up (hollow/outline) | clay | `#8C6441` | `#E2A46D` |
+| 6 | triangle-down (filled) | dusty rose | `#A77A75` | `#F7CEC9` |
+| 7 | triangle-down (hollow/outline) | mauve | `#964F6B` | `#FAB2CC` |
+| 8 | circle (hollow/outline) | muted violet | `#8F619C` | `#C98ED9` |
+| 9 | square (hollow/outline) | indigo-slate | `#4B5882` | `#AEB7E1` |
 
 Five base geometric shapes — circle, square, triangle-up, diamond, triangle-down — each in a
 filled and a hollow/outline variant (10 = 5 × 2). No plus, star, or cross: the initial USDS-
-inspired proposal included those three, but the user's same-day review rejected them as not
+inspired proposal included those three, but the user's 2026-08-04 review rejected them as not
 "basic geometric shapes," so the plan's reserved-swap slots (4, 5, 7) were reassigned to hollow
 diamond/triangle-up/triangle-down instead. Hollow markers render `fill="none"` + `stroke=color`,
-which also lets crossing lines show through in dense charts. Unlike the original 6→10 shape
-additions (which paired each new hollow shape with a color far from its filled twin, e.g.
-wine↔slate), the hollow shapes swapped in here keep the color role each slot already had before
-the correction (slot 4 stays teal, slot 5 stays azure, slot 7 stays magenta) — color was never
-shape-dependent, so this correction only ever touches the `shape` column.
+which also lets crossing lines show through in dense charts. **Colors were replaced again on
+2026-08-06** (shape untouched by this round) — see the "Corrected again" note above; each slot's
+color role and hex changed, but which slot gets a filled vs. hollow variant of which shape did
+not.
 
 **Contrast — verified** (WCAG relative-luminance formula, against `--color-card`: light
-`#FFFFFF`, dark `#2B232A`). As a *graphical object* (a chart line/marker, not body text), the
-bar is WCAG 2.1 SC 1.4.11 (non-text contrast, ≥3:1), not the 4.5:1 body-text bar:
+`#FFFFFF`, dark `#2B232A`; recomputed directly from the shipped hex values via the same formula
+`colorTokens.cvd.test.ts` runs as an automated gate, not estimated by inspection). As a
+*graphical object* (a chart line/marker, not body text), the bar is WCAG 2.1 SC 1.4.11 (non-text
+contrast, ≥3:1), not the 4.5:1 body-text bar:
 
 | slot | light hex | CR vs light card | dark hex | CR vs dark card |
 |---|---|---|---|---|
-| 0 wine | `#9F1239` | 8.02:1 | `#E8879E` | 6.10:1 |
-| 1 orange | `#C2410C` | 5.18:1 | `#FDBA74` | 9.05:1 |
-| 2 amber | `#854D0E` | 6.85:1 | `#FCD34D` | 10.58:1 |
-| 3 green | `#15803D` | 5.02:1 | `#86EFAC` | 10.86:1 |
-| 4 teal | `#0F766E` | 5.47:1 | `#5EEAD4` | 10.31:1 |
-| 5 azure | `#0369A1` | 5.93:1 | `#7DD3FC` | 9.15:1 |
-| 6 indigo | `#4338CA` | 7.90:1 | `#818CF8` | 5.11:1 |
-| 7 magenta | `#A21CAF` | 6.32:1 | `#F0ABFC` | 8.67:1 |
-| 8 slate | `#334155` | 10.35:1 | `#CBD5E1` | 10.28:1 |
-| 9 brown | `#7C2D12` | 9.37:1 | `#D2B48C` | 7.73:1 |
+| 0 slate-blue | `#727F8C` | 4.09:1 | `#B2CCE6` | 9.21:1 |
+| 1 teal | `#4F7074` | 5.38:1 | `#ABE1E7` | 10.65:1 |
+| 2 sage | `#74918D` | 3.40:1 | `#8BC7BF` | 8.01:1 |
+| 3 pine | `#4D5D52` | 6.99:1 | `#6FAE86` | 5.87:1 |
+| 4 olive | `#6C6D58` | 5.30:1 | `#D5D8A0` | 10.29:1 |
+| 5 clay | `#8C6441` | 5.23:1 | `#E2A46D` | 7.09:1 |
+| 6 dusty rose | `#A77A75` | 3.69:1 | `#F7CEC9` | 10.63:1 |
+| 7 mauve | `#964F6B` | 5.79:1 | `#FAB2CC` | 8.94:1 |
+| 8 muted violet | `#8F619C` | 4.82:1 | `#C98ED9` | 6.07:1 |
+| 9 indigo-slate | `#4B5882` | 6.96:1 | `#AEB7E1` | 7.74:1 |
 
-All twenty clear 3:1 with comfortable margin (lowest 5.02:1 light / 5.11:1 dark). Style
+All twenty clear 3:1 (lowest 3.40:1 light/slot 2 "sage", 5.87:1 dark/slot 3 "pine") — tighter
+than the previous palette's margins but still a clean pass; this is the direct cost of choosing
+a deliberately muted, lower-chroma palette, and was a known, disclosed tradeoff at selection
+time, not an oversight. Style
 assignment is **stable**: a `workId → styleIndex` map assigns the lowest free index on add and
 releases it on remove (`frontend/src/lib/seriesStyles.ts`), so a work keeps its full (shape,
 color) identity while other works are toggled in/out of the comparison. The palette lives in
 `colorTokens.ts`'s `series` field — unlike every other token above, it has **no**
 `--color-series-*` CSS custom property in index.css, since it's only ever consumed dynamically
 (by index) into Recharts props/legend glyphs, never as a static Tailwind utility class. A
-visible legend maps each work's title to its glyph and spells out the style in words ("wine
-circle marker", "slate hollow-circle marker") so the mapping survives into the accessible data
-table and for screen-reader users.
+visible legend maps each work's title to its glyph and spells out the style in words ("slate-blue
+circle marker", "muted violet hollow-circle marker") so the mapping survives into the accessible
+data table and for screen-reader users.
 
 ### CVD (colorblind) verification
 
@@ -375,16 +389,20 @@ Formal requirement added by `docs/plans/usds-dataviz-color-scheme.md`, two compl
    **shape alone** — this is the real accessibility floor; color-channel imperfections are
    acceptable precisely because shape never depends on them.
 
-Measured worst-case minimum pairwise ΔE (headroom over the 3.0 floor):
+Measured worst-case minimum pairwise ΔE (headroom over the 3.0 floor), recomputed for the
+2026-08-06 Muted Archive/Halfway palette using the same script as the automated gate:
 
 | mode | protanopia | deuteranopia | tritanopia | floor |
 |---|---|---|---|---|
-| light | 4.6 | 3.8 | 5.5 | **3.8** |
-| dark | 12.6 | 3.7 | 10.5 | **3.7** |
+| light | 7.9 | 7.9 | 7.9 | **7.9** |
+| dark | 8.0 | 8.0 | 8.4 | **8.0** |
 
-Because shape guarantees identity, color separation is a reinforcement target, not the
-accessibility floor — the ΔE ≥ 3 bar ensures color rarely actively misleads, and shape covers
-the rest.
+Both floors rose substantially versus the previous (wine/orange/amber/...) palette's 3.7–3.8 —
+a deliberately muted, lower-chroma palette still separates cleanly under every simulated CVD
+type once the hues themselves are spread further apart in Lab space; the two properties (low
+chroma, high CVD separation) aren't in tension the way they might intuitively seem. Because
+shape guarantees identity, color separation is a reinforcement target, not the accessibility
+floor — the ΔE ≥ 3 bar ensures color rarely actively misleads, and shape covers the rest.
 
 ### Shape distinguishability
 

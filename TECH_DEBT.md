@@ -502,34 +502,29 @@
   wording — Implementation should update that comment to reflect this
   verification (Review is read-only on the code under review, so it was not
   edited here).
-- [2026-08-04] (stage: Review) Documented CVD ΔE headroom is overstated vs. the
-  actual shipped palette. The plan's table, `MASTER.md` (lines 370-373), and
-  `colorTokens.cvd.test.ts`'s comment all claim a "comfortable" worst-case
-  minimum pairwise CIE76 ΔE of 3.7-3.8. Independently recomputing with the exact
-  shipped matrices and the same linear pipeline the test uses gives light
-  4.52/3.85/5.14 and dark 12.41/**3.40**/10.57 — the true worst case is
-  dark-mode deuteranopia at 3.40, i.e. only 0.40 above the 3.0 floor, not the
-  0.7-0.8 margin documented. The automated gate (asserts ≥3.0) is correct and
-  green; this is purely a documentation-accuracy issue. Worth correcting so a
-  future palette edit isn't made trusting an overstated margin — the dark
-  deuteranopia pair is the real constraint and is tighter than the docs imply.
-- [2026-08-04] (stage: Review) Stale explanatory comment in
-  `frontend/src/lib/useChartColors.test.ts` (lines 99-106). The orchestrator's
-  same-day fix correctly updated the `LIGHT_SERIES_HEXES`/`DARK_SERIES_HEXES`
-  arrays and the two `toHaveLength` assertions to the real 10-hex values
-  (verified byte-for-byte against `colorTokens.ts` — the fix itself is correct),
-  but the describe-block comment above still describes the OLD 6-slot scheme:
-  "decision A — a redundant color channel on top of shape+dash" and "in the SAME
-  order as that slot table (wine, teal, amber, indigo, green, purple)". Both the
-  count and the order are now wrong/misleading. Code is correct; only the comment
-  lies. Low priority; update or drop the stale comment.
+- ~~[2026-08-04] (stage: Review) Documented CVD ΔE headroom is overstated vs. the
+  actual shipped palette.~~ — **superseded 2026-08-06**: the series palette this
+  entry was about (wine/orange/amber/...) was fully replaced by the
+  post-retrospective color re-review (Muted Archive/Halfway, see MASTER.md's
+  "Multi-Series Comparison Charts" section and `docs/plans/usds-dataviz-color-scheme.md`'s
+  2026-08-06 addendum). The new palette's worst-case floor was computed the same
+  way (7.9 light / 8.0 dark, both well clear of 3.0) and documented directly from
+  that computation rather than estimated, so the original "documentation trails
+  reality" risk this entry flagged doesn't recur here — no action needed.
+- ~~[2026-08-04] (stage: Review) Stale explanatory comment in
+  `frontend/src/lib/useChartColors.test.ts`.~~ — **resolved 2026-08-06**: the
+  comment and pinned hex arrays were rewritten as part of the same-day palette
+  re-review (Muted Archive/Halfway) and now correctly describe the current
+  10-slot role order.
 - [2026-08-04] (stage: Review) Legend worded description reads "{colorRole}
-  {shape} marker" so hollow slots render as "slate circle-hollow marker" /
-  "brown square-hollow marker", whereas the plan and MASTER.md examples use
-  "slate hollow-circle marker". Purely cosmetic prose wording (a11y-fine — the
-  words are stable and screen-reader-exposed); the `circle-hollow`/`square-hollow`
-  shape token reads slightly awkwardly inline. Nit; consider a display-name map
-  if the phrasing is worth polishing.
+  {shape} marker" so hollow slots render as "muted violet circle-hollow marker" /
+  "indigo-slate square-hollow marker" (role names updated 2026-08-06 to match
+  the current palette; the underlying wording issue is unchanged), whereas the
+  plan and MASTER.md examples use "muted violet hollow-circle marker". Purely
+  cosmetic prose wording (a11y-fine — the words are stable and screen-reader-
+  exposed); the `circle-hollow`/`square-hollow` shape token reads slightly
+  awkwardly inline. Nit; consider a display-name map if the phrasing is worth
+  polishing.
 - [2026-08-05] (stage: Maintenance) `InstallPage`'s "GitHub" link (footer,
   `href="https://github.com/walwoodr/ao3-stats-plus"`, class `text-accent`)
   fails `accessibility.spec.ts`'s axe scan with a **real, plausible**

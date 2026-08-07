@@ -17,6 +17,11 @@
 // pass in docs/maintenance/). Final 10 = 5 base geometric shapes (circle,
 // square, triangle, diamond, triangle-down) x 2 fill states (filled,
 // hollow) - no plus/star/cross anywhere.
+// Second, separate same-day (2026-08-06) correction: colorRole per slot was
+// replaced (shape is untouched by this one) - the user reviewed a live
+// visual comparison of verified candidate palettes and picked "Muted
+// Archive," see docs/plans/usds-dataviz-color-scheme.md's 2026-08-06
+// addendum and colorTokens.ts.
 export type MarkerShapeName =
   | "circle"
   | "square"
@@ -35,16 +40,16 @@ export interface SeriesStyleSlot {
 }
 
 export const SERIES_STYLE_SLOTS: readonly SeriesStyleSlot[] = [
-  { shape: "circle", colorRole: "wine" },
-  { shape: "square", colorRole: "orange" },
-  { shape: "triangle", colorRole: "amber" },
-  { shape: "diamond", colorRole: "green" },
-  { shape: "diamond-hollow", colorRole: "teal" },
-  { shape: "triangle-hollow", colorRole: "azure" },
-  { shape: "triangle-down", colorRole: "indigo" },
-  { shape: "triangle-down-hollow", colorRole: "magenta" },
-  { shape: "circle-hollow", colorRole: "slate" },
-  { shape: "square-hollow", colorRole: "brown" },
+  { shape: "circle", colorRole: "slate-blue" },
+  { shape: "square", colorRole: "teal" },
+  { shape: "triangle", colorRole: "sage" },
+  { shape: "diamond", colorRole: "pine" },
+  { shape: "diamond-hollow", colorRole: "olive" },
+  { shape: "triangle-hollow", colorRole: "clay" },
+  { shape: "triangle-down", colorRole: "dusty rose" },
+  { shape: "triangle-down-hollow", colorRole: "mauve" },
+  { shape: "circle-hollow", colorRole: "muted violet" },
+  { shape: "square-hollow", colorRole: "indigo-slate" },
 ];
 
 // Assignment is threaded through as an immutable Map (assign/release return

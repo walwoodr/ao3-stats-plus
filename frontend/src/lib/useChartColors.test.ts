@@ -100,35 +100,39 @@ describe("usePrefersDarkColorScheme / useChartColors", () => {
 // of shape, never color-only - dash was retired as a per-series
 // differentiator by docs/plans/usds-dataviz-color-scheme.md) is added to
 // ColorTokens as a `series` array, one hex per seriesStyles.ts slot, in the
-// SAME order as that slot table (wine, orange, amber, green, teal, azure,
-// indigo, magenta, slate, brown) - see that plan's 10-slot table. Both hex
-// sets are pinned exactly here, since colorTokens.ts is explicitly a
-// duplicated source of truth with index.css/MASTER.md (its own file-level
-// comment says to re-verify all three stay in sync).
+// SAME order as that slot table (slate-blue, teal, sage, pine, olive, clay,
+// dusty rose, mauve, muted violet, indigo-slate) - see that plan's 2026-08-06
+// same-day addendum, which replaced the originally shipped 10-hex palette
+// (wine/orange/amber/green/teal/azure/indigo/magenta/slate/brown) with a
+// user-selected "Muted Archive" (light) + "Halfway" (dark) palette after a
+// live visual comparison of verified candidates. Both hex sets are pinned
+// exactly here, since colorTokens.ts is explicitly a duplicated source of
+// truth with index.css/MASTER.md (its own file-level comment says to
+// re-verify all three stay in sync).
 describe("ColorTokens.series (multi-series categorical palette)", () => {
   const LIGHT_SERIES_HEXES = [
-    "#9F1239",
-    "#C2410C",
-    "#854D0E",
-    "#15803D",
-    "#0F766E",
-    "#0369A1",
-    "#4338CA",
-    "#A21CAF",
-    "#334155",
-    "#7C2D12",
+    "#727F8C",
+    "#4F7074",
+    "#74918D",
+    "#4D5D52",
+    "#6C6D58",
+    "#8C6441",
+    "#A77A75",
+    "#964F6B",
+    "#8F619C",
+    "#4B5882",
   ];
   const DARK_SERIES_HEXES = [
-    "#E8879E",
-    "#FDBA74",
-    "#FCD34D",
-    "#86EFAC",
-    "#5EEAD4",
-    "#7DD3FC",
-    "#818CF8",
-    "#F0ABFC",
-    "#CBD5E1",
-    "#D2B48C",
+    "#B2CCE6",
+    "#ABE1E7",
+    "#8BC7BF",
+    "#6FAE86",
+    "#D5D8A0",
+    "#E2A46D",
+    "#F7CEC9",
+    "#FAB2CC",
+    "#C98ED9",
+    "#AEB7E1",
   ];
 
   it("gives LIGHT_COLOR_TOKENS a series array of exactly 10 hexes", () => {
@@ -139,11 +143,11 @@ describe("ColorTokens.series (multi-series categorical palette)", () => {
     expect(DARK_COLOR_TOKENS.series).toHaveLength(10);
   });
 
-  it("matches the plan's light palette exactly, in slot order (wine, orange, amber, green, teal, azure, indigo, magenta, slate, brown)", () => {
+  it("matches the plan's light palette exactly, in slot order (slate-blue, teal, sage, pine, olive, clay, dusty rose, mauve, muted violet, indigo-slate)", () => {
     expect(LIGHT_COLOR_TOKENS.series).toEqual(LIGHT_SERIES_HEXES);
   });
 
-  it("matches the plan's dark palette exactly, in slot order (wine, orange, amber, green, teal, azure, indigo, magenta, slate, brown)", () => {
+  it("matches the plan's dark palette exactly, in slot order (slate-blue, teal, sage, pine, olive, clay, dusty rose, mauve, muted violet, indigo-slate)", () => {
     expect(DARK_COLOR_TOKENS.series).toEqual(DARK_SERIES_HEXES);
   });
 

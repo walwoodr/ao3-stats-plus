@@ -410,6 +410,63 @@ shape-distinguishability-only pass for the corrected 10-shape set is recorded at
 No functional, color, or contrast/CVD impact — this is a same-day shape-only correction, not a
 new decision requiring re-approval of the consolidated dash/CVD-mechanism decisions above.
 
+## Addendum (2026-08-06, post-Retrospective, color-only correction)
+
+The 2026-08-06 Retrospective (`docs/retros/2026-08-06-consultation-gaps-and-comparison-graph-cycle.md`)
+flagged that the original §3 series palette (wine/orange/amber/green/teal/azure/indigo/magenta/
+slate/brown) had been finalized without the Review-cycle color options the user's standing
+consultation expectations called for — the palette shipped as a single proposal, never presented
+alongside alternatives. Per the user's explicit request ("the final decision on the USDS colors
+should have gone through a review cycle, ideally with a few presented options, and I would like
+to do that post-retrospective"), a dedicated post-retrospective re-review was run. This addendum
+records that re-review and its outcome. **Shape is entirely unaffected** — this is a color-only
+correction; the 10-slot shape table (post the 2026-08-04 addendum above) is unchanged.
+
+**Process:** two new candidate palettes were generated alongside the shipped one and presented
+via a live, theme-aware visual comparison (real marker-shape swatches against actual app card
+backgrounds in both light and dark mode, plus illustrative mini chart mockups), each independently
+WCAG-contrast- and Machado-2009-CVD-ΔE-verified using the same methodology as the original
+palette (§"Palette derivation & verification" above) before being shown. The user selected
+"Muted Archive" for light mode. For dark mode, the user asked for the paired dark variant to move
+"towards a more white-grey pastel that better matches with the muted colors in light mode" than
+the first proposal — a further paler pastel alternative was computed and verified, then, per the
+user's follow-up ("can we hit about halfway between the first proposal and recommended
+options?"), a third "Halfway" variant was computed as a genuine midpoint saturation (not an
+eyeballed lightening) between the two and verified again. The user confirmed this final pairing
+("yes, go with halfway and muted").
+
+**Resolved slot→color reassignment** (shape untouched — color role names also changed, since the
+new palette's hues don't map onto the old role names):
+
+| slot | old color role (retired) | old light hex | new color role | new light hex | new dark hex |
+|---|---|---|---|---|---|
+| 0 | wine (brand) | `#9F1239` | slate-blue | `#727F8C` | `#B2CCE6` |
+| 1 | orange | `#C2410C` | teal | `#4F7074` | `#ABE1E7` |
+| 2 | amber/ochre | `#854D0E` | sage | `#74918D` | `#8BC7BF` |
+| 3 | green | `#15803D` | pine | `#4D5D52` | `#6FAE86` |
+| 4 | teal | `#0F766E` | olive | `#6C6D58` | `#D5D8A0` |
+| 5 | azure | `#0369A1` | clay | `#8C6441` | `#E2A46D` |
+| 6 | indigo | `#4338CA` | dusty rose | `#A77A75` | `#F7CEC9` |
+| 7 | magenta | `#A21CAF` | mauve | `#964F6B` | `#FAB2CC` |
+| 8 | slate | `#334155` | muted violet | `#8F619C` | `#C98ED9` |
+| 9 | brown | `#7C2D12` | indigo-slate | `#4B5882` | `#AEB7E1` |
+
+**Contrast — reverified** (WCAG relative-luminance formula, ≥3:1 non-text-contrast bar, against
+`--color-card`): all 20 pairs clear 3:1, lowest 3.40:1 (light, slot 2 "sage") and 5.87:1 (dark,
+slot 3 "pine") — tighter margins than the original palette's, a disclosed tradeoff of choosing a
+deliberately lower-chroma, muted palette, not an oversight. Full per-slot table in MASTER.md's
+"Multi-Series Comparison Charts" section, which this addendum's numbers were computed to match
+exactly (not independently estimated).
+
+**CVD — reverified:** worst-case minimum pairwise CIE76 ΔE rose to **7.9 (light) / 8.0 (dark)**
+(from the original palette's 3.7–3.8), comfortably clear of the 3.0 floor — the automated gate
+(`frontend/src/lib/colorTokens.cvd.test.ts`) computes this directly against whichever palette is
+live and needed no changes itself to cover the new values.
+
+No shape, layout, or component-structure impact. Implementation: `frontend/src/lib/colorTokens.ts`
+(`LIGHT_COLOR_TOKENS.series`/`DARK_COLOR_TOKENS.series`) and `frontend/src/lib/seriesStyles.ts`
+(`SERIES_STYLE_SLOTS[*].colorRole`), plus the corresponding test files and MASTER.md.
+
 ## Cross-references
 
 - `docs/plans/per-work-comparison-graph.md` — the parent feature (6-slot scheme,
