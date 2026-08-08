@@ -24,6 +24,18 @@ const TOP_LEVEL_TABS = [
 ];
 
 export const TopLevelMetricPicker: Story = {
+  // args is required by Storybook's CSF3 types whenever the component has
+  // required props, even though this story drives its own interactive
+  // state from local useState rather than reading `args` (same pattern as
+  // WorkPicker.stories.tsx/DateRangeSlider.stories.tsx, see TECH_DEBT.md's
+  // 2026-08-03 entry).
+  args: {
+    label: "Metric",
+    tabs: TOP_LEVEL_TABS,
+    selectedKey: "hits",
+    onChange: () => {},
+    children: null,
+  },
   render: () => {
     function Demo() {
       const [selectedKey, setSelectedKey] = useState("hits");
@@ -51,6 +63,13 @@ const BOOKMARK_SUB_TABS = [
 // inside a top-level one, matching how the Bookmarks tabpanel nests the
 // [By Work | By Type] sub-toggle.
 export const NestedBookmarksSubTab: Story = {
+  args: {
+    label: "Metric",
+    tabs: [...TOP_LEVEL_TABS, { key: "bookmarks", label: "Bookmarks" }],
+    selectedKey: "bookmarks",
+    onChange: () => {},
+    children: null,
+  },
   render: () => {
     function Demo() {
       const [metric, setMetric] = useState("bookmarks");
