@@ -104,11 +104,23 @@ describe("WorkComparisonSection", () => {
     expect(isSelected("Work Two")).toBe(false);
   });
 
-  it("renders both the hits and kudos comparison charts together", () => {
+  // docs/plans/additional-metric-trend-charts.md §3.0 (Option B, the metric
+  // toggle): only ONE metric's chart renders at a time now, not Hits+Kudos
+  // together - switching the [Hits | Kudos | ...] tablist swaps which chart
+  // shows. Full toggle/non-sparse-metric coverage lives in
+  // WorkComparisonSection.metrics.test.tsx; this file keeps just the
+  // Hits-by-default smoke assertion plus the toggle-swap it replaces.
+  it("renders the Hits chart by default; switching to the Kudos tab shows Kudos instead", async () => {
+    const user = userEvent.setup();
     renderSection({ perWorkSeries: TWO_WORKS, earliestPostYear: null });
 
     expect(screen.getByRole("img", { name: /^hits$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /^kudos$/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Kudos" }));
+
     expect(screen.getByRole("img", { name: /^kudos$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /^hits$/i })).not.toBeInTheDocument();
   });
 
   it("shows only the default work's data in both charts' legends", () => {
@@ -392,9 +404,11 @@ describe("WorkComparisonSection", () => {
 
   // Testing task 10 (docs/plans/usds-dataviz-color-scheme.md): the full
   // 10-work cap-raise state rendered end to end through the real
-  // orchestrator (picker + both charts), not just the cap-truncation
-  // mechanics covered above.
-  describe("10-work state renders both charts + full legend", () => {
+  // orchestrator (picker + chart), not just the cap-truncation mechanics
+  // covered above. Updated for the metric toggle (§3.0): both Hits and
+  // Kudos get the full legend, but one at a time - checked via a tab switch,
+  // not two simultaneously-rendered figures.
+  describe("10-work state renders the active chart + full legend", () => {
     const TEN_WORKS: PerWorkSeries[] = Array.from({ length: 10 }, (_, i) =>
       work({
         ao3WorkId: i + 1,
@@ -404,7 +418,7 @@ describe("WorkComparisonSection", () => {
       }),
     );
 
-    it("renders all 10 works selected and in both the hits and kudos charts", async () => {
+    it("renders all 10 works selected, with the full legend on both the Hits and Kudos tabs", async () => {
       const user = userEvent.setup();
       renderSection({ perWorkSeries: TEN_WORKS, earliestPostYear: null });
 
@@ -415,9 +429,14 @@ describe("WorkComparisonSection", () => {
       });
 
       const hitsFigure = screen.getByRole("img", { name: /^hits$/i });
-      const kudosFigure = screen.getByRole("img", { name: /^kudos$/i });
       TEN_WORKS.forEach((w) => {
         expect(within(hitsFigure).getAllByText(new RegExp(w.title, "i")).length).toBeGreaterThan(0);
+      });
+
+      await user.click(screen.getByRole("tab", { name: "Kudos" }));
+
+      const kudosFigure = screen.getByRole("img", { name: /^kudos$/i });
+      TEN_WORKS.forEach((w) => {
         expect(within(kudosFigure).getAllByText(new RegExp(w.title, "i")).length).toBeGreaterThan(
           0,
         );

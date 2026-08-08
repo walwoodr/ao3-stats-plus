@@ -224,4 +224,54 @@ describe("useWorkComparisonStore", () => {
       expect(useWorkComparisonStore.getState().getSelection("anyone")).toEqual([]);
     });
   });
+
+  // docs/plans/additional-metric-trend-charts.md §3.0 ("Selected-metric
+  // state"): the per-work metric toggle's selected tab persists per-username
+  // in this same store, alongside selectedWorkIds/range - a fresh username
+  // reads null (caller applies its own default, e.g. "hits") rather than
+  // this store hardcoding a default metric key.
+  describe("selectedMetric (per-work metric toggle persistence)", () => {
+    it("getSelectedMetric returns null for a username never seen before", () => {
+      expect(useWorkComparisonStore.getState().getSelectedMetric("someauthor")).toBeNull();
+    });
+
+    it("setSelectedMetric / getSelectedMetric round-trips a metric key", () => {
+      useWorkComparisonStore.getState().setSelectedMetric("someauthor", "comments");
+
+      expect(useWorkComparisonStore.getState().getSelectedMetric("someauthor")).toBe("comments");
+    });
+
+    it("keeps selectedMetric independent per username", () => {
+      const store = useWorkComparisonStore.getState();
+      store.setSelectedMetric("authorA", "bookmarks");
+      store.setSelectedMetric("authorB", "subscriptions");
+
+      expect(useWorkComparisonStore.getState().getSelectedMetric("authorA")).toBe("bookmarks");
+      expect(useWorkComparisonStore.getState().getSelectedMetric("authorB")).toBe("subscriptions");
+    });
+
+    it("setSelectedMetric never touches selectedWorkIds/range for the same username", () => {
+      const store = useWorkComparisonStore.getState();
+      store.setSelection("someauthor", [1, 2]);
+      store.setRange("someauthor", { start: 2020, end: 2022 });
+
+      store.setSelectedMetric("someauthor", "kudos");
+
+      expect(useWorkComparisonStore.getState().getSelection("someauthor")).toEqual([1, 2]);
+      expect(useWorkComparisonStore.getState().getRange("someauthor")).toEqual({
+        start: 2020,
+        end: 2022,
+      });
+    });
+
+    it("persists selectedMetric to localStorage and rehydrates it on a simulated remount", async () => {
+      useWorkComparisonStore.getState().setSelectedMetric("persisted_author", "comments");
+
+      vi.resetModules();
+      const { useWorkComparisonStore: freshStore } = await import("./useWorkComparisonStore");
+      await freshStore.persist.rehydrate();
+
+      expect(freshStore.getState().getSelectedMetric("persisted_author")).toBe("comments");
+    });
+  });
 });
