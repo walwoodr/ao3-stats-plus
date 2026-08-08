@@ -91,3 +91,103 @@ export const SingleWorkDisabledSlider: Story = {
     username: "story-single-disabled-slider",
   },
 };
+
+// docs/plans/additional-metric-trend-charts.md §3.0/§3.4: feeds the new
+// Comments/Bookmarks(total)/Subscriptions per-work metric tabs plus the
+// Bookmarks By-Type/By-Work sub-views' sparse public/private split - one
+// work fully enriched throughout, one work with enrichment only on its
+// LATER snapshot (an interior gap, not just a trailing one - the "sparse
+// interior gaps" corner case, plan §4.1), one work never enriched at all
+// (plan §4.3's "zero enrichment data" case for the By-Work sub-view).
+const BOOKMARK_SPLIT_WORKS: PerWorkSeries[] = [
+  {
+    ao3WorkId: 1,
+    title: "The Long Way Home",
+    fandoms: "Fandom One",
+    publishedOn: "2018-01-01",
+    points: [
+      {
+        capturedOn: "2018-01-01",
+        hits: 100,
+        kudos: 10,
+        comments: 4,
+        bookmarks: 12,
+        subscriptions: 3,
+        publicBookmarks: 9,
+        privateBookmarks: 3,
+      },
+      {
+        capturedOn: "2020-06-01",
+        hits: 400,
+        kudos: 55,
+        comments: 20,
+        bookmarks: 60,
+        subscriptions: 10,
+        publicBookmarks: 45,
+        privateBookmarks: 15,
+      },
+      {
+        capturedOn: "2026-01-01",
+        hits: 900,
+        kudos: 120,
+        comments: 48,
+        bookmarks: 140,
+        subscriptions: 22,
+        publicBookmarks: 100,
+        privateBookmarks: 40,
+      },
+    ],
+  },
+  {
+    ao3WorkId: 2,
+    title: "Sideways",
+    fandoms: "Fandom One",
+    points: [
+      {
+        capturedOn: "2019-03-01",
+        hits: 40,
+        kudos: 5,
+        comments: 2,
+        bookmarks: 6,
+        subscriptions: 1,
+        publicBookmarks: null,
+        privateBookmarks: null,
+      },
+      {
+        capturedOn: "2022-06-01",
+        hits: 180,
+        kudos: 30,
+        comments: 9,
+        bookmarks: 25,
+        subscriptions: 4,
+        publicBookmarks: 18,
+        privateBookmarks: 7,
+      },
+    ],
+  },
+  {
+    ao3WorkId: 3,
+    title: "Crossover Event",
+    fandoms: "Fandom One, Fandom Two",
+    points: [
+      {
+        capturedOn: "2021-01-01",
+        hits: 60,
+        kudos: 8,
+        comments: 3,
+        bookmarks: 10,
+        subscriptions: 2,
+        publicBookmarks: null,
+        privateBookmarks: null,
+      },
+    ],
+  },
+];
+
+export const BookmarksSplitAcrossWorks: Story = {
+  args: {
+    perWorkSeries: BOOKMARK_SPLIT_WORKS,
+    earliestPostYear: 2018,
+    username: "story-bookmarks-split",
+  },
+};

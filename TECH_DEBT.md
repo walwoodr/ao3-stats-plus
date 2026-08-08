@@ -599,3 +599,18 @@
   assertion to either deselect first, or navigate via ArrowUp/repeated
   ArrowDown+wraparound to actually reach the header from the pre-selected
   highlight, matching real app state.
+- [2026-08-08] (stage: Testing) `frontend/tests/dashboard-populated.spec.ts`
+  has two pre-existing, already-broken tests found incidentally while
+  extending this file for docs/plans/additional-metric-trend-charts.md
+  (T-T8): "renders the per-work comparison chart with a grouped checkbox
+  picker" and "shows the dashed-lead-in caption once a selected work has a
+  zero-basis leadIn" both query `getByRole("checkbox", { name: "Work A" })`,
+  which no longer exists - `docs/plans/work-comparison-picker-redesign.md`
+  replaced the grouped-checkbox `WorkPicker` with an Autocomplete combobox +
+  removable chips (confirmed already-broken against `main` via `git stash`
+  before any of this session's changes, so not a regression introduced
+  here). Out of scope for this feature plan (frontend-only chart additions,
+  not the picker) - left unfixed. Fix: update both to the combobox
+  interaction pattern already used elsewhere in this file/accessibility.spec.ts
+  (e.g. `getByLabel("Remove Work A")` for presence, and select via the
+  combobox rather than a checkbox).
