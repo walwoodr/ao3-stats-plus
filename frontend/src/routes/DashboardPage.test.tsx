@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ClientError } from "graphql-request";
 import { GraphQLError } from "graphql";
@@ -175,7 +176,15 @@ describe("DashboardPage", () => {
   });
 
   describe("with a populated multi-point history", () => {
-    it("renders the aggregate trend charts", () => {
+    // RatioChart removal (docs/plans/additional-metric-trend-charts.md
+    // §3.0.1, T-T3, user-requested): the Kudos-to-hits ratio chart no longer
+    // renders anywhere on DashboardPage - Option B's "pick one count metric"
+    // toggle has no slot for a derived 0-1 proportion on a different
+    // scale/chart type. RatioChart.tsx and its own test suite
+    // (RatioChart.test.tsx) are untouched; this only asserts DashboardPage
+    // stopped rendering it, on every metric tab.
+    it("renders the Hits chart by default and never a Kudos-to-hits ratio chart, on any tab", async () => {
+      const user = userEvent.setup();
       vi.mocked(useTokenFromUrl).mockReturnValue("tok_valid");
       mockStats({
         data: {
@@ -192,18 +201,27 @@ describe("DashboardPage", () => {
       });
 
       renderDashboard();
-
       expect(screen.getByRole("img", { name: /total hits/i })).toBeInTheDocument();
-      expect(screen.getByRole("img", { name: /kudos.to.hits ratio/i })).toBeInTheDocument();
+      expect(screen.queryByRole("img", { name: /kudos.to.hits ratio/i })).not.toBeInTheDocument();
+
+      for (const tabName of ["Kudos", "Subscribers"]) {
+        // eslint-disable-next-line no-await-in-loop -- sequential tab clicks are the point
+        await user.click(screen.getByRole("tab", { name: tabName }));
+        expect(
+          screen.queryByRole("img", { name: /kudos.to.hits ratio/i }),
+        ).not.toBeInTheDocument();
+      }
     });
   });
 
   // earliestPostYear (a synthetic "before you had any stats, you were at
   // zero" zero-point fact from the user's first ingest) drives a leadIn
-  // synthesized as { capturedOn: "<year>-01-01", value: 0 } for the hits/
-  // kudos charts and { capturedOn: "<year>-01-01", ratio: 0 } for the
-  // ratio chart - account-level charts only, never per-work, and only when
-  // the synthetic date would actually sort before the first real snapshot.
+  // synthesized as { capturedOn: "<year>-01-01", value: 0 } for each
+  // account-level metric chart - account-level only, never per-work, and
+  // only when the synthetic date would actually sort before the first real
+  // snapshot. (The Subscribers tab's own leadIn is covered by
+  // DashboardPage.metricToggle.test.tsx; this stays focused on Hits/Kudos,
+  // the two metrics that pre-date the toggle.)
   describe("with earliestPostYear present and valid", () => {
     const TWO_POINT_SERIES = [
       { capturedOn: "2026-01-01", totalHits: 10, totalKudos: 1, kudosToHitsRatio: 0.1 },
@@ -233,36 +251,30 @@ describe("DashboardPage", () => {
       });
     }
 
-    it("builds a 0/0/0 leadIn and passes it to all three account-level charts", () => {
+    it("builds a 0/0 leadIn and passes it to both the Hits and Kudos account-level charts", async () => {
+      const user = userEvent.setup();
       mockWithEarliestPostYear({ earliestPostYear: 2020, aggregateSeries: TWO_POINT_SERIES });
 
       renderDashboard();
 
       const hitsFigure = screen.getByRole("img", { name: /total hits/i });
-      const kudosFigure = screen.getByRole("img", { name: /total kudos/i });
-      const ratioFigure = screen.getByRole("img", { name: /kudos.to.hits ratio/i });
-
-      // real points + one synthetic leadIn marker on each account chart
+      // real points + one synthetic leadIn marker on the currently-shown chart
       expect(within(hitsFigure).getAllByTestId(/trend-point-marker-/)).toHaveLength(
         TWO_POINT_SERIES.length + 1,
       );
+      const hitsLabel = within(hitsFigure).getAllByTestId(/trend-point-marker-/)[0].textContent;
+      expect(hitsLabel).toMatch(/before/i);
+      expect(hitsLabel).toMatch(/\b0\b/);
+
+      await user.click(screen.getByRole("tab", { name: "Kudos" }));
+
+      const kudosFigure = screen.getByRole("img", { name: /total kudos/i });
       expect(within(kudosFigure).getAllByTestId(/trend-point-marker-/)).toHaveLength(
         TWO_POINT_SERIES.length + 1,
       );
-      expect(within(ratioFigure).getAllByTestId(/ratio-point-marker-/)).toHaveLength(
-        TWO_POINT_SERIES.length + 1,
-      );
-
-      const hitsLabel = within(hitsFigure).getAllByTestId(/trend-point-marker-/)[0].textContent;
       const kudosLabel = within(kudosFigure).getAllByTestId(/trend-point-marker-/)[0].textContent;
-      const ratioLabel = within(ratioFigure).getAllByTestId(/ratio-point-marker-/)[0].textContent;
-
-      expect(hitsLabel).toMatch(/before/i);
-      expect(hitsLabel).toMatch(/\b0\b/);
       expect(kudosLabel).toMatch(/before/i);
       expect(kudosLabel).toMatch(/\b0\b/);
-      expect(ratioLabel).toMatch(/before/i);
-      expect(ratioLabel).toMatch(/\b0\b/);
     });
 
     // Superseded by docs/plans/per-work-zero-basis-dates.md: the parent
@@ -376,8 +388,9 @@ describe("DashboardPage", () => {
   // Q1 (resolved: replace, not coexist) - PerWorkTrends' single-work
   // <select> dropdown is removed entirely; WorkComparisonSection takes its
   // place, behind the SAME `perWorkSeries.length > 0` guard PerWorkTrends
-  // used. The aggregate section (TrendChart x2 + RatioChart) above is
-  // unchanged by this - none of its own tests were touched.
+  // used. The aggregate metric toggle above it is unaffected by this
+  // section's own tests (RatioChart removal is covered above, by the
+  // "populated multi-point history" describe block).
   describe("PerWorkTrends replacement (WorkComparisonSection)", () => {
     const ONE_WORK_PER_WORK_SERIES = [
       {
@@ -440,7 +453,11 @@ describe("DashboardPage", () => {
       expect(screen.queryByRole("img", { name: /^hits$/i })).not.toBeInTheDocument();
     });
 
-    it("still renders the untouched aggregate section (TrendChart x2 + RatioChart) alongside the new comparison section", () => {
+    // Renamed from "...TrendChart x2 + RatioChart..." (T-T3): the aggregate
+    // section is now the [Hits | Kudos | Subscribers] metric toggle over one
+    // TrendChart, with no ratio chart anywhere - this still confirms the
+    // aggregate toggle and the new comparison section coexist correctly.
+    it("still renders the aggregate metric toggle (no RatioChart) alongside the new comparison section", () => {
       vi.mocked(useTokenFromUrl).mockReturnValue("tok_valid");
       mockStats({
         data: {
@@ -459,8 +476,8 @@ describe("DashboardPage", () => {
       renderDashboard();
 
       expect(screen.getByRole("img", { name: /total hits/i })).toBeInTheDocument();
-      expect(screen.getByRole("img", { name: /total kudos/i })).toBeInTheDocument();
-      expect(screen.getByRole("img", { name: /kudos.to.hits ratio/i })).toBeInTheDocument();
+      expect(screen.queryByRole("img", { name: /kudos.to.hits ratio/i })).not.toBeInTheDocument();
+      expect(screen.getByRole("tablist")).toBeInTheDocument();
       expect(screen.getByRole("combobox", { name: /works to compare/i })).toBeInTheDocument();
     });
   });
