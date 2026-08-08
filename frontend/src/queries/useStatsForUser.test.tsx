@@ -2,7 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { graphqlClient } from "../lib/graphqlClient";
-import { useStatsForUser, type PerWorkSeries } from "./useStatsForUser";
+import {
+  useStatsForUser,
+  type AggregateSeriesPoint,
+  type PerWorkPoint,
+  type PerWorkSeries,
+} from "./useStatsForUser";
 
 // useStatsForUser wraps graphql-request in a TanStack Query hook keyed
 // ["stats", username, token], per the plan. graphql-request itself is
@@ -138,5 +143,92 @@ describe("useStatsForUser", () => {
 
     expect(accurate.publishedOn).toBe("2020-06-01");
     expect(missing.publishedOn).toBeNull();
+  });
+
+  // docs/plans/additional-metric-trend-charts.md (Testing task T-T1): the
+  // account-level "Subscribers" metric tab reads totalUserSubscriptions off
+  // each AggregateSeriesPoint - the backend already resolves it
+  // (AggregateSeriesPointType), but the query document sent to the server
+  // never asks for it today, so this is a genuine runtime RED (no tsc -b
+  // needed) until the query is extended.
+  it("selects totalUserSubscriptions inside the aggregateSeries block of the query document", () => {
+    vi.mocked(graphqlClient.request).mockResolvedValue({
+      statsForUser: { aggregateSeries: [], perWorkSeries: [], earliestPostYear: null },
+    });
+
+    renderWithClient("someauthor", "tok_valid");
+
+    const [query] = vi.mocked(graphqlClient.request).mock.calls[0];
+    const aggregateSeriesBlock =
+      String(query).match(/aggregateSeries\s*{([^}]*)}/s)?.[1] ?? "";
+    expect(aggregateSeriesBlock).toMatch(/totalUserSubscriptions/);
+  });
+
+  // Per-work new metrics (plan §1/§3.1-3.3): comments, the always-present
+  // total bookmarks count, subscriptions, and the sparse enrichment-derived
+  // publicBookmarks/privateBookmarks split all live on PerWorkPointType
+  // (i.e. inside perWorkSeries's nested `points { ... }` block, one value
+  // per snapshot) - not on PerWorkSeries itself. None of the five are
+  // requested by the query today.
+  it("selects comments/bookmarks/subscriptions/publicBookmarks/privateBookmarks inside the perWorkSeries points block", () => {
+    vi.mocked(graphqlClient.request).mockResolvedValue({
+      statsForUser: { aggregateSeries: [], perWorkSeries: [], earliestPostYear: null },
+    });
+
+    renderWithClient("someauthor", "tok_valid");
+
+    const [query] = vi.mocked(graphqlClient.request).mock.calls[0];
+    const pointsBlock = String(query).match(/points\s*{([^}]*)}/s)?.[1] ?? "";
+    expect(pointsBlock).toMatch(/\bcomments\b/);
+    expect(pointsBlock).toMatch(/\bbookmarks\b/);
+    expect(pointsBlock).toMatch(/\bsubscriptions\b/);
+    expect(pointsBlock).toMatch(/\bpublicBookmarks\b/);
+    expect(pointsBlock).toMatch(/\bprivateBookmarks\b/);
+  });
+
+  // Compile-time companions to the two query-document tests above (same
+  // "caught by tsc -b, not vitest run" discipline as the publishedOn case):
+  // AggregateSeriesPoint/PerWorkPoint must actually declare these fields or
+  // DashboardPage/WorkComparisonSection have nothing typed to read once the
+  // query document itself is fixed.
+  it("AggregateSeriesPoint.totalUserSubscriptions is a required number (compile-time shape, verified via tsc -b)", () => {
+    const point: AggregateSeriesPoint = {
+      capturedOn: "2026-01-01",
+      totalHits: 100,
+      totalKudos: 10,
+      kudosToHitsRatio: 0.1,
+      totalUserSubscriptions: 42,
+    };
+
+    expect(point.totalUserSubscriptions).toBe(42);
+  });
+
+  it("PerWorkPoint exposes the five new fields with the backend's non-null/nullable split (compile-time shape, verified via tsc -b)", () => {
+    const enriched: PerWorkPoint = {
+      capturedOn: "2026-01-01",
+      hits: 10,
+      kudos: 2,
+      comments: 3,
+      bookmarks: 5,
+      subscriptions: 1,
+      publicBookmarks: 4,
+      privateBookmarks: 1,
+    };
+    const notYetEnriched: PerWorkPoint = {
+      capturedOn: "2026-01-08",
+      hits: 20,
+      kudos: 4,
+      comments: 6,
+      bookmarks: 9,
+      subscriptions: 2,
+      // publicBookmarks/privateBookmarks are nullable - enrichment hasn't
+      // run for this snapshot yet, per plan §3.3.
+      publicBookmarks: null,
+      privateBookmarks: null,
+    };
+
+    expect(enriched.publicBookmarks).toBe(4);
+    expect(notYetEnriched.publicBookmarks).toBeNull();
+    expect(notYetEnriched.privateBookmarks).toBeNull();
   });
 });
