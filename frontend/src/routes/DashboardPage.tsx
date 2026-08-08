@@ -6,7 +6,6 @@ import { useTokenStore } from "../store/useTokenStore";
 import { useStatsForUser } from "../queries/useStatsForUser";
 import { TokenEntryForm } from "../components/TokenEntryForm";
 import { TrendChart } from "../components/charts/TrendChart";
-import { RatioChart } from "../components/charts/RatioChart";
 import { MetricToggle } from "../components/charts/MetricToggle";
 import { WorkComparisonSection } from "../components/WorkComparisonSection";
 
@@ -148,7 +147,6 @@ export function DashboardPage() {
   const hitsLeadIn = hasLeadIn ? { capturedOn: leadInDate as string, value: 0 } : undefined;
   const kudosLeadIn = hasLeadIn ? { capturedOn: leadInDate as string, value: 0 } : undefined;
   const subscribersLeadIn = hasLeadIn ? { capturedOn: leadInDate as string, value: 0 } : undefined;
-  const ratioLeadIn = hasLeadIn ? { capturedOn: leadInDate as string, ratio: 0 } : undefined;
 
   const notEnoughHistory = !hasLeadIn && aggregateSeries.length === 1;
 
@@ -212,15 +210,6 @@ export function DashboardPage() {
               />
             )}
           </MetricToggle>
-          <RatioChart
-            title="Kudos-to-hits ratio"
-            description="What share of your hits turn into kudos, over time - a rough measure of reader engagement rather than raw traffic."
-            points={aggregateSeries.map((point) => ({
-              capturedOn: point.capturedOn,
-              ratio: point.kudosToHitsRatio,
-            }))}
-            leadIn={ratioLeadIn}
-          />
         </div>
       )}
 
