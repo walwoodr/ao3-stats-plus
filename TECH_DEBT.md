@@ -614,3 +614,16 @@
   interaction pattern already used elsewhere in this file/accessibility.spec.ts
   (e.g. `getByLabel("Remove Work A")` for presence, and select via the
   combobox rather than a checkbox).
+- [2026-08-08] (stage: Implementation) `RatioChart.tsx` (plus its own
+  `RatioChart.test.tsx`/`RatioChart.stories.tsx`), and the `kudosToHitsRatio`
+  GraphQL field (both the aggregate-series field and the top-level
+  `statsForUser.kudosToHitsRatio` field, still selected by
+  `STATS_FOR_USER_QUERY`), are now unreferenced by rendered UI after the
+  Kudos-to-hits ratio chart was removed from `DashboardPage` per
+  docs/plans/additional-metric-trend-charts.md §3.0.1 (user-requested -
+  Option B's metric toggle has no slot for a derived 0-1 proportion on a
+  different scale/chart type). Kept deliberately, not deleted, for possible
+  future reuse - flagged here so it isn't mistaken for a live feature nor
+  silently deleted as dead code later. Future cleanup could drop the
+  `kudosToHitsRatio` selections from `STATS_FOR_USER_QUERY` if the ratio
+  view isn't reinstated.
