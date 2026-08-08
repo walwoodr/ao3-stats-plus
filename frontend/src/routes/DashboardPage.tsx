@@ -7,7 +7,19 @@ import { useStatsForUser } from "../queries/useStatsForUser";
 import { TokenEntryForm } from "../components/TokenEntryForm";
 import { TrendChart } from "../components/charts/TrendChart";
 import { RatioChart } from "../components/charts/RatioChart";
+import { MetricToggle } from "../components/charts/MetricToggle";
 import { WorkComparisonSection } from "../components/WorkComparisonSection";
+
+// Account-level metric toggle (docs/plans/additional-metric-trend-charts.md
+// §3.0, T-I3): [Hits | Kudos | Subscribers] over one TrendChart. Ephemeral,
+// plain useState (not persisted) - distinct from WorkComparisonSection's
+// per-work metric, which IS persisted per-username (plan §3.0's "Selected-
+// metric state").
+const AGGREGATE_METRIC_TABS = [
+  { key: "hits", label: "Hits" },
+  { key: "kudos", label: "Kudos" },
+  { key: "subscribers", label: "Subscribers" },
+];
 
 // graphql-request throws a ClientError (with a `.response` carrying the
 // GraphQL `errors` array) for a real, backend-confirmed rejection - e.g. an
@@ -56,6 +68,7 @@ export function DashboardPage() {
   // form would just loop, so that case gets a plainer error instead (they
   // can reload to start over, same as the stored-token path does).
   const [submittedManually, setSubmittedManually] = useState(false);
+  const [selectedMetric, setSelectedMetric] = useState("hits");
 
   if (error && error !== lastSeenError) {
     setLastSeenError(error);
@@ -134,6 +147,7 @@ export function DashboardPage() {
   const hasLeadIn = leadInDate !== null && !!firstCapturedOn && leadInDate < firstCapturedOn;
   const hitsLeadIn = hasLeadIn ? { capturedOn: leadInDate as string, value: 0 } : undefined;
   const kudosLeadIn = hasLeadIn ? { capturedOn: leadInDate as string, value: 0 } : undefined;
+  const subscribersLeadIn = hasLeadIn ? { capturedOn: leadInDate as string, value: 0 } : undefined;
   const ratioLeadIn = hasLeadIn ? { capturedOn: leadInDate as string, ratio: 0 } : undefined;
 
   const notEnoughHistory = !hasLeadIn && aggregateSeries.length === 1;
@@ -155,26 +169,49 @@ export function DashboardPage() {
       {aggregateSeries.length > 0 && (
         <div className="mt-6 flex flex-col gap-8">
           <h2 className="sr-only">Aggregate stats</h2>
-          <TrendChart
-            title="Total hits"
-            description="Total hits across all your works, combined, at each snapshot you've captured."
-            valueLabel="Hits"
-            points={aggregateSeries.map((point) => ({
-              capturedOn: point.capturedOn,
-              value: point.totalHits,
-            }))}
-            leadIn={hitsLeadIn}
-          />
-          <TrendChart
-            title="Total kudos"
-            description="Total kudos across all your works, combined, at each snapshot you've captured."
-            valueLabel="Kudos"
-            points={aggregateSeries.map((point) => ({
-              capturedOn: point.capturedOn,
-              value: point.totalKudos,
-            }))}
-            leadIn={kudosLeadIn}
-          />
+          <MetricToggle
+            label="Metric"
+            tabs={AGGREGATE_METRIC_TABS}
+            selectedKey={selectedMetric}
+            onChange={setSelectedMetric}
+          >
+            {selectedMetric === "hits" && (
+              <TrendChart
+                title="Total hits"
+                description="Total hits across all your works, combined, at each snapshot you've captured."
+                valueLabel="Hits"
+                points={aggregateSeries.map((point) => ({
+                  capturedOn: point.capturedOn,
+                  value: point.totalHits,
+                }))}
+                leadIn={hitsLeadIn}
+              />
+            )}
+            {selectedMetric === "kudos" && (
+              <TrendChart
+                title="Total kudos"
+                description="Total kudos across all your works, combined, at each snapshot you've captured."
+                valueLabel="Kudos"
+                points={aggregateSeries.map((point) => ({
+                  capturedOn: point.capturedOn,
+                  value: point.totalKudos,
+                }))}
+                leadIn={kudosLeadIn}
+              />
+            )}
+            {selectedMetric === "subscribers" && (
+              <TrendChart
+                title="Subscribers"
+                description="People subscribed to you as an author, across your works, at each snapshot you've captured."
+                valueLabel="Subscribers"
+                points={aggregateSeries.map((point) => ({
+                  capturedOn: point.capturedOn,
+                  value: point.totalUserSubscriptions ?? 0,
+                }))}
+                leadIn={subscribersLeadIn}
+              />
+            )}
+          </MetricToggle>
           <RatioChart
             title="Kudos-to-hits ratio"
             description="What share of your hits turn into kudos, over time - a rough measure of reader engagement rather than raw traffic."
