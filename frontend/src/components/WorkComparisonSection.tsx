@@ -218,20 +218,33 @@ export function WorkComparisonSection({
     setRangeInStore(username, clampWindow({ start: nextValue[0], end: nextValue[1] }, domain));
   }
 
-  function buildSeries(metric: "hits" | "kudos"): SeriesDatum[] {
+  // Generalized (plan §3.2) to take a value extractor + an applyLeadIn flag
+  // rather than a hardcoded "hits"|"kudos" field name, so every top-level
+  // metric (and the Bookmarks sub-views' Total/Public/Private types) share
+  // this one builder. Sparse metrics (public/private bookmarks) drop
+  // null-valued points instead of charting them (plan §3.3 - never
+  // fabricate a zero) and pass applyLeadIn=false (their first enrichment
+  // point isn't the work's first capture). Existing window-filtering,
+  // style-slot assignment, and lead-in gating stay intact.
+  function buildSeries(
+    valueOf: (point: PerWorkPoint) => number | null,
+    applyLeadIn: boolean,
+  ): SeriesDatum[] {
     return orderedSelectedWorks.map((work) => {
       const visiblePoints = effectiveRange
         ? filterPointsInWindow(work.points, effectiveRange)
         : work.points;
-      const leadIn = computeLeadIn(work, earliestPostYear, visiblePoints, effectiveRange);
+      const points = visiblePoints
+        .map((point) => ({ capturedOn: point.capturedOn, value: valueOf(point) }))
+        .filter((point): point is { capturedOn: string; value: number } => point.value !== null);
+      const leadIn = applyLeadIn
+        ? computeLeadIn(work, earliestPostYear, visiblePoints, effectiveRange)
+        : undefined;
       return {
         workId: work.ao3WorkId,
         title: work.title,
         styleIndex: styleAssignment.get(work.ao3WorkId) ?? 0,
-        points: visiblePoints.map((point) => ({
-          capturedOn: point.capturedOn,
-          value: point[metric],
-        })),
+        points,
         leadIn,
       };
     });
@@ -249,8 +262,8 @@ export function WorkComparisonSection({
   // caption should show is read off one of the two built series arrays
   // rather than recomputed separately, per the plan's "reuse the same gate
   // rather than recomputing it separately" instruction.
-  const hitsSeries = buildSeries("hits");
-  const kudosSeries = buildSeries("kudos");
+  const hitsSeries = buildSeries((point) => point.hits, true);
+  const kudosSeries = buildSeries((point) => point.kudos, true);
   const hasRenderedLeadIn = hitsSeries.some((s) => s.leadIn !== undefined);
 
   return (
