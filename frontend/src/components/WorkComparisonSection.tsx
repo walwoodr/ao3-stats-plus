@@ -8,7 +8,7 @@ import {
   type YearWindow,
 } from "../lib/comparisonSelection";
 import { assignStyleSlot, releaseStyleSlot } from "../lib/seriesStyles";
-import { PER_WORK_METRICS, PER_WORK_METRIC_TABS } from "../lib/perWorkMetrics";
+import { BOOKMARK_TYPES, PER_WORK_METRICS, PER_WORK_METRIC_TABS } from "../lib/perWorkMetrics";
 import { useWorkComparisonStore } from "../store/useWorkComparisonStore";
 import { WorkPicker } from "./WorkPicker";
 import { DateRangeSlider } from "./DateRangeSlider";
@@ -262,6 +262,28 @@ export function WorkComparisonSection({
     });
   }
 
+  // By-Work sub-view (plan §3.4): one work's Total/Public/Private as three
+  // lines, FIXED style slots 0/1/2 (not the work's own cross-chart identity
+  // slot - each By-Work chart holds only one work's data, so shape/color
+  // are free to distinguish the three TYPES instead). Entries with zero
+  // points are dropped entirely (not just left empty) so an unenriched
+  // work's chart shows only its Total line, never empty Public/Private
+  // legend entries (plan §4.3).
+  function buildWorkTypeSeries(work: PerWorkSeries): SeriesDatum[] {
+    const visiblePoints = effectiveRange
+      ? filterPointsInWindow(work.points, effectiveRange)
+      : work.points;
+    return BOOKMARK_TYPES.map((type, styleIndex) => {
+      const points = visiblePoints
+        .map((point) => ({ capturedOn: point.capturedOn, value: type.valueOf(point) }))
+        .filter((point): point is { capturedOn: string; value: number } => point.value !== null);
+      const leadIn = type.applyLeadIn
+        ? computeLeadIn(work, earliestPostYear, visiblePoints, effectiveRange)
+        : undefined;
+      return { workId: styleIndex, title: type.label, styleIndex, points, leadIn };
+    }).filter((series) => series.points.length > 0);
+  }
+
   const summaryMessage =
     selectedWorkIds.length > 0
       ? `Comparing ${selectedWorkIds.length} work${selectedWorkIds.length === 1 ? "" : "s"}, ` +
@@ -325,7 +347,11 @@ export function WorkComparisonSection({
         onChange={handleMetricChange}
       >
         {selectedMetric === "bookmarks" ? (
-          <WorkComparisonBookmarksTab buildTypeSeries={buildSeries} />
+          <WorkComparisonBookmarksTab
+            orderedSelectedWorks={orderedSelectedWorks}
+            buildTypeSeries={buildSeries}
+            buildWorkTypeSeries={buildWorkTypeSeries}
+          />
         ) : (
           <div className="flex flex-col gap-8">
             {currentMetric && (

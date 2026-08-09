@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { PerWorkPoint } from "../queries/useStatsForUser";
+import type { PerWorkPoint, PerWorkSeries } from "../queries/useStatsForUser";
 import { BOOKMARK_TYPES, type BookmarkTypeKey } from "../lib/perWorkMetrics";
 import { MetricToggle } from "./charts/MetricToggle";
 import { MultiSeriesTrendChart, type SeriesDatum } from "./charts/MultiSeriesTrendChart";
@@ -17,10 +17,15 @@ const BOOKMARK_SUB_TABS = [
 ];
 
 export interface WorkComparisonBookmarksTabProps {
+  orderedSelectedWorks: PerWorkSeries[];
   // By-Type builder: keeps every currently-selected work's series entry
   // (even with 0 points after null-filtering) so the accessible table still
   // shows a "-" gap column for an unenriched work, rather than dropping it.
   buildTypeSeries: (valueOf: (point: PerWorkPoint) => number | null, applyLeadIn: boolean) => SeriesDatum[];
+  // By-Work builder: one work's Total/Public/Private, EXCLUDING any type
+  // with zero points entirely (so an unenriched work's chart shows only its
+  // Total line, not empty Public/Private legend entries - plan §4.3).
+  buildWorkTypeSeries: (work: PerWorkSeries) => SeriesDatum[];
 }
 
 const DEFAULT_CHECKED: Record<BookmarkTypeKey, boolean> = {
@@ -79,15 +84,41 @@ function ByType({
   );
 }
 
-// By-Work content lands in the next task item (T-I9); this keeps the
-// [By Type | By Work] shell + By-Type (T-I8's own scope) wired and
-// testable in isolation.
-function ByWork() {
-  return <p className="text-sm text-ink-soft">Loading By-Work view...</p>;
+// By-Work sub-view (plan §3.4, Option 3 generalized to all selected works):
+// for every currently-selected work, IN SELECTION ORDER, one chart plots
+// that work's own Total/Public/Private as three lines. No focus-work
+// picker - every selected work gets its own chart; a work with zero
+// enrichment data still shows its always-present Total line (§4.3), never
+// an error.
+function ByWork({
+  orderedSelectedWorks,
+  buildWorkTypeSeries,
+}: {
+  orderedSelectedWorks: PerWorkSeries[];
+  buildWorkTypeSeries: WorkComparisonBookmarksTabProps["buildWorkTypeSeries"];
+}) {
+  if (orderedSelectedWorks.length === 0) {
+    return <p className="text-sm text-ink-soft">Select at least one work to compare.</p>;
+  }
+
+  return (
+    <div className="flex flex-col gap-8">
+      {orderedSelectedWorks.map((work) => (
+        <MultiSeriesTrendChart
+          key={work.ao3WorkId}
+          title={work.title}
+          valueLabel="Bookmarks"
+          series={buildWorkTypeSeries(work)}
+        />
+      ))}
+    </div>
+  );
 }
 
 export function WorkComparisonBookmarksTab({
+  orderedSelectedWorks,
   buildTypeSeries,
+  buildWorkTypeSeries,
 }: WorkComparisonBookmarksTabProps) {
   // Ephemeral view state (plan §3.4/§4.5) - not persisted; switching away
   // from and back to Bookmarks, or a remount, may reset these, unlike
@@ -104,7 +135,7 @@ export function WorkComparisonBookmarksTab({
       {subTab === "byType" ? (
         <ByType buildTypeSeries={buildTypeSeries} checked={checked} onToggle={toggleType} />
       ) : (
-        <ByWork />
+        <ByWork orderedSelectedWorks={orderedSelectedWorks} buildWorkTypeSeries={buildWorkTypeSeries} />
       )}
     </MetricToggle>
   );
