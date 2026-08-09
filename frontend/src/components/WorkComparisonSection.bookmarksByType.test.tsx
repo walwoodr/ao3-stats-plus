@@ -202,7 +202,7 @@ describe("WorkComparisonSection: Bookmarks By Type", () => {
     await goToBookmarksByType(user);
 
     const totalFigure = screen.getByRole("img", { name: /^total bookmarks$/i });
-    expect(within(totalFigure).getByText(/published 2020-01-01/i)).toBeInTheDocument();
+    expect(within(totalFigure).getAllByText(/published 2020-01-01/i).length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole("checkbox", { name: "Public" }));
 

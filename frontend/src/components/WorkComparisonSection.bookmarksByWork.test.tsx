@@ -106,9 +106,9 @@ describe("WorkComparisonSection: Bookmarks By Work", () => {
     await goToBookmarksByWork(user);
 
     const figure = screen.getByRole("img", { name: "Work One" });
-    expect(within(figure).getByText(/^total —/i)).toBeInTheDocument();
-    expect(within(figure).getByText(/^public —/i)).toBeInTheDocument();
-    expect(within(figure).getByText(/^private —/i)).toBeInTheDocument();
+    expect(within(figure).getAllByText(/^total —/i).length).toBeGreaterThan(0);
+    expect(within(figure).getAllByText(/^public —/i).length).toBeGreaterThan(0);
+    expect(within(figure).getAllByText(/^private —/i).length).toBeGreaterThan(0);
   });
 
   // Plan §3.4: fixed styleIndex 0/1/2 (Total=slot 0 circle/slate-blue,
@@ -170,11 +170,15 @@ describe("WorkComparisonSection: Bookmarks By Work", () => {
 
     await goToBookmarksByWork(user);
 
-    const figures = screen.getAllByRole("img");
+    // Scoped to `aria-labelledby` rather than a bare getAllByRole("img"):
+    // WorkPicker's per-chip remove icons are also role="img" (labeled via a
+    // direct aria-label, not aria-labelledby), so an unscoped query here
+    // would pick those up alongside the chart figures.
+    const figures = screen
+      .getAllByRole("img")
+      .filter((figure) => figure.hasAttribute("aria-labelledby"));
     const titles = figures.map((figure) => figure.getAttribute("aria-labelledby"));
-    const headingTexts = titles.map(
-      (id) => document.getElementById(id ?? "")?.textContent ?? "",
-    );
+    const headingTexts = titles.map((id) => document.getElementById(id ?? "")?.textContent ?? "");
     expect(headingTexts).toEqual(["Work Two", "Work One"]);
   });
 

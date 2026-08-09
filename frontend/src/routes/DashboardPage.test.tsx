@@ -207,9 +207,7 @@ describe("DashboardPage", () => {
       for (const tabName of ["Kudos", "Subscribers"]) {
         // eslint-disable-next-line no-await-in-loop -- sequential tab clicks are the point
         await user.click(screen.getByRole("tab", { name: tabName }));
-        expect(
-          screen.queryByRole("img", { name: /kudos.to.hits ratio/i }),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByRole("img", { name: /kudos.to.hits ratio/i })).not.toBeInTheDocument();
       }
     });
   });
@@ -477,7 +475,8 @@ describe("DashboardPage", () => {
 
       expect(screen.getByRole("img", { name: /total hits/i })).toBeInTheDocument();
       expect(screen.queryByRole("img", { name: /kudos.to.hits ratio/i })).not.toBeInTheDocument();
-      expect(screen.getByRole("tablist")).toBeInTheDocument();
+      expect(screen.getByRole("tablist", { name: "Metric" })).toBeInTheDocument();
+      expect(screen.getByRole("tablist", { name: "Per-work metric" })).toBeInTheDocument();
       expect(screen.getByRole("combobox", { name: /works to compare/i })).toBeInTheDocument();
     });
   });

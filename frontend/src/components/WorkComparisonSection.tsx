@@ -342,7 +342,7 @@ export function WorkComparisonSection({
       </div>
 
       <MetricToggle
-        label="Metric"
+        label="Per-work metric"
         tabs={PER_WORK_METRIC_TABS}
         selectedKey={selectedMetric}
         onChange={handleMetricChange}

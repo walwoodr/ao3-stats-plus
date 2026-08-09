@@ -70,7 +70,9 @@ test.describe("dashboard with a seeded snapshot history", () => {
   // scans against the new metric-toggle interactions, extending this file
   // per the plan's explicit instruction (rather than accessibility.spec.ts,
   // which covers the pre-existing landing/install/dashboard states).
-  test("switching the account-level metric toggle to Subscribers is axe-clean", async ({ page }) => {
+  test("switching the account-level metric toggle to Subscribers is axe-clean", async ({
+    page,
+  }) => {
     await mockStatsForUser(page, POPULATED_STATS_RESPONSE);
     await page.goto("/u/testauthor?token=tok_valid123");
     await expect(page.getByRole("img", { name: /total hits/i })).toBeVisible();

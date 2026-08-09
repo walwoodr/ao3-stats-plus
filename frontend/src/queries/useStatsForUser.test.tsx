@@ -159,8 +159,7 @@ describe("useStatsForUser", () => {
     renderWithClient("someauthor", "tok_valid");
 
     const [query] = vi.mocked(graphqlClient.request).mock.calls[0];
-    const aggregateSeriesBlock =
-      String(query).match(/aggregateSeries\s*{([^}]*)}/s)?.[1] ?? "";
+    const aggregateSeriesBlock = String(query).match(/aggregateSeries\s*{([^}]*)}/s)?.[1] ?? "";
     expect(aggregateSeriesBlock).toMatch(/totalUserSubscriptions/);
   });
 

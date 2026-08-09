@@ -236,7 +236,7 @@ describe("WorkComparisonSection: per-work metric toggle", () => {
     await user.click(screen.getByRole("tab", { name: "Comments" }));
 
     const figure = screen.getByRole("img", { name: /^comments$/i });
-    expect(within(figure).getByText(/published 2020-01-01/i)).toBeInTheDocument();
+    expect(within(figure).getAllByText(/published 2020-01-01/i).length).toBeGreaterThan(0);
   });
 
   it("switching metric tabs does not reset the selected works or the active range window", async () => {

@@ -114,7 +114,9 @@ describe("WorkComparisonSection: Bookmarks sub-tab shell", () => {
     await goToBookmarksTab(user);
 
     const [topTablist, subTablist] = screen.getAllByRole("tablist");
-    expect(topTablist.getAttribute("aria-label")).not.toEqual(subTablist.getAttribute("aria-label"));
+    expect(topTablist.getAttribute("aria-label")).not.toEqual(
+      subTablist.getAttribute("aria-label"),
+    );
   });
 
   it("clicking By Work selects it and swaps the sub-panel's aria-labelledby", async () => {
