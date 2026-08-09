@@ -12,6 +12,7 @@ import { PER_WORK_METRICS, PER_WORK_METRIC_TABS } from "../lib/perWorkMetrics";
 import { useWorkComparisonStore } from "../store/useWorkComparisonStore";
 import { WorkPicker } from "./WorkPicker";
 import { DateRangeSlider } from "./DateRangeSlider";
+import { WorkComparisonBookmarksTab } from "./WorkComparisonBookmarksTab";
 import { MetricToggle } from "./charts/MetricToggle";
 import {
   MultiSeriesTrendChart,
@@ -324,10 +325,7 @@ export function WorkComparisonSection({
         onChange={handleMetricChange}
       >
         {selectedMetric === "bookmarks" ? (
-          // Placeholder - the [By Type | By Work] sub-tab content lands in
-          // the very next task item (T-I8/T-I9); this keeps the toggle
-          // itself (T-I7's own scope) wired and testable in isolation.
-          <p className="text-sm text-ink-soft">Loading bookmarks view...</p>
+          <WorkComparisonBookmarksTab buildTypeSeries={buildSeries} />
         ) : (
           <div className="flex flex-col gap-8">
             {currentMetric && (
