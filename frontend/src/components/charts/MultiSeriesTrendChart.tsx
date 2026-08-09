@@ -57,6 +57,14 @@ function leadKey(workId: number): string {
   return `lead-${workId}`;
 }
 
+// The worded (shape, color) description for a series' style slot - lives
+// only in the sr-only accessible table's column headers now (see the
+// component doc comment above for why it moved out of the visible legend).
+function describeStyle(styleIndex: number): string {
+  const slot = SERIES_STYLE_SLOTS[styleIndex];
+  return `${slot.colorRole} ${slot.shape} marker`;
+}
+
 // The chart's shared date axis is the UNION of every selected work's
 // capturedOn dates AND every selected work's injected zero-basis (leadIn)
 // date - a work with no point at a given date contributes null (a chart
@@ -134,12 +142,16 @@ function cellValue(row: ChartRow, workId: number): string | number {
 // see the plan's "New vs. extended" section). Reuses the same accessibility
 // skeleton (figure role=img, aria-hidden Recharts block, sr-only per-point
 // markers, sr-only wide data table) plus a visible legend mapping each
-// work's title to its (shape, color) glyph in words - per
+// work's title to its (shape, color) glyph - per
 // docs/plans/usds-dataviz-color-scheme.md, shape alone is now the
 // guaranteed non-color channel (dash was dropped as a per-series
 // differentiator; series lines are solid) and color is redundant
-// reinforcement only, never the sole differentiator; identity for AT users
-// is always the work's title text.
+// reinforcement only, never the sole differentiator. The worded style
+// description ("slate-blue circle marker") was removed from the VISIBLE
+// legend per direct user instruction (2026-08-09 TECH_DEBT.md), but stays
+// available to screen-reader users via the sr-only table's column headers
+// below (`describeStyle`) - that's the accessible surface MASTER.md's
+// Multi-Series Comparison Charts section documents as carrying this mapping.
 export function MultiSeriesTrendChart({ title, valueLabel, series }: MultiSeriesTrendChartProps) {
   const headingId = useId();
   const colors = useChartColors();
@@ -299,7 +311,9 @@ export function MultiSeriesTrendChart({ title, valueLabel, series }: MultiSeries
           <tr>
             <th>Date</th>
             {series.map((s) => (
-              <th key={s.workId}>{s.title}</th>
+              <th key={s.workId}>
+                {s.title} — {describeStyle(s.styleIndex)}
+              </th>
             ))}
           </tr>
         </thead>

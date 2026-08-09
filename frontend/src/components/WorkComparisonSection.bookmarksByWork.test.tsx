@@ -115,16 +115,25 @@ describe("WorkComparisonSection: Bookmarks By Work", () => {
   // Public=slot 1 square/teal, Private=slot 2 triangle/sage) - learnable
   // once, consistent across every work's chart, regardless of the work's
   // OWN top-level style slot (used elsewhere for cross-work identity).
-  it("uses the fixed slot 0/1/2 shape+color glyphs for Total/Public/Private, worded in the legend", async () => {
+  it("uses the fixed slot 0/1/2 shape+color glyphs for Total/Public/Private, worded in the sr-only accessible table", async () => {
     const user = userEvent.setup();
     renderSection({ perWorkSeries: [ENRICHED_WORK], earliestPostYear: null });
 
     await goToBookmarksByWork(user);
 
+    // The worded (shape, color) description no longer renders in the
+    // visible legend (removed per 2026-08-09 TECH_DEBT.md) - asserted here
+    // via the sr-only table's column headers (<th>) instead.
     const figure = screen.getByRole("img", { name: "Work One" });
-    expect(within(figure).getByText(/total.*slate-blue circle marker/i)).toBeInTheDocument();
-    expect(within(figure).getByText(/public.*teal square marker/i)).toBeInTheDocument();
-    expect(within(figure).getByText(/private.*sage triangle marker/i)).toBeInTheDocument();
+    expect(
+      within(figure).getByText(/total.*slate-blue circle marker/i, { selector: "th" }),
+    ).toBeInTheDocument();
+    expect(
+      within(figure).getByText(/public.*teal square marker/i, { selector: "th" }),
+    ).toBeInTheDocument();
+    expect(
+      within(figure).getByText(/private.*sage triangle marker/i, { selector: "th" }),
+    ).toBeInTheDocument();
   });
 
   // Corner case §4.3: a selected work with zero enrichment data is NOT an
@@ -152,7 +161,14 @@ describe("WorkComparisonSection: Bookmarks By Work", () => {
     const headers = within(table)
       .getAllByRole("columnheader")
       .map((header) => header.textContent);
-    expect(headers).toEqual(["Date", "Total", "Public", "Private"]);
+    // Column headers also carry the worded (shape, color) description now
+    // (see the "fixed slot 0/1/2" test below) - asserted loosely here via
+    // startsWith rather than duplicating the exact wording.
+    expect(headers).toHaveLength(4);
+    expect(headers[0]).toBe("Date");
+    expect(headers[1]).toMatch(/^Total —/);
+    expect(headers[2]).toMatch(/^Public —/);
+    expect(headers[3]).toMatch(/^Private —/);
   });
 
   // Plan §3.4: "By-Work charts stack in that same [selection] order" - the

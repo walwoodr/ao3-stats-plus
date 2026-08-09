@@ -12,12 +12,16 @@ export interface ComparisonLegendProps {
   seriesColors: readonly string[];
 }
 
-// Visible legend mapping each work's title to its (shape, color) glyph AND
-// a worded style description ("slate-blue circle marker") - per
-// docs/plans/usds-dataviz-color-scheme.md, shape alone is now the
-// accessibility-guaranteed non-color channel (dash is gone; series lines
-// are solid), so the legend spells the shape+color out in words rather than
-// relying on sighted-only glyph recognition. Each entry's text lives in its
+// Visible legend mapping each work's title to its (shape, color) glyph.
+// The worded style description ("slate-blue circle marker") that used to sit
+// next to the title here was removed per direct user instruction (2026-08-09
+// TECH_DEBT.md entry) - it read as clutter once a work is already identified
+// by its title. The (shape, color) identity itself is NOT lost for
+// screen-reader users: it's still spelled out in words in
+// MultiSeriesTrendChart's sr-only accessible data table (each column
+// header), which was already the "accessible data table" MASTER.md's Multi-
+// Series Comparison Charts section refers to - that surface now carries the
+// wording instead of duplicating it here. Each entry's title lives in its
 // own <span> (its only direct text-node child) so it's uniquely findable by
 // screen.getByText without also matching the wrapping <li>.
 export function ComparisonLegend({ entries, seriesColors }: ComparisonLegendProps) {
@@ -29,9 +33,7 @@ export function ComparisonLegend({ entries, seriesColors }: ComparisonLegendProp
         return (
           <li key={entry.workId} className="flex items-center gap-2 text-sm text-ink-soft">
             <MarkerGlyph shape={slot.shape} color={color} />
-            <span>
-              {entry.title} — {slot.colorRole} {slot.shape} marker
-            </span>
+            <span>{entry.title}</span>
           </li>
         );
       })}

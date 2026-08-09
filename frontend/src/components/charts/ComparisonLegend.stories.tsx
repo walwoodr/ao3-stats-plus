@@ -4,9 +4,11 @@ import { LIGHT_COLOR_TOKENS } from "../../lib/colorTokens";
 
 // Testing task 12 (docs/plans/usds-dataviz-color-scheme.md, section 7): a
 // dedicated legend story at the full 10-work cap-raise state, feeding the
-// Storybook addon-a11y automated axe scan against the worded
-// "{colorRole} {shape} marker" description text and its glyphs together -
-// no prior ComparisonLegend story file existed.
+// Storybook addon-a11y automated axe scan against the titles and glyphs
+// together - no prior ComparisonLegend story file existed. The worded
+// "{colorRole} {shape} marker" description text no longer renders here
+// (removed per 2026-08-09 TECH_DEBT.md direct user instruction); it now
+// lives only in MultiSeriesTrendChart's sr-only accessible table.
 const meta = {
   title: "Charts/ComparisonLegend",
   component: ComparisonLegend,

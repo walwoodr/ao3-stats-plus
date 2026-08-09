@@ -160,13 +160,16 @@ describe("WorkComparisonSection: persistence reconciliation (§2.3)", () => {
     renderSection({ perWorkSeries: TWO_WORKS, earliestPostYear: null });
 
     // Scoped to one figure - the same legend text otherwise legitimately
-    // renders twice (once per chart, Hits and Kudos).
+    // renders twice (once per chart, Hits and Kudos). The worded (shape,
+    // color) description no longer renders in the visible legend (removed
+    // per 2026-08-09 TECH_DEBT.md) - it's asserted here via the sr-only
+    // accessible table's column headers (<th>) instead.
     const hitsFigure = screen.getByRole("img", { name: /^hits$/i });
     expect(
-      within(hitsFigure).getByText(/work two.*slate-blue circle marker/i, { selector: "span" }),
+      within(hitsFigure).getByText(/work two.*slate-blue circle marker/i, { selector: "th" }),
     ).toBeInTheDocument();
     expect(
-      within(hitsFigure).getByText(/work one.*teal square marker/i, { selector: "span" }),
+      within(hitsFigure).getByText(/work one.*teal square marker/i, { selector: "th" }),
     ).toBeInTheDocument();
   });
 

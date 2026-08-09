@@ -368,9 +368,15 @@ color) identity while other works are toggled in/out of the comparison. The pale
 `colorTokens.ts`'s `series` field — unlike every other token above, it has **no**
 `--color-series-*` CSS custom property in index.css, since it's only ever consumed dynamically
 (by index) into Recharts props/legend glyphs, never as a static Tailwind utility class. A
-visible legend maps each work's title to its glyph and spells out the style in words ("slate-blue
-circle marker", "muted violet hollow-circle marker") so the mapping survives into the accessible
-data table and for screen-reader users.
+visible legend maps each work's title to its glyph. **Revised 2026-08-09** (Maintenance, direct
+user instruction, TECH_DEBT.md "Remove worded description from legend"): the legend previously
+also spelled the style out in words next to the title ("slate-blue circle marker", "muted violet
+hollow-circle marker") - that worded text was removed from the *visible* legend as clutter once a
+work is already identified by its title. The (shape, color) identity mapping is NOT lost for
+screen-reader users: it now lives in `MultiSeriesTrendChart`'s pre-existing sr-only accessible
+data table instead, whose column headers were extended from `"<title>"` to `"<title> —
+<colorRole> <shape> marker"` so the wording still reaches assistive tech, just via that surface
+rather than a visible, sighted-only legend duplicate.
 
 ### Sparse series & the Bookmarks By-Work fixed type→style mapping
 

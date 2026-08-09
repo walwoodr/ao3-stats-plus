@@ -8,14 +8,18 @@ import { SERIES_STYLE_SLOTS } from "../../lib/seriesStyles";
 // section). It reuses the same accessibility skeleton (figure role=img,
 // aria-hidden Recharts block, sr-only per-point markers, sr-only data
 // table) plus a visible legend mapping each work's title to its
-// (shape, color) glyph in words - per
-// docs/plans/usds-dataviz-color-scheme.md, shape alone is now the
-// guaranteed non-color channel (dash was dropped as a per-series
-// differentiator; lines are solid - see MultiSeriesTrendChart.solidLines.
-// test.tsx), color is redundant reinforcement only.
+// (shape, color) glyph - per docs/plans/usds-dataviz-color-scheme.md, shape
+// alone is now the guaranteed non-color channel (dash was dropped as a
+// per-series differentiator; lines are solid - see
+// MultiSeriesTrendChart.solidLines.test.tsx), color is redundant
+// reinforcement only.
 //
-// Legend wording is derived from the real SERIES_STYLE_SLOTS table (not
-// hardcoded here) so this test pins the *format*
+// Per direct user instruction (2026-08-09 TECH_DEBT.md), the worded style
+// description ("slate-blue circle marker") no longer renders in the VISIBLE
+// legend - it moved to the sr-only accessible table's column headers, the
+// only remaining screen-reader-exposed surface for a series' (shape, color)
+// identity. Description wording is derived from the real SERIES_STYLE_SLOTS
+// table (not hardcoded here) so this test pins the *format*
 // ("<colorRole> <shape> marker") without duplicating seriesStyles.test.ts's
 // ownership of the exact per-slot words.
 function legendDescription(styleIndex: number): string {
@@ -58,20 +62,29 @@ describe("MultiSeriesTrendChart", () => {
   });
 
   describe("visible legend", () => {
-    it("renders one legend entry per selected work, mapping title to its worded glyph", () => {
+    it("renders one legend entry per selected work, showing its title", () => {
       render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />);
 
-      expect(
-        screen.getByText(new RegExp(`Work A.*${legendDescription(0)}`, "i")),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(new RegExp(`Work B.*${legendDescription(1)}`, "i")),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Work A")).toBeInTheDocument();
+      expect(screen.getByText("Work B")).toBeInTheDocument();
     });
 
-    it("gives each work a distinct worded style description", () => {
+    it("does not render the worded style description in the visible legend", () => {
       render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />);
 
+      // Scoped to the legend's own <ul> - the worded description does still
+      // exist elsewhere on the page (the sr-only accessible table), so an
+      // unscoped query would find it there instead and give a false pass.
+      const legend = screen.getByRole("list");
+      expect(
+        within(legend).queryByText(new RegExp(legendDescription(0), "i")),
+      ).not.toBeInTheDocument();
+      expect(
+        within(legend).queryByText(new RegExp(legendDescription(1), "i")),
+      ).not.toBeInTheDocument();
+    });
+
+    it("gives each work a distinct worded style description (format still pinned for the a11y table)", () => {
       expect(legendDescription(WORK_A.styleIndex)).not.toBe(legendDescription(WORK_B.styleIndex));
     });
   });
@@ -103,7 +116,25 @@ describe("MultiSeriesTrendChart", () => {
       const table = screen.getByRole("table", { name: /hits/i });
       const headerCells = within(table).getAllByRole("columnheader");
 
-      expect(headerCells.map((c) => c.textContent)).toEqual(["Date", "Work A", "Work B"]);
+      expect(headerCells.map((c) => c.textContent)).toEqual([
+        "Date",
+        `Work A — ${legendDescription(0)}`,
+        `Work B — ${legendDescription(1)}`,
+      ]);
+    });
+
+    // The worded (shape, color) description no longer renders in the visible
+    // legend (removed per 2026-08-09 TECH_DEBT.md) - this sr-only table's
+    // column headers are now the only screen-reader-exposed surface for that
+    // mapping, so this pins it explicitly.
+    it("spells out each work's (shape, color) style in words in its column header, for screen-reader users", () => {
+      render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />);
+
+      const table = screen.getByRole("table", { name: /hits/i });
+      const headerCells = within(table).getAllByRole("columnheader");
+
+      expect(headerCells[1].textContent).toContain(legendDescription(WORK_A.styleIndex));
+      expect(headerCells[2].textContent).toContain(legendDescription(WORK_B.styleIndex));
     });
 
     it("has one row per union date across all selected works", () => {
@@ -189,10 +220,12 @@ describe("MultiSeriesTrendChart", () => {
       });
     });
 
-    it("gives all 10 works a distinct worded style description in the legend", () => {
+    it("gives all 10 works a distinct worded style description in the sr-only table's column headers", () => {
       render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={TEN_WORKS} />);
 
-      const descriptions = TEN_WORKS.map((work) => legendDescription(work.styleIndex));
+      const table = screen.getByRole("table", { name: /hits/i });
+      const headerCells = within(table).getAllByRole("columnheader").slice(1); // drop "Date"
+      const descriptions = headerCells.map((c) => c.textContent);
       expect(new Set(descriptions).size).toBe(10);
     });
 

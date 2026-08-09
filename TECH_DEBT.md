@@ -552,7 +552,19 @@
   comment and pinned hex arrays were rewritten as part of the same-day palette
   re-review (Muted Archive/Halfway) and now correctly describe the current
   10-slot role order.
-- [2026-08-09] Remove worded description from legend.
+- [2026-08-09] ~~Remove worded description from legend.~~ - resolved 2026-08-09
+  (stage: Maintenance): `ComparisonLegend.tsx` no longer renders the worded
+  "{colorRole} {shape} marker" text next to each work's title - it now shows
+  only the glyph and title. Checked and preserved the accessible/screen-reader
+  surface this text was the sole source for: `MultiSeriesTrendChart.tsx`'s
+  pre-existing sr-only accessible data table now carries the wording instead
+  (column headers extended from `"<title>"` to `"<title> — <colorRole> <shape>
+  marker"`), so the (shape, color) identity mapping still reaches assistive
+  tech, just via that surface instead of a visible, sighted-only duplicate.
+  MASTER.md's Multi-Series Comparison Charts section updated to match. Tests
+  updated in `ComparisonLegend.test.tsx`, `MultiSeriesTrendChart.test.tsx`,
+  `WorkComparisonSection.bookmarksByWork.test.tsx`, and
+  `WorkComparisonSection.persistence.test.tsx`; full suite green (746/746).
 - [2026-08-05] (stage: Maintenance) `InstallPage`'s "GitHub" link (footer,
   `href="https://github.com/walwoodr/ao3-stats-plus"`, class `text-accent`)
   fails `accessibility.spec.ts`'s axe scan with a **real, plausible**
