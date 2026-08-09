@@ -7,9 +7,14 @@
 // the page cap, so parsing/pagination logic stays independently testable
 // with no real network involved.
 //
-// EXTERNAL-UNVERIFIED: every fixture this reads against is modeled on
-// general community knowledge of AO3's rendered /works/:id/bookmarks
-// template, not verified against a live AO3 page - see TECH_DEBT.md.
+// EXTERNAL-UNVERIFIED: the per-bookmark field fixtures (byline, note, tags,
+// datetime, collections) are modeled on general community knowledge of
+// AO3's rendered /works/:id/bookmarks template, not verified against a live
+// AO3 page - see TECH_DEBT.md. Pagination detection, however, IS confirmed:
+// AO3's bookmarks/index.html.erb calls Pagy's stock `pagy_nav` (Pagy 9.3.3,
+// per otwcode/otwarchive's Gemfile.lock, verified directly against
+// raw.githubusercontent.com/ddnexus/pagy's tagged 9.3.3 source), not
+// Kaminari - see parseHasNextPage below.
 
 export interface ScrapedBookmark {
   bookmarkerName: string | null;
@@ -48,9 +53,26 @@ const MONTH_NAMES = [
 export function parseWorkBookmarksPage(doc: Document): WorkBookmarksPage {
   const items = Array.from(doc.querySelectorAll("ol.bookmark.index.group > li.bookmark"));
   const bookmarks = items.map(parseBookmarkItem);
-  const hasNextPage = !!doc.querySelector('ol.pagination.actions a[rel="next"]');
 
-  return { bookmarks, hasNextPage };
+  return { bookmarks, hasNextPage: parseHasNextPage(doc) };
+}
+
+// Pagy's pagy_nav (confirmed against Pagy 9.3.3's actual source, the
+// version AO3's Gemfile.lock pins) renders <nav class="pagy nav"> as a flat
+// sequence of sibling <a> tags with no <ol>/<li> wrapper and no rel="next"
+// attribute anywhere - unlike the Kaminari-style markup this scraper
+// originally (and wrongly) assumed. The nav's last child <a> is always the
+// "next" control: a real <a href="..."> when a next page exists, or an
+// href-less <a role="link" aria-disabled="true"> on the last page. Presence
+// of href on that last link is therefore a reliable, locale-independent
+// signal - it doesn't depend on AO3's translated "Next →" link text.
+function parseHasNextPage(doc: Document): boolean {
+  const nav = doc.querySelector("nav.pagy.nav");
+  if (!nav) return false;
+
+  const links = nav.querySelectorAll(":scope > a");
+  const lastLink = links[links.length - 1];
+  return !!lastLink?.hasAttribute("href");
 }
 
 // Sequentially fetches pages starting at 1, stopping either when a page

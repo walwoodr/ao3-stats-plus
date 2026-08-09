@@ -12,10 +12,12 @@ import { fetchAllWorkBookmarks, parseWorkBookmarksPage } from "./scrapeWorkBookm
 // + the page cap, so this spec exercises pure parsing/pagination logic with
 // no real network involved.
 //
-// EXTERNAL-UNVERIFIED: every fixture this spec loads carries its own header
-// comment flagging that its markup shape is modeled on general community
-// knowledge of AO3's rendered /works/:id/bookmarks template, not verified
-// against a live AO3 page - see each fixture file and TECH_DEBT.md.
+// EXTERNAL-UNVERIFIED: each fixture's per-bookmark field markup is modeled
+// on general community knowledge of AO3's rendered /works/:id/bookmarks
+// template, not verified against a live AO3 page - see each fixture file
+// and TECH_DEBT.md. The pagination markup, however, IS confirmed against
+// Pagy 9.3.3's actual pagy_nav source (the version AO3 pins) - see
+// parseHasNextPage's regression tests below and scrapeWorkBookmarks.ts.
 function loadFixture(name: string): Document {
   const html = readFileSync(join(__dirname, "fixtures", name), "utf-8");
   return new DOMParser().parseFromString(html, "text/html");
@@ -50,7 +52,7 @@ describe("parseWorkBookmarksPage", () => {
       });
     });
 
-    it("reports hasNextPage: true when a rel=next pagination link is present", () => {
+    it("reports hasNextPage: true when Pagy's next link is an active href-bearing <a>", () => {
       expect(result.hasNextPage).toBe(true);
     });
   });
@@ -98,6 +100,49 @@ describe("parseWorkBookmarksPage", () => {
 
       expect(result.bookmarks).toHaveLength(1);
       expect(result.bookmarks[0].bookmarkedOn).toBeNull();
+    });
+  });
+
+  // Regression coverage for the pagination-detection logic itself, using
+  // synthetic markup that mirrors Pagy 9.3.3's actual pagy_nav output
+  // (confirmed against ddnexus/pagy's tagged 9.3.3 source - see
+  // scrapeWorkBookmarks.ts). Pagy renders a flat <nav class="pagy nav"> of
+  // sibling <a> tags with no <ol>/<li> wrapper and no rel="next" anywhere -
+  // this previously tripped up a Kaminari-shaped assumption that never
+  // matched real AO3 markup at all.
+  describe("parseHasNextPage's structural detection (synthetic Pagy markup)", () => {
+    function docWithBody(bodyHtml: string): Document {
+      return new DOMParser().parseFromString(`<ol class="bookmark index group"></ol>${bodyHtml}`, "text/html");
+    }
+
+    it("is false for old Kaminari-style markup (ol.pagination/li.next/rel=next), confirming the fix", () => {
+      const doc = docWithBody(
+        '<ol class="pagination actions"><li class="next"><a rel="next" href="?page=2">Next</a></li></ol>',
+      );
+
+      expect(parseWorkBookmarksPage(doc).hasNextPage).toBe(false);
+    });
+
+    it("is true when the nav's last <a> child has an href (active next link)", () => {
+      const doc = docWithBody(
+        '<nav class="pagy nav" aria-label="Pagination"><a href="?page=1">1</a><a href="?page=2" aria-label="Next">Next &#8594;</a></nav>',
+      );
+
+      expect(parseWorkBookmarksPage(doc).hasNextPage).toBe(true);
+    });
+
+    it("is false when the nav's last <a> child has no href (disabled next link, last page)", () => {
+      const doc = docWithBody(
+        '<nav class="pagy nav" aria-label="Pagination"><a href="?page=1">1</a><a role="link" aria-disabled="true" aria-label="Next">Next &#8594;</a></nav>',
+      );
+
+      expect(parseWorkBookmarksPage(doc).hasNextPage).toBe(false);
+    });
+
+    it("is false when there is no pagy nav element at all", () => {
+      const doc = docWithBody("");
+
+      expect(parseWorkBookmarksPage(doc).hasNextPage).toBe(false);
     });
   });
 });

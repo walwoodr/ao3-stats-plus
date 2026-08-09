@@ -209,7 +209,7 @@
   bookmark date - these per-bookmark fields were cited by Discovery against
   `_bookmark_blurb.html.erb`/`_bookmark_user_module.html.erb` but not
   independently re-fetched by this later pass; treat as probably correct
-  but not to the same confidence as the outer wrapper. **EXTERNAL-UNVERIFIED
+  but not to the same confidence as the outer wrapper. ~~**EXTERNAL-UNVERIFIED
   and likely wrong**: the fixtures assume Kaminari-style
   `ol.pagination > li.next > a[rel="next"]` pagination, but
   `bookmarks/index.html.erb` actually calls `pagy_nav @pagy` (the **Pagy**
@@ -222,7 +222,34 @@
   mode is graceful (treats every page as the last, so no data corruption -
   just misses later pages for a heavily-bookmarked work), but this must be
   confirmed against a live `/works/:id/bookmarks` page before trusting
-  multi-page capture in production.
+  multi-page capture in production.~~ — **RESOLVED 2026-08-09**: confirmed
+  wrong, and fixed. AO3's `Gemfile.lock` pins `pagy (9.3.3)`; fetched that
+  exact tagged version's `gem/lib/pagy/frontend.rb` directly from
+  `raw.githubusercontent.com/ddnexus/pagy/9.3.3` and read `pagy_nav`'s
+  actual string-building code. Real output is
+  `<nav class="pagy nav" aria-label="...">` containing a **flat sequence of
+  sibling `<a>` tags with no `<ol>`/`<li>` wrapper and no `rel="next"`
+  attribute anywhere** - confirmed AO3 doesn't override this template
+  (`app/views/bookmarks/index.html.erb` calls bare `pagy_nav @pagy`) or the
+  markup-affecting parts of its i18n (`config/locales/views/en.yml`
+  overrides only the `next`/`prev` link *text* to "Next →"/"← Previous" and
+  `aria_label.nav` to "Pagination" - never the tag structure, classes, or
+  `aria-label="Next"`/`"Previous"` on the prev/next controls themselves,
+  which stay at Pagy's own defaults). The nav's last child `<a>` is always
+  the "next" control: a real `href`-bearing anchor when a next page exists,
+  or an `href`-less `<a role="link" aria-disabled="true">` on the last page
+  - `scrapeWorkBookmarks.ts`'s `parseHasNextPage` now checks for that
+  structurally (last child of `nav.pagy.nav` has an `href`) rather than a
+  `rel="next"` attribute that real AO3 markup never has, so the old
+  selector matched zero elements and would have silently treated every
+  work as single-page in production. Fixed with a regression test suite
+  (`scrapeWorkBookmarks.test.ts`, "parseHasNextPage's structural detection
+  (synthetic Pagy markup)", including an explicit case proving the old
+  Kaminari-shaped markup now correctly reports `hasNextPage: false`) and
+  all three paginated fixtures (`work-bookmarks-page1/2/3-last.html`)
+  rebuilt to match confirmed real Pagy 9.3.3 output. The per-bookmark field
+  markup (byline/note/tags/collections/datetime) remains unverified as
+  before - only the pagination markup was in scope for this pass.
 - [2026-08-01] (stage: Review) `POST /ingest/work` does not rescue
   `ActiveRecord::RecordInvalid`: a scraped payload that violates a `WorkStat`
   validation (negative count, or `chapters_expected < chapter_count`) makes

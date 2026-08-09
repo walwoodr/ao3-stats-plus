@@ -1,9 +1,11 @@
 <!--
   EXTERNAL-UNVERIFIED: see work-bookmarks-page1.html's header comment - same
-  markup-shape caveat applies here.
+  per-bookmark markup-shape caveat applies here. The pagination markup is
+  confirmed Pagy 9.3.3 output - see work-bookmarks-page1.html's header
+  comment.
 
-  This fixture: page 3 of 3 (the last page) - one full bookmark, no "next"
-  pagination link.
+  This fixture: page 3 of 3 (the last page) - one full bookmark, an active
+  "previous" link and a disabled (href-less) "next" link.
 -->
 <ol class="bookmark index group">
   <li class="bookmark blurb group" id="bookmark_1004">
@@ -20,7 +22,4 @@
     <p class="datetime">04 May 2024</p>
   </li>
 </ol>
-<ol class="pagination actions" role="navigation" aria-label="Pagination">
-  <li class="previous"><a rel="prev" href="?page=2">&#8592; Previous</a></li>
-  <li><span class="current">3</span></li>
-</ol>
+<nav class="pagy nav" aria-label="Pagination"><a href="?page=2" aria-label="Previous">&#8592; Previous</a><a href="?page=1">1</a><a href="?page=2">2</a><a role="link" aria-disabled="true" aria-current="page" class="current">3</a><a role="link" aria-disabled="true" aria-label="Next">Next &#8594;</a></nav>

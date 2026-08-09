@@ -1,14 +1,20 @@
 <!--
-  EXTERNAL-UNVERIFIED: this fixture's markup shape (ol.bookmark.index.group,
-  h5.byline.heading, blockquote.userstuff for the note, ul.meta.tags.commas
-  for the bookmarker's own tags, p.datetime, and the "Collections" landmark
-  heading + list) is modeled on general community knowledge of AO3's
-  rendered /works/:id/bookmarks template - it has not been verified against
-  a live AO3 page (no web/account access available in this stage). See
-  TECH_DEBT.md for the corresponding entry.
+  EXTERNAL-UNVERIFIED: this fixture's per-bookmark markup shape
+  (ol.bookmark.index.group, h5.byline.heading, blockquote.userstuff for the
+  note, ul.meta.tags.commas for the bookmarker's own tags, p.datetime, and
+  the "Collections" landmark heading + list) is modeled on general
+  community knowledge of AO3's rendered /works/:id/bookmarks template - it
+  has not been verified against a live AO3 page. See TECH_DEBT.md for the
+  corresponding entry.
 
-  This fixture: page 1 of 3 - two full bookmarks, a "next" pagination link
-  to page 2.
+  The pagination markup below IS confirmed: it's Pagy's stock pagy_nav
+  output (Pagy 9.3.3, matching otwcode/otwarchive's pinned version),
+  verified directly against ddnexus/pagy's tagged 9.3.3 source plus AO3's
+  own locale override of "next"/"prev"/"aria_label.nav" text
+  (config/locales/views/en.yml) - not Kaminari-style markup.
+
+  This fixture: page 1 of 3 - two full bookmarks, an active "next" link to
+  page 2 (disabled "previous" since this is the first page).
 -->
 <ol class="bookmark index group">
   <li class="bookmark blurb group" id="bookmark_1001">
@@ -43,7 +49,4 @@
     <p class="datetime">02 May 2024</p>
   </li>
 </ol>
-<ol class="pagination actions" role="navigation" aria-label="Pagination">
-  <li><span class="current">1</span></li>
-  <li class="next"><a rel="next" href="?page=2">Next &#8594;</a></li>
-</ol>
+<nav class="pagy nav" aria-label="Pagination"><a role="link" aria-disabled="true" aria-label="Previous">&#8592; Previous</a><a role="link" aria-disabled="true" aria-current="page" class="current">1</a><a href="?page=2">2</a><a href="?page=3">3</a><a href="?page=2" aria-label="Next">Next &#8594;</a></nav>
