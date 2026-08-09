@@ -627,3 +627,29 @@
   silently deleted as dead code later. Future cleanup could drop the
   `kudosToHitsRatio` selections from `STATS_FOR_USER_QUERY` if the ratio
   view isn't reinstated.
+- [2026-08-09] (stage: Review) `PerWorkPoint`'s `comments`/`bookmarks`/
+  `subscriptions` and `AggregateSeriesPoint`'s `totalUserSubscriptions` are
+  typed OPTIONAL in `frontend/src/queries/useStatsForUser.ts`, deviating from
+  docs/plans/additional-metric-trend-charts.md §7's explicit recommendation to
+  make the always-present (backend non-null) fields REQUIRED and churn the
+  fixtures. Testing's §4 discretion covers the choice and it's behaviorally
+  safe (the query always selects them, so the `?? 0` / `?? null` fallbacks at
+  `perWorkMetrics.ts` and `DashboardPage.tsx` never actually fire), but the
+  interface is now less faithful to the non-null backend contract than the
+  plan intended, and the fallbacks are effectively dead defensive code. Note:
+  the asymmetry the Consultation Check flagged (aggregate optional vs per-work
+  required) does NOT exist in the shipped code — all four fields are uniformly
+  optional, so the code is internally consistent. Future cleanup could tighten
+  all four to required once the fixture churn is worth doing.
+- [2026-08-09] (stage: Review) Two superfluous
+  `// eslint-disable-next-line no-await-in-loop` directives flagged as unused
+  warnings by `npx eslint .` — `WorkComparisonSection.metrics.test.tsx:202`
+  and `DashboardPage.test.tsx:208`. The `no-await-in-loop` rule isn't enabled
+  in the project ESLint config, so the disables are inert noise; drop them (or
+  enable the rule if intended).
+- [2026-08-09] (stage: Review) `MetricToggle.tsx`'s `role="tab"` buttons omit
+  `aria-controls` pointing at their owned `tabpanel` (the WAI-ARIA APG tabs
+  pattern lists it). Not axe-flagged and widely treated as optional (only one
+  tabpanel is rendered at a time and it is correctly `aria-labelledby` the
+  active tab), so low priority — add `aria-controls` for full APG conformance
+  if desired.
