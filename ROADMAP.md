@@ -169,6 +169,28 @@ baseline feature on purpose)
   chart axis and the year-only union/domain logic in
   `comparisonSelection.ts`.
 
+## v2 candidates (confirmed 2026-08-09)
+
+- Add a "comment threads" graph to the per-work Comments tab. **Verified
+  2026-08-09, and the naming needs a decision before this is built**: the
+  per-work `comments` field just shipped by
+  `docs/plans/additional-metric-trend-charts.md` is scraped from
+  `dd.comment.thread.count` on the stats page — AO3 itself labels this row
+  "Comment Threads:" (`scrapeStats.ts`), so the just-shipped "Comments" tab
+  is *already* graphing comment-thread counts, not a count of individual
+  comments. A second, genuinely different field already exists in the data
+  model but is not yet graphed: `visibleComments`, scraped from `dd.comments`
+  on the individual work page (`scrapeWorkPage.ts`, work-page enrichment,
+  sparse/nullable like `publicBookmarks`/`privateBookmarks`) - this is a
+  distinct total (likely including reply comments, not just top-level
+  threads, though the exact AO3 semantics of that row haven't been
+  independently confirmed). Needs Discovery to (a) decide whether the
+  shipped "Comments" tab should be relabeled "Comment Threads" for
+  accuracy now that its real AO3 semantics are known, and (b) scope
+  whether `visibleComments` should be graphed as a second metric (mirroring
+  how the Bookmarks tab already handles a sparse work-page-only series
+  alongside a stats-page total).
+
 ## v2 candidates (confirmed 2026-08-07)
 
 - Offer a table view as an alternative to the graph view, for every chart
