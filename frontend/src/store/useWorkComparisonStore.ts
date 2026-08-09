@@ -20,6 +20,12 @@ import {
 export interface WorkComparisonSelection {
   selectedWorkIds: number[];
   range: YearWindow | null;
+  // Per-work metric toggle persistence (docs/plans/additional-metric-trend-
+  // charts.md §3.0) - the selected key from WorkComparisonSection's
+  // top-level [Hits|Kudos|Comments|Bookmarks|Subscriptions] tablist. `null`
+  // for a username never seen before; the caller (not this store) applies
+  // its own default ("hits") rather than this store hardcoding one.
+  selectedMetric: string | null;
 }
 
 interface WorkComparisonState {
@@ -27,6 +33,7 @@ interface WorkComparisonState {
 
   getSelection: (username: string) => number[];
   getRange: (username: string) => YearWindow | null;
+  getSelectedMetric: (username: string) => string | null;
 
   setSelection: (username: string, selectedWorkIds: number[]) => void;
   addWork: (username: string, workId: number) => void;
@@ -34,6 +41,7 @@ interface WorkComparisonState {
   selectAllInFandom: (username: string, fandomWorkIds: number[]) => SelectAllInFandomResult;
   deselectAllInFandom: (username: string, fandomWorkIds: number[]) => void;
   setRange: (username: string, range: YearWindow | null) => void;
+  setSelectedMetric: (username: string, metric: string) => void;
   clearSelection: (username: string) => void;
 }
 
@@ -41,8 +49,13 @@ interface WorkComparisonState {
 // inline: a naive `byUsername[username] ?? { selectedWorkIds: [], range:
 // null }` fallback allocates a NEW object every call, which breaks
 // useSyncExternalStore's snapshot-stability check once a component selects
-// through it (infinite render loop). Both fields share this one instance.
-const EMPTY_SELECTION: WorkComparisonSelection = { selectedWorkIds: [], range: null };
+// through it (infinite render loop). All three fields share this one
+// instance.
+const EMPTY_SELECTION: WorkComparisonSelection = {
+  selectedWorkIds: [],
+  range: null,
+  selectedMetric: null,
+};
 
 function getEntry(byUsername: Record<string, WorkComparisonSelection>, username: string) {
   return byUsername[username] ?? EMPTY_SELECTION;
@@ -55,6 +68,7 @@ export const useWorkComparisonStore = create<WorkComparisonState>()(
 
       getSelection: (username) => getEntry(get().byUsername, username).selectedWorkIds,
       getRange: (username) => getEntry(get().byUsername, username).range,
+      getSelectedMetric: (username) => getEntry(get().byUsername, username).selectedMetric,
 
       setSelection: (username, selectedWorkIds) =>
         set((state) => ({
@@ -120,6 +134,14 @@ export const useWorkComparisonStore = create<WorkComparisonState>()(
           byUsername: {
             ...state.byUsername,
             [username]: { ...getEntry(state.byUsername, username), range },
+          },
+        })),
+
+      setSelectedMetric: (username, metric) =>
+        set((state) => ({
+          byUsername: {
+            ...state.byUsername,
+            [username]: { ...getEntry(state.byUsername, username), selectedMetric: metric },
           },
         })),
 

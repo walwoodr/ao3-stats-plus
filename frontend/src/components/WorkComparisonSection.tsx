@@ -8,9 +8,11 @@ import {
   type YearWindow,
 } from "../lib/comparisonSelection";
 import { assignStyleSlot, releaseStyleSlot } from "../lib/seriesStyles";
+import { PER_WORK_METRICS, PER_WORK_METRIC_TABS } from "../lib/perWorkMetrics";
 import { useWorkComparisonStore } from "../store/useWorkComparisonStore";
 import { WorkPicker } from "./WorkPicker";
 import { DateRangeSlider } from "./DateRangeSlider";
+import { MetricToggle } from "./charts/MetricToggle";
 import {
   MultiSeriesTrendChart,
   type SeriesDatum,
@@ -141,6 +143,11 @@ export function WorkComparisonSection({
 }: WorkComparisonSectionProps) {
   const setSelectionInStore = useWorkComparisonStore((state) => state.setSelection);
   const setRangeInStore = useWorkComparisonStore((state) => state.setRange);
+  const setSelectedMetricInStore = useWorkComparisonStore((state) => state.setSelectedMetric);
+  // Per-work selected metric persists per-username in the same store as
+  // selection/range (plan §3.0) - a fresh username reads null, so this
+  // component (not the store) applies the "hits" default.
+  const selectedMetric = useWorkComparisonStore((state) => state.getSelectedMetric(username)) ?? "hits";
 
   // Persistence reconciliation (§2.3 #1/#2), performed once - inside this
   // lazy initializer, which React guarantees runs exactly once, synchronously,
@@ -168,6 +175,10 @@ export function WorkComparisonSection({
   function handleSelectionChange(nextSelectedWorkIds: number[]) {
     setSelectionInStore(username, nextSelectedWorkIds);
     setStyleAssignment((previous) => syncStyleAssignment(previous, nextSelectedWorkIds));
+  }
+
+  function handleMetricChange(nextMetric: string) {
+    setSelectedMetricInStore(username, nextMetric);
   }
 
   // Selection order (not perWorkSeries order) drives both the legend/table
@@ -257,14 +268,17 @@ export function WorkComparisonSection({
         `${yearOf(unionDates[unionDates.length - 1] ?? `${currentYear}-01-01`)}.`
       : "";
 
-  // leadIn gating (computeLeadIn) doesn't depend on the metric - hits and
-  // kudos share the same visible-points/window inputs - so whether the
-  // caption should show is read off one of the two built series arrays
-  // rather than recomputed separately, per the plan's "reuse the same gate
-  // rather than recomputing it separately" instruction.
-  const hitsSeries = buildSeries((point) => point.hits, true);
-  const kudosSeries = buildSeries((point) => point.kudos, true);
-  const hasRenderedLeadIn = hitsSeries.some((s) => s.leadIn !== undefined);
+  // The Bookmarks tab expands into its own By-Type/By-Work sub-views
+  // (rendered by WorkComparisonBookmarksTab) rather than a plain chart, so
+  // it has no single "current metric" config here.
+  const currentMetric = PER_WORK_METRICS.find((metric) => metric.key === selectedMetric);
+  // leadIn gating (computeLeadIn) doesn't depend on which metric is active -
+  // every non-sparse metric shares the same visible-points/window inputs -
+  // so whether the caption should show is read off the currently-rendered
+  // metric's own built series, per the plan's "reuse the same gate rather
+  // than recomputing it separately" instruction.
+  const currentSeries = currentMetric ? buildSeries(currentMetric.valueOf, true) : [];
+  const hasRenderedLeadIn = currentSeries.some((s) => s.leadIn !== undefined);
 
   return (
     <div className="mt-10 flex flex-col gap-6">
@@ -303,16 +317,34 @@ export function WorkComparisonSection({
         </div>
       </div>
 
-      <div className="flex flex-col gap-8">
-        <MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={hitsSeries} />
-        <MultiSeriesTrendChart title="Kudos" valueLabel="Kudos" series={kudosSeries} />
-      </div>
-
-      {hasRenderedLeadIn && (
-        <p className="text-sm text-ink-soft">
-          Dashed segments show the period before your first captured stats for a work.
-        </p>
-      )}
+      <MetricToggle
+        label="Metric"
+        tabs={PER_WORK_METRIC_TABS}
+        selectedKey={selectedMetric}
+        onChange={handleMetricChange}
+      >
+        {selectedMetric === "bookmarks" ? (
+          // Placeholder - the [By Type | By Work] sub-tab content lands in
+          // the very next task item (T-I8/T-I9); this keeps the toggle
+          // itself (T-I7's own scope) wired and testable in isolation.
+          <p className="text-sm text-ink-soft">Loading bookmarks view...</p>
+        ) : (
+          <div className="flex flex-col gap-8">
+            {currentMetric && (
+              <MultiSeriesTrendChart
+                title={currentMetric.label}
+                valueLabel={currentMetric.label}
+                series={currentSeries}
+              />
+            )}
+            {hasRenderedLeadIn && (
+              <p className="text-sm text-ink-soft">
+                Dashed segments show the period before your first captured stats for a work.
+              </p>
+            )}
+          </div>
+        )}
+      </MetricToggle>
     </div>
   );
 }
