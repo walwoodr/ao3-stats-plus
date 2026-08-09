@@ -516,15 +516,7 @@
   comment and pinned hex arrays were rewritten as part of the same-day palette
   re-review (Muted Archive/Halfway) and now correctly describe the current
   10-slot role order.
-- [2026-08-04] (stage: Review) Legend worded description reads "{colorRole}
-  {shape} marker" so hollow slots render as "muted violet circle-hollow marker" /
-  "indigo-slate square-hollow marker" (role names updated 2026-08-06 to match
-  the current palette; the underlying wording issue is unchanged), whereas the
-  plan and MASTER.md examples use "muted violet hollow-circle marker". Purely
-  cosmetic prose wording (a11y-fine — the words are stable and screen-reader-
-  exposed); the `circle-hollow`/`square-hollow` shape token reads slightly
-  awkwardly inline. Nit; consider a display-name map if the phrasing is worth
-  polishing.
+- [2026-08-09] Remove worded description from legend.
 - [2026-08-05] (stage: Maintenance) `InstallPage`'s "GitHub" link (footer,
   `href="https://github.com/walwoodr/ao3-stats-plus"`, class `text-accent`)
   fails `accessibility.spec.ts`'s axe scan with a **real, plausible**

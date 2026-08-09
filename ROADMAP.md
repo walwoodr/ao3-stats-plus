@@ -15,37 +15,36 @@ feature scope, agreed as out of scope for v1 on purpose.
 
 ## v2 candidates (confirmed 2026-07-22, deferred from v1 on purpose)
 
-- Per-work bookmarks over time, from both the stats page and the individual
-  work page (these may expose different/more detailed bookmark data — worth
-  comparing both sources when this is picked up)
-- Subscriptions over time (per-work `subscriptions` and account-level
-  `total_user_subscriptions` are already captured in the v1 data model as of
-  Planning — this item is about graphing them, not new data collection)
-- Per-work comments over time (also already captured in the v1 data model;
-  graphing only)
-- User subscriptions over time (account-level; see subscriptions note above)
+- ~~Per-work bookmarks over time, from both the stats page and the
+  individual work page.~~ **SHIPPED 2026-08-09** (`docs/plans/additional-
+  metric-trend-charts.md` — the Bookmarks tab's By Type view graphs the
+  stats-page total; the By Work view adds the work-page public/private
+  split alongside it).
+- ~~Subscriptions over time (per-work `subscriptions` and account-level
+  `total_user_subscriptions`).~~ **SHIPPED 2026-08-09** (`docs/plans/
+  additional-metric-trend-charts.md` — per-work via the metric toggle,
+  account-level scoped to user subscriptions only per user decision).
+- ~~Per-work comments over time.~~ **SHIPPED 2026-08-09** (`docs/plans/
+  additional-metric-trend-charts.md`, per-work metric toggle).
+- ~~User subscriptions over time (account-level).~~ **SHIPPED 2026-08-09**
+  (`docs/plans/additional-metric-trend-charts.md`, account-level metric
+  toggle — see the subscriptions note above).
 
 ## v2 candidates (confirmed 2026-07-30, deferred from the earliest-post-year
 baseline feature on purpose)
 
-- Per-work creation-date scraping and per-work zero-basis baselines: the
-  account-level "earliest post year" synthetic zero-point (added for the
-  aggregate hits/kudos trend charts) deliberately does NOT extend to
-  per-work trend charts, since a specific work's own trend should start
-  from when that work was actually posted, not the author's earliest
-  posting year overall. This needs a new scraping step (the bookmarklet
-  would need to capture each work's creation/posted date, not currently
-  collected) plus per-work data-model/ingest changes before per-work charts
-  can get their own accurate zero-basis starting point.
-- Present per-work statistics as a graph with a interface allowing the user
-  to select a list of multiple works to see the statistics graphed alongside 
-  one another. Each work should have a unique line-and-point style to allow 
-  for differentation within work, up to a reasonable maximum. 
-- The per-work statistics graph selection should offer an option to select
-  all works within a fandom to display in the graph at the same time
-- When the user has > 2 data points, allow the user to choose a time range 
-  to present via a two point slider that ranges from earliestPostYear to the 
-  current date.
+- ~~Per-work creation-date scraping and per-work zero-basis baselines.~~
+  **SHIPPED 2026-08-04** (`docs/plans/per-work-zero-basis-dates.md`).
+- ~~Present per-work statistics as a graph with an interface allowing the
+  user to select a list of multiple works to see the statistics graphed
+  alongside one another, each with a unique line-and-point style.~~
+  **SHIPPED** (`docs/plans/per-work-comparison-graph.md`,
+  `WorkComparisonSection`/`MultiSeriesTrendChart`).
+- ~~Offer an option to select all works within a fandom at once.~~
+  **SHIPPED** (`WorkPicker`'s fandom-header bulk-select, per
+  `docs/plans/work-comparison-picker-redesign.md`).
+- ~~A two-point slider ranging from earliestPostYear to the current date,
+  once the user has > 2 data points.~~ **SHIPPED** (`DateRangeSlider`).
 
 ## v2 candidates (confirmed 2026-07-31, deferred from ongoing Maintenance work)
 
@@ -158,12 +157,9 @@ baseline feature on purpose)
   consultation + Planning pass"). What's actually left is pure frontend
   work: designing and building a UI to list/display this already-captured
   data - no scraping, backend, or data-model work needed.
-- Persist the "compare works" selection (`WorkComparisonSection`'s
-  selected-work-ids state, currently plain `useState` that resets on every
-  page load) to browser storage - e.g. `localStorage`, scoped per-username
-  similar to `tokenStorage.ts`'s existing pattern - so a chosen comparison
-  set of works survives a page reload or a later revisit instead of
-  starting empty every time.
+- ~~Persist the "compare works" selection to browser storage, scoped
+  per-username.~~ **SHIPPED** (`useWorkComparisonStore.ts`, a persisted
+  Zustand store, per `docs/plans/work-comparison-picker-redesign.md`).
 - The date-range slider (`DateRangeSlider`, currently year-granularity only
   - a `[number, number]` pair of years) should allow filtering with
   month-level specificity, not just whole years. Needs Discovery/Planning
