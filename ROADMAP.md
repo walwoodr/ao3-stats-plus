@@ -172,3 +172,17 @@ baseline feature on purpose)
   month-granularity interacts with the existing `capturedOn`-date-keyed
   chart axis and the year-only union/domain logic in
   `comparisonSelection.ts`.
+
+## v2 candidates (confirmed 2026-08-07)
+
+- Offer a table view as an alternative to the graph view, for every chart
+  (account-level and per-work). Each chart already ships an accessible
+  data-table alternative for screen-reader users (per MASTER.md's
+  accessibility conventions) - this item is about surfacing that as a
+  visible, user-facing toggle for anyone who prefers tabular data, not just
+  as an a11y fallback. Needs Discovery/Planning on scope: does this apply
+  uniformly to every chart type shipped so far (`TrendChart`, `RatioChart`,
+  `MultiSeriesTrendChart`), and does the underlying accessible-table
+  markup already used for screen readers just get exposed directly, or
+  does a user-facing table need its own presentation (sorting, per-work
+  columns, etc.)?
