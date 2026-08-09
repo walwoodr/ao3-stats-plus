@@ -596,21 +596,32 @@
   resolved; confirmed during this Maintenance pass that both tests pass as
   written (10/10 green in `accessibility.pickerRefinements.spec.ts`,
   chromium) with no further code changes needed.
-- [2026-08-08] (stage: Testing) `frontend/tests/dashboard-populated.spec.ts`
-  has two pre-existing, already-broken tests found incidentally while
-  extending this file for docs/plans/additional-metric-trend-charts.md
-  (T-T8): "renders the per-work comparison chart with a grouped checkbox
-  picker" and "shows the dashed-lead-in caption once a selected work has a
-  zero-basis leadIn" both query `getByRole("checkbox", { name: "Work A" })`,
-  which no longer exists - `docs/plans/work-comparison-picker-redesign.md`
-  replaced the grouped-checkbox `WorkPicker` with an Autocomplete combobox +
-  removable chips (confirmed already-broken against `main` via `git stash`
-  before any of this session's changes, so not a regression introduced
-  here). Out of scope for this feature plan (frontend-only chart additions,
-  not the picker) - left unfixed. Fix: update both to the combobox
-  interaction pattern already used elsewhere in this file/accessibility.spec.ts
-  (e.g. `getByLabel("Remove Work A")` for presence, and select via the
-  combobox rather than a checkbox).
+- [2026-08-08] (stage: Testing, resolved 2026-08-09 stage: Maintenance)
+  ~~`frontend/tests/dashboard-populated.spec.ts` has two pre-existing,
+  already-broken tests found incidentally while extending this file for
+  docs/plans/additional-metric-trend-charts.md (T-T8): "renders the per-work
+  comparison chart with a grouped checkbox picker" and "shows the
+  dashed-lead-in caption once a selected work has a zero-basis leadIn" both
+  query `getByRole("checkbox", { name: "Work A" })`, which no longer exists -
+  `docs/plans/work-comparison-picker-redesign.md` replaced the
+  grouped-checkbox `WorkPicker` with an Autocomplete combobox + removable
+  chips (confirmed already-broken against `main` via `git stash` before any
+  of this session's changes, so not a regression introduced here). Out of
+  scope for this feature plan (frontend-only chart additions, not the
+  picker) - left unfixed. Fix: update both to the combobox interaction
+  pattern already used elsewhere in this file/accessibility.spec.ts (e.g.
+  `getByLabel("Remove Work A")` for presence, and select via the combobox
+  rather than a checkbox).~~ - fixed: both tests now assert via
+  `getByLabel("Remove Work A")` (the chip's delete-icon accessible name)
+  instead of the removed checkbox role; the first test also swapped its
+  `role="group"` assertion for the combobox role and dropped the stale
+  "old combobox not visible" assertion (that was checking the OLD dropdown
+  was gone, but the picker itself is a combobox now). Both pass (9/9 other
+  tests in the file also green; one unrelated pre-existing failure - "By
+  Work sub-tab is axe-clean" hits a strict-mode `getByRole("img", {name:
+  "Work A"})` collision with the "Remove Work A" chip's own `role="img"`
+  delete icon, reproduced identically on `main` before this fix, logged
+  separately below rather than fixed here as it's outside this item's scope).
 - [2026-08-08] (stage: Implementation) `RatioChart.tsx` (plus its own
   `RatioChart.test.tsx`/`RatioChart.stories.tsx`), and the `kudosToHitsRatio`
   GraphQL field (both the aggregate-series field and the top-level
@@ -644,6 +655,19 @@
   and `DashboardPage.test.tsx:208`. The `no-await-in-loop` rule isn't enabled
   in the project ESLint config, so the disables are inert noise; drop them (or
   enable the rule if intended).
+- [2026-08-09] (stage: Maintenance) `frontend/tests/dashboard-populated.spec.ts`'s
+  "switching Bookmarks to the By Work sub-tab is axe-clean" test fails with a
+  Playwright strict-mode violation: `getByRole("img", { name: "Work A" })`
+  resolves to two elements - the By-Work chart's `figure[role="img"]` (real
+  target) AND the works-to-compare picker's "Remove Work A" chip delete icon
+  (`svg[role="img"][aria-label="Remove Work A"]`), since Playwright's default
+  substring name matching treats "Work A" as matching "Remove Work A" too.
+  Confirmed pre-existing (reproduces identically on `main` before this
+  session's changes via `git stash`), found incidentally while fixing the
+  two `getByRole("checkbox", ...)` tests in the same file (2026-08-08 entry
+  above). Not fixed here - out of scope for that item. Fix: scope the
+  locator more precisely, e.g. `getByRole("img", { name: "Work A", exact:
+  true })` or scope to the By-Work chart container.
 - [2026-08-09] (stage: Review) `MetricToggle.tsx`'s `role="tab"` buttons omit
   `aria-controls` pointing at their owned `tabpanel` (the WAI-ARIA APG tabs
   pattern lists it). Not axe-flagged and widely treated as optional (only one

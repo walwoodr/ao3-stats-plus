@@ -16,17 +16,19 @@ test.describe("dashboard with a seeded snapshot history", () => {
   });
 
   // Q1 (resolved: replace, not coexist) - the old single-work <select>
-  // dropdown is gone; WorkComparisonSection's grouped checkbox picker
-  // takes its place, defaulting to exactly the first work selected.
-  test("renders the per-work comparison chart with a grouped checkbox picker", async ({ page }) => {
+  // dropdown is gone; docs/plans/work-comparison-picker-redesign.md later
+  // replaced the grouped checkbox picker this test originally asserted on
+  // with an Autocomplete combobox + removable chips, defaulting to exactly
+  // the first work selected (see WorkPicker.tsx).
+  test("renders the per-work comparison chart with the works-to-compare combobox picker", async ({
+    page,
+  }) => {
     await mockStatsForUser(page, POPULATED_STATS_RESPONSE);
 
     await page.goto("/u/testauthor?token=tok_valid123");
 
-    await expect(page.getByRole("group", { name: /works to compare/i })).toBeVisible();
-    await expect(page.getByRole("checkbox", { name: "Work A" })).toBeVisible();
-    await expect(page.getByRole("checkbox", { name: "Work A" })).toBeChecked();
-    await expect(page.getByRole("combobox", { name: /work/i })).not.toBeVisible();
+    await expect(page.getByRole("combobox", { name: /works to compare/i })).toBeVisible();
+    await expect(page.getByLabel("Remove Work A")).toBeVisible();
   });
 
   test("strips the ?token= query param from the URL after capturing it", async ({ page }) => {
@@ -58,7 +60,7 @@ test.describe("dashboard with a seeded snapshot history", () => {
     await mockStatsForUser(page, POPULATED_STATS_RESPONSE);
     await page.goto("/u/testauthor?token=tok_valid123");
 
-    await expect(page.getByRole("checkbox", { name: "Work A" })).toBeChecked();
+    await expect(page.getByLabel("Remove Work A")).toBeVisible();
     await expect(
       page.getByText(
         /dashed segments show the period before your first captured stats for a work/i,
