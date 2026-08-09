@@ -148,7 +148,8 @@ export function WorkComparisonSection({
   // Per-work selected metric persists per-username in the same store as
   // selection/range (plan §3.0) - a fresh username reads null, so this
   // component (not the store) applies the "hits" default.
-  const selectedMetric = useWorkComparisonStore((state) => state.getSelectedMetric(username)) ?? "hits";
+  const selectedMetric =
+    useWorkComparisonStore((state) => state.getSelectedMetric(username)) ?? "hits";
 
   // Persistence reconciliation (§2.3 #1/#2), performed once - inside this
   // lazy initializer, which React guarantees runs exactly once, synchronously,

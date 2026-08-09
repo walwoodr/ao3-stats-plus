@@ -92,7 +92,11 @@ export function MetricToggle<K extends string = string>({
 
   return (
     <div>
-      <div role="tablist" aria-label={label} className="flex flex-wrap gap-1 border-b border-ink/12">
+      <div
+        role="tablist"
+        aria-label={label}
+        className="flex flex-wrap gap-1 border-b border-ink/12"
+      >
         {tabs.map((tab, index) => {
           const isSelected = tab.key === selectedKey;
           return (
@@ -121,7 +125,13 @@ export function MetricToggle<K extends string = string>({
           );
         })}
       </div>
-      <div ref={panelRef} role="tabpanel" aria-labelledby={selectedTabId} tabIndex={-1} className="mt-4">
+      <div
+        ref={panelRef}
+        role="tabpanel"
+        aria-labelledby={selectedTabId}
+        tabIndex={-1}
+        className="mt-4"
+      >
         {children}
       </div>
     </div>

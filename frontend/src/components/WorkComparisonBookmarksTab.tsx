@@ -21,7 +21,10 @@ export interface WorkComparisonBookmarksTabProps {
   // By-Type builder: keeps every currently-selected work's series entry
   // (even with 0 points after null-filtering) so the accessible table still
   // shows a "-" gap column for an unenriched work, rather than dropping it.
-  buildTypeSeries: (valueOf: (point: PerWorkPoint) => number | null, applyLeadIn: boolean) => SeriesDatum[];
+  buildTypeSeries: (
+    valueOf: (point: PerWorkPoint) => number | null,
+    applyLeadIn: boolean,
+  ) => SeriesDatum[];
   // By-Work builder: one work's Total/Public/Private, EXCLUDING any type
   // with zero points entirely (so an unenriched work's chart shows only its
   // Total line, not empty Public/Private legend entries - plan §4.3).
@@ -49,7 +52,11 @@ function ByType({
         <legend className="text-sm font-semibold text-ink">Bookmark types</legend>
         {BOOKMARK_TYPES.map((type) => (
           <label key={type.key} className="flex items-center gap-2 text-sm text-ink-soft">
-            <input type="checkbox" checked={checked[type.key]} onChange={() => onToggle(type.key)} />
+            <input
+              type="checkbox"
+              checked={checked[type.key]}
+              onChange={() => onToggle(type.key)}
+            />
             {type.label}
           </label>
         ))}
@@ -131,11 +138,19 @@ export function WorkComparisonBookmarksTab({
   }
 
   return (
-    <MetricToggle label="Bookmark view" tabs={BOOKMARK_SUB_TABS} selectedKey={subTab} onChange={setSubTab}>
+    <MetricToggle
+      label="Bookmark view"
+      tabs={BOOKMARK_SUB_TABS}
+      selectedKey={subTab}
+      onChange={setSubTab}
+    >
       {subTab === "byType" ? (
         <ByType buildTypeSeries={buildTypeSeries} checked={checked} onToggle={toggleType} />
       ) : (
-        <ByWork orderedSelectedWorks={orderedSelectedWorks} buildWorkTypeSeries={buildWorkTypeSeries} />
+        <ByWork
+          orderedSelectedWorks={orderedSelectedWorks}
+          buildWorkTypeSeries={buildWorkTypeSeries}
+        />
       )}
     </MetricToggle>
   );
