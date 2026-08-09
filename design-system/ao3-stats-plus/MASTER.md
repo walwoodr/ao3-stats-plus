@@ -372,6 +372,26 @@ visible legend maps each work's title to its glyph and spells out the style in w
 circle marker", "muted violet hollow-circle marker") so the mapping survives into the accessible
 data table and for screen-reader users.
 
+### Sparse series & the Bookmarks By-Work fixed type→style mapping
+
+Added for `docs/plans/additional-metric-trend-charts.md` (comments/bookmarks/subscriptions trend
+charts). Two notes, extending rather than replacing the sections above:
+
+- **Sparse interior gaps (§4.1).** Enrichment-derived sparse series (public/private bookmarks)
+  render interior nulls as gaps / lone markers, same `connectNulls={false}` rule as every other
+  series on this chart family — a gap means "not captured," never zero. No new chart mechanism:
+  `WorkComparisonSection`'s generalized `buildSeries` drops null-valued points before handing a
+  sparse series to `MultiSeriesTrendChart`, which already renders the resulting date gaps
+  correctly (this project's existing "never fabricate a zero" path, unchanged).
+- **The Bookmarks By-Work fixed type→style mapping (§3.4).** The By-Work sub-view's charts are
+  the one place the 10-slot table above is used for something OTHER than per-work identity: each
+  By-Work chart holds exactly one work's data, so slots 0–2 are repurposed, FIXED, to distinguish
+  the three bookmark TYPES instead — Total always slot 0 (circle, slate-blue), Public always slot
+  1 (square, teal), Private always slot 2 (triangle-up, sage), the same three slots/order in
+  every selected work's chart. Learnable once, consistent everywhere it appears; a work's own
+  cross-chart identity slot (used on every OTHER metric tab) is irrelevant inside its own By-Work
+  chart, since there's no other work's data in the same chart to distinguish it from.
+
 ### CVD (colorblind) verification
 
 Formal requirement added by `docs/plans/usds-dataviz-color-scheme.md`, two complementary parts:
