@@ -182,13 +182,22 @@
   series membership. Fixed to `span.series span.position a`, with a
   regression test (`scrapeWorkPage.test.ts`, "excludes Previous Work/Next
   Work navigation links from the series names") and both affected fixtures
-  corrected. **Still open**: the exact `dt`/`dd` class-name conventions for
-  each stat row (`dd.published`/`dd.status`/etc.) match general AO3
+  corrected. ~~**Still open**: the exact `dt`/`dd` class-name conventions
+  for each stat row (`dd.published`/`dd.status`/etc.) match general AO3
   knowledge and the confirmed helper source's field order, but haven't been
   visually diffed against a rendered live page - low risk given how much of
   the surrounding structure is now confirmed, but worth a final live check
   before Deployment per this project's established discipline (see the
-  2026-07-31 stats-page fandom-nesting entry below for why this matters).
+  2026-07-31 stats-page fandom-nesting entry below for why this matters).~~
+  — **RESOLVED 2026-08-09**: re-fetched `app/helpers/works_helper.rb`
+  directly from `raw.githubusercontent.com/otwcode/otwarchive/master` and
+  read `work_meta_list`'s literal `content_tag(:dt/:dd, ..., class:
+  list_item.second)` calls line-by-line. Every class name
+  `scrapeWorkPage.ts` expects is confirmed exactly as written in the real
+  helper source: `"published"`, `"words"`, `"chapters"`, `"comments"`,
+  `"kudos"`, `"bookmarks"`, `"hits"`, and `"status"` (inserted at index 1
+  when `work.chaptered? && work.revised_at`). No code changes were needed -
+  the original inference was correct.
 - [2026-07-31] (stage: Testing, partially re-verified stage: main thread)
   `frontend/src/bookmarklet/fixtures/work-bookmarks-*.html` fixtures
   (backing `scrapeWorkBookmarks.ts`/`scrapeWorkBookmarks.test.ts`,
