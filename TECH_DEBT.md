@@ -44,14 +44,42 @@
   or missed announcement. Deferred: matches the confirmed plan; revisit if
   the cross-origin a11y smoke test (plan section 6) surfaces it.~~ —
   **RESOLVED 2026-08-09**: `renderInfoBanner` now uses `role="alert"`.
-- [2026-07-30] (stage: Implementation) `frontend/src/bookmarklet/banners.ts`'s
-  color mapping onto MASTER.md's 7-token palette consolidates the previous
-  4-color severity scheme (success/failure/info/retry) into 3 roles
-  (growth/destructive/accent) since the palette has no dedicated "warning"
-  role - the `retryBanner` (network/POST failure, offers a Retry button) now
-  shares `--color-destructive` with hard failures instead of its own amber.
+- [2026-07-30] (stage: Implementation, re-examined 2026-08-09 stage:
+  Maintenance - still open) `frontend/src/bookmarklet/banners.ts`'s color
+  mapping onto MASTER.md's 7-token palette consolidates the previous 4-color
+  severity scheme (success/failure/info/retry) into 3 roles (growth/
+  destructive/accent) since the palette has no dedicated "warning" role - the
+  `retryBanner` (network/POST failure, offers a Retry button) now shares
+  `--color-destructive` with hard failures instead of its own amber.
   Distinguished only by copy/button now, not color. Revisit if a future
   design pass wants a dedicated warning/retry role.
+
+  **2026-08-09 re-examination (still deferred, no fix applied):** checked
+  whether an EXISTING token could distinguish retry-vs-hard-failure without
+  adding a new palette role, per this session's Maintenance instructions,
+  before treating this as needing a genuinely new design decision. `accent`
+  (this product's signature wine) was the most plausible candidate, but
+  reusing it here would create a NEW ambiguity rather than resolve the old
+  one: `accent` is already the pre-POST informational banner's color
+  (`renderInfoBanner` - "notice this, nothing has failed yet"), a distinctly
+  lower-severity register than a real POST/network failure that's offering a
+  Retry button. Sharing it would blur that existing, load-bearing
+  distinction. `growth` is semantically wrong (positive/success valence) for
+  any failure state. `ink`/`inkSoft` (neutral text tones) are never used
+  elsewhere as a banner severity color, and would risk under-signaling a
+  real failure needing user action as "nothing to worry about." A same-role
+  visual variation (e.g. a lighter destructive tint, or a dashed vs. solid
+  border) was also considered and rejected: it doesn't touch the underlying
+  concern this entry names (still literally `--color-destructive`), and
+  inventing a new "dashed = less severe" visual language for banners isn't
+  established anywhere in MASTER.md (MASTER.md's only existing dash
+  convention is chart-specific - lead-in segments - and repurposing it here
+  for a different meaning risks its own confusion). No existing-token
+  treatment was clearly better than the status quo, so no fix was applied.
+  This remains a genuine "add a dedicated warning/retry token" design
+  decision, which per this project's `feedback_ui_design_input.md` standing
+  guidance needs real user consultation (a Design or Planning pass), not a
+  unilateral Maintenance pick - left open/deferred, not resolved.
 - [2026-07-30] (stage: Maintenance) The bookmarklet's capability token
   (`read_token`, `SecureRandom`-generated) is an opaque, hard-to-transcribe
   string. Users who lose the "View your dashboard" link and have to
@@ -521,10 +549,22 @@
   `entrypoint.test.ts` ("also removes the whole shared banner-stack wrapper
   on re-injection..."), both confirmed red against the unfixed code before
   the fix, green after.
-- [2026-07-23] (stage: Review) The `inputButton` helper (082b38e) omits any
+- [2026-07-23] (stage: Review) ~~The `inputButton` helper (082b38e) omits any
   padding (unlike `primaryButtonStyle`), so the icon Copy button's hit target
   is only as large as the glyph at 1rem. Minor; worth a visual check that the
-  target is comfortably tappable on touch.
+  target is comfortably tappable on touch.~~ - **RESOLVED 2026-08-09 (stage:
+  Maintenance)**: `bannerStyles.ts`'s `inputButton` now sets explicit
+  `min-width:2.75rem;min-height:2.75rem;` (44px at this codebase's 16px rem
+  base - the common WCAG/mobile touch-target minimum) plus `padding:0.625rem;`
+  and `display:inline-flex;align-items:center;justify-content:center;` so the
+  glyph stays centered within the now-larger box, rather than pinned to a
+  corner. min-width/min-height (not padding alone) were used since a
+  lone-glyph button has no text to naturally pad the box out to size.
+  MASTER.md has no existing touch-target guidance to cross-check against (none
+  found), so no snapshot update needed. Tests added:
+  `bannerStyles.test.ts` (unit-tests the helper's cssText directly) and a new
+  case in `banners.success.test.ts` (asserts the actual rendered Copy
+  button's min-width/min-height, not just the style helper in isolation).
 - [2026-08-04] (stage: Review) Exporting `buildChartData` from
   `MultiSeriesTrendChart.tsx` (previously an internal helper) newly trips the
   `react-refresh/only-export-components` ESLint warning on that file (0 errors,
