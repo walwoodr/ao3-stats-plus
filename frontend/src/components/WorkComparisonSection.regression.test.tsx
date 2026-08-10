@@ -115,9 +115,9 @@ describe("comparison summary reports the active windowed range, not the full dat
         title: "Work Only",
         fandoms: "Fandom A",
         points: [
-          { capturedOn: "2018-01-01", hits: 10, kudos: 1 },
-          { capturedOn: "2020-01-01", hits: 20, kudos: 2 },
-          { capturedOn: "2025-01-01", hits: 30, kudos: 3 },
+          { capturedOn: "2018-01-01", hits: 10, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2020-01-01", hits: 20, kudos: 2, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2025-01-01", hits: 30, kudos: 3, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
