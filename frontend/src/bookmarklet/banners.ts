@@ -192,10 +192,17 @@ export function renderFailureBanner(container: HTMLElement, data: FailureBannerD
 // scrape-failed) are informational, pre-POST outcomes with no
 // schemaVersion in play, so reusing renderFailureBanner (which always
 // appends a "(schemaVersion N)" suffix) would be a misleading fit for them.
+//
+// role="alert" (not "status"): this is the ONLY feedback shown when a
+// capture can't even start, so it needs the same assertive live-region
+// treatment as the post-capture failure/unauthorized banners
+// (renderFailureBanner/renderUnauthorizedBanner), not the weaker polite
+// "status" a screen reader may not announce promptly (TECH_DEBT.md,
+// 2026-07-23).
 export function renderInfoBanner(container: HTMLElement, data: InfoBannerData): HTMLElement {
   const colors = resolveColorTokens();
   const banner = document.createElement("div");
-  banner.setAttribute("role", "status");
+  banner.setAttribute("role", "alert");
   banner.style.cssText = `${bannerBaseStyle(colors)}background:${tintBackground(colors, colors.accent)};border:1px solid ${colors.accent};`;
   banner.textContent = data.message;
 

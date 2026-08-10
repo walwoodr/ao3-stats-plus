@@ -34,7 +34,7 @@
   logged in case Deployment or Retrospective want to fold the tunnel step
   into a documented pre-Deployment smoke-test procedure, or confirm
   production origins are enough to make LNA moot.
-- [2026-07-23] (stage: Review) The pre-POST scrape-failure banner
+- ~~[2026-07-23] (stage: Review) The pre-POST scrape-failure banner
   (`renderInfoBanner`) uses `role="status"` (polite live region) and does not
   move focus. It is the *only* feedback when a capture can't proceed (no
   works / not All Years / scrape failed), yet is less assertive than the
@@ -42,7 +42,8 @@
   only mandates focus-move on success, so this is within plan, but a screen
   reader user who triggers the bookmarklet on the wrong view may get a weak
   or missed announcement. Deferred: matches the confirmed plan; revisit if
-  the cross-origin a11y smoke test (plan section 6) surfaces it.
+  the cross-origin a11y smoke test (plan section 6) surfaces it.~~ —
+  **RESOLVED 2026-08-09**: `renderInfoBanner` now uses `role="alert"`.
 - [2026-07-30] (stage: Implementation) `frontend/src/bookmarklet/banners.ts`'s
   color mapping onto MASTER.md's 7-token palette consolidates the previous
   4-color severity scheme (success/failure/info/retry) into 3 roles
