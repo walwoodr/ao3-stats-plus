@@ -59,7 +59,7 @@ export function InstallPage() {
           href="https://github.com/walwoodr/ao3-stats-plus"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-accent hover:underline"
+          className="text-accent underline underline-offset-2 hover:text-ink"
         >
           GitHub
         </a>

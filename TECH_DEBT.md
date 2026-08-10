@@ -342,23 +342,11 @@
   loop forever. Not reachable via the `Math.random` default in production
   (measure-zero); only an adversarial/buggy injected rng. Deferred: cosmetic
   robustness only.
-- [2026-08-02] (stage: Review) `InstallPage.tsx`'s open-source disclosure
-  link ("view it on GitHub") fails WCAG 1.4.1 (link-in-text-block):
-  `text-accent` (`#9F1239`) on the surrounding `text-ink-soft` (`#7A6B72`)
-  paragraph is only 1.59:1 contrast (needs 3:1), and the link has no
-  non-color distinguishing style (underline is `hover:` only, not visible at
-  rest) - confirmed failing two real axe scans in `accessibility.spec.ts`
-  ("the install page has no detectable a11y violations",
-  "...revealed code fallback..."), independently reproduced against `main`
-  via `git stash` before any of this session's comparison-graph work, so
-  it's pre-existing, not a regression from that feature. Found incidentally
-  while verifying an unrelated Testing pass's e2e/a11y coverage. Fix: give
-  the link a persistent (not hover-only) underline, and/or a higher-contrast
-  color for inline body-text links specifically (MASTER.md may need a
-  dedicated "inline link in prose" token distinct from standalone CTA links
-  like the dashboard link's `.btn`-style treatment, which doesn't have this
-  problem since it's not sitting inside a paragraph of contrasting body
-  text).
+- ~~[2026-08-02] (stage: Review) `InstallPage.tsx`'s open-source disclosure
+  link fails WCAG 1.4.1 (link-in-text-block): `text-accent` on
+  `text-ink-soft` is only 1.59:1 (needs 3:1), no persistent non-color
+  style.~~ — **RESOLVED 2026-08-09** (together with the 2026-08-05
+  duplicate finding below - same bug, one fix).
 - [2026-08-03] (stage: Implementation) `groupWorksByFandom` (per-work
   comparison graph feature, `docs/plans/per-work-comparison-graph.md`)
   splits the `fandoms` field on `", "` to recover the fandom list for
@@ -608,22 +596,17 @@
   updated in `ComparisonLegend.test.tsx`, `MultiSeriesTrendChart.test.tsx`,
   `WorkComparisonSection.bookmarksByWork.test.tsx`, and
   `WorkComparisonSection.persistence.test.tsx`; full suite green (746/746).
-- [2026-08-05] (stage: Maintenance) `InstallPage`'s "GitHub" link (footer,
-  `href="https://github.com/walwoodr/ao3-stats-plus"`, class `text-accent`)
-  fails `accessibility.spec.ts`'s axe scan with a **real, plausible**
-  color-contrast reading: `fgContrast` 1.59:1 (needs 3:1), `nodeColor: #9f1239`
-  (the real `--color-accent` wine hex) against `parentColor: #7a6b72` (the
-  real `--color-ink-soft` hex) - plus a second, related `link-in-text-block-style`
-  violation: the link has no underline/other non-color distinguishing style, so
-  color is its ONLY differentiator on top of being under-contrast. Distinct from
-  the existing 2026-07-30 entry above (WebKit-only, bogus-looking captured colors
-  consistent with a mid-`transition-colors` capture artifact) - this one reproduces
-  with real token values across chromium/firefox/webkit alike, so it is not that
-  same timing flake; it's a genuine, always-present defect. Confirmed unrelated to
-  the work-comparison-picker-redesign feature (`InstallPage.tsx` untouched by that
-  work). Fix: give the link its own underline (or another non-color signal) and
-  darken/adjust its color so `text-accent`-on-`text-ink-soft` clears 3:1, or move
-  it out of the low-contrast paragraph entirely.
+- ~~[2026-08-05] (stage: Maintenance) `InstallPage`'s "GitHub" link fails
+  `accessibility.spec.ts`'s axe scan: `fgContrast` 1.59:1 (needs 3:1) plus
+  no non-color distinguishing style. Reproduces across chromium/firefox/
+  webkit - not the WebKit-only flake above.~~ — **RESOLVED 2026-08-09**:
+  gave the link a persistent underline instead of adjusting `--color-accent`
+  (darkening it enough to clear 3:1 would drift the shared accent token used
+  for CTAs/focus rings/the chart marker - dark mode is worse anyway, 1.10:1
+  - and WCAG 1.4.1 accepts either technique). Confirmed via
+  `accessibility.spec.ts` (chromium/firefox green); WebKit's remaining
+  failure is the unrelated 2026-07-30 `bg-ink`/`text-paper` flake. No
+  MASTER.md token change needed.
 - [2026-08-05] (stage: Maintenance) `frontend/src/components/WorkPicker.tsx` is
   579 lines, over CODE_STANDARDS.md's 500-line `.tsx` budget - grew during the
   work-comparison-picker-redesign feature (MUI Autocomplete rebuild + the
