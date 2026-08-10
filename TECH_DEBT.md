@@ -417,7 +417,7 @@
   own CI (`.github/workflows/ci.yml`) already runs the real `npm run build`
   step, so CI itself was never fooled by this; only ad hoc local/agent
   verification was.
-- [2026-08-03] (stage: Maintenance) `frontend/src/bookmarklet/banners.test.ts`
+- [2026-08-03] (stage: Maintenance) ~~`frontend/src/bookmarklet/banners.test.ts`
   exceeds CODE_STANDARDS.md's 400-line `.ts` file-length guideline (was
   already at 608 lines pre-existing before this session's banner-stacking-
   wrapper feature; now 668 after adding a "banner stacking wrapper" describe
@@ -425,7 +425,18 @@
   spec file (e.g. by banner-type describe-block group, mirroring the
   fanOut.test.ts entry above) is a reasonable future cleanup but out of
   scope for a targeted styling/feature change. Flag for Review/Retrospective
-  to decide whether to split.
+  to decide whether to split.~~ - **RESOLVED 2026-08-09 (stage: Maintenance)**:
+  split by banner-type describe-block group, mirroring `fanOut.test.ts`'s own
+  split. `banners.success.test.ts` (renderSuccessBanner + its "Save token"
+  sub-flow + visual treatment, 369 lines), `banners.states.test.ts`
+  (renderFailureBanner/renderInfoBanner/renderRetryBanner/
+  renderUnauthorizedBanner, 141 lines), `banners.progress.test.ts`
+  (renderProgressBanner/updateProgressBanner/renderSummaryBanner, 133 lines);
+  `banners.test.ts` itself now holds only the genuinely cross-cutting
+  describe blocks that span multiple banner types (shared readability
+  styling, the shared stacking wrapper, `removeBannerStack`), trimmed to 160
+  lines. All four now clear the 400-line budget; full suite still 47/47
+  green across the split.
 - [2026-07-23] (stage: Review, resolved 2026-08-03 stage: Maintenance)
   ~~Success-banner Copy button (082b38e) became an icon glyph ("⧉") whose
   only label is a `title="Copy"` attribute. For a `<button>`, accessible-name
@@ -476,7 +487,7 @@
   look up and assert on `getAttribute("aria-label")` instead of `title`;
   confirmed they failed against the unfixed source before the aria-label
   fix landed.
-- [2026-07-23] (stage: Review) Re-injection cleanup gap, pre-existing but
+- [2026-07-23] (stage: Review) ~~Re-injection cleanup gap, pre-existing but
   mildly worsened by the shared banner stack (0547df9). `window.__ao3StatsPlus.banner`
   only ever tracks the single last banner passed through `setGuardBanner`;
   fan-out's progress/summary banners are never tracked, so on re-injection
@@ -485,7 +496,16 @@
   now-empty `[data-ao3-stats-plus-banner-stack]` div lingering in document.body.
   Visible outcome is not materially worse than before (orphaned fan-out
   banners were always left behind), but consider removing the whole stack on
-  re-injection cleanup.
+  re-injection cleanup.~~ - **RESOLVED 2026-08-09 (stage: Maintenance)**:
+  added `banners.ts`'s `removeBannerStack(container)`, which queries and
+  removes the whole `[data-ao3-stats-plus-banner-stack]` wrapper element (not
+  just the single tracked banner); `entrypoint.ts`'s re-injection guard now
+  calls it alongside the pre-existing `existing.banner?.remove()` (kept as a
+  no-op-safe belt-and-suspenders). Regression tests added: `banners.test.ts`
+  ("removeBannerStack" describe block, unit-tests the helper directly) and
+  `entrypoint.test.ts` ("also removes the whole shared banner-stack wrapper
+  on re-injection..."), both confirmed red against the unfixed code before
+  the fix, green after.
 - [2026-07-23] (stage: Review) The `inputButton` helper (082b38e) omits any
   padding (unlike `primaryButtonStyle`), so the icon Copy button's hit target
   is only as large as the glyph at 1rem. Minor; worth a visual check that the

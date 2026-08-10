@@ -51,6 +51,7 @@ vi.mock("./banners", () => ({
   renderFailureBanner: vi.fn(),
   renderRetryBanner: vi.fn(),
   renderUnauthorizedBanner: vi.fn(),
+  removeBannerStack: vi.fn(),
 }));
 
 const FRONTEND_ORIGIN = "https://app.example.com";
@@ -518,6 +519,35 @@ describe("bookmarklet entrypoint", () => {
       expect(scrapeStats).toHaveBeenCalledTimes(1);
       expect(postIngest).toHaveBeenCalledTimes(1);
       expect(renderSuccessBanner).toHaveBeenCalledTimes(1);
+    });
+
+    // TECH_DEBT.md, 2026-07-23 "Re-injection cleanup gap": the tracked-
+    // banner reference alone never covered fan-out's untracked progress/
+    // summary banners (or the now-empty stack wrapper itself), so
+    // re-injection must also remove the whole shared banner-stack wrapper -
+    // this pins that the real cleanup helper (banners.ts's
+    // removeBannerStack, not just the single-banner .remove()) is called
+    // against document.body on every re-injection.
+    it("also removes the whole shared banner-stack wrapper on re-injection, not just the single tracked banner", async () => {
+      const { scrapeStats } = await import("./scrapeStats");
+      const { postIngest } = await import("./ingestClient");
+      const { removeBannerStack } = await import("./banners");
+      vi.mocked(scrapeStats).mockReturnValue({ ok: true, data: scrapedData } as ScrapeResult);
+      vi.mocked(postIngest).mockResolvedValue({
+        status: "success",
+        readToken: "tok_new",
+        capturedOn: "2026-07-23",
+        deduped: false,
+      } as IngestResult);
+
+      await import("./entrypoint");
+      await vi.waitFor(() => expect(window.__ao3StatsPlus).toBeTruthy());
+      expect(removeBannerStack).not.toHaveBeenCalled();
+
+      vi.resetModules();
+      await import("./entrypoint");
+
+      expect(removeBannerStack).toHaveBeenCalledExactlyOnceWith(document.body);
     });
   });
 });

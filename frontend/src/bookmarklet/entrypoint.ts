@@ -15,6 +15,7 @@ import { getStoredReadToken, setStoredReadToken } from "./tokenStorage";
 import { generateTokenSuggestion } from "./tokenSuggestion";
 import { postTokenUpdate } from "./tokenUpdateClient";
 import {
+  removeBannerStack,
   renderFailureBanner,
   renderInfoBanner,
   renderRetryBanner,
@@ -221,8 +222,16 @@ async function main(): Promise<void> {
 const existing = window.__ao3StatsPlus;
 if (existing) {
   // Re-injection: drop the previous banner (avoids duplicate live-region
-  // announcements) and stop - do not re-scrape or re-POST.
+  // announcements) and stop - do not re-scrape or re-POST. Also removes the
+  // whole shared banner-stack wrapper (not just the single tracked banner) -
+  // fan-out's progress/summary banners are never tracked via setGuardBanner,
+  // so relying on existing.banner?.remove() alone leaves them (plus a now-
+  // empty stack div) orphaned in document.body (TECH_DEBT.md, 2026-07-23
+  // "Re-injection cleanup gap"). existing.banner?.remove() stays as a no-op-
+  // safe belt-and-suspenders in case a banner was ever appended outside the
+  // shared stack.
   existing.banner?.remove();
+  removeBannerStack(document.body);
 } else {
   window.__ao3StatsPlus = { banner: null };
   void main();

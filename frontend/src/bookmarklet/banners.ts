@@ -115,6 +115,16 @@ function getOrCreateBannerStack(container: HTMLElement): HTMLElement {
   return stack;
 }
 
+// Re-injection cleanup (entrypoint.ts) needs to drop the WHOLE shared stack,
+// not just whatever single banner it happened to track via setGuardBanner -
+// fan-out's progress/summary banners are never tracked there, so relying on
+// only the tracked-banner reference leaves them (plus a now-empty stack div)
+// orphaned in document.body across a re-injection (TECH_DEBT.md, 2026-07-23
+// "Re-injection cleanup gap"). A no-op if no stack exists yet.
+export function removeBannerStack(container: HTMLElement): void {
+  container.querySelector(`[${BANNER_STACK_ATTR}]`)?.remove();
+}
+
 const HEADING_STYLE = "margin:0;font-weight:600;font-size:1rem;";
 
 // This product's 7-token design-system palette (design-system/ao3-stats-plus/
