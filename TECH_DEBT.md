@@ -751,9 +751,7 @@
   above). Not fixed here - out of scope for that item. Fix: scope the
   locator more precisely, e.g. `getByRole("img", { name: "Work A", exact:
   true })` or scope to the By-Work chart container.
-- [2026-08-09] (stage: Review) `MetricToggle.tsx`'s `role="tab"` buttons omit
-  `aria-controls` pointing at their owned `tabpanel` (the WAI-ARIA APG tabs
-  pattern lists it). Not axe-flagged and widely treated as optional (only one
-  tabpanel is rendered at a time and it is correctly `aria-labelledby` the
-  active tab), so low priority — add `aria-controls` for full APG conformance
-  if desired.
+- ~~[2026-08-09] (stage: Review) `MetricToggle.tsx`'s `role="tab"` buttons omit
+  `aria-controls` pointing at their owned `tabpanel`.~~ — **RESOLVED
+  2026-08-09**: tabpanel now has a stable `id`; every tab's `aria-controls`
+  points at it. Test added in `MetricToggle.test.tsx`.

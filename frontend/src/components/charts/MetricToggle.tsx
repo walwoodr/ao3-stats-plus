@@ -89,6 +89,12 @@ export function MetricToggle<K extends string = string>({
   }
 
   const selectedTabId = `${idPrefix}-tab-${selectedKey}`;
+  // Only one tabpanel is ever rendered (this component swaps its content
+  // rather than mounting one panel per tab), so every tab's aria-controls
+  // points at that same id - the WAI-ARIA APG tabs pattern's other listed
+  // attribute alongside aria-selected/aria-labelledby (TECH_DEBT.md,
+  // 2026-08-09).
+  const panelId = `${idPrefix}-panel`;
 
   return (
     <div>
@@ -110,6 +116,7 @@ export function MetricToggle<K extends string = string>({
               type="button"
               role="tab"
               aria-selected={isSelected}
+              aria-controls={panelId}
               tabIndex={tab.key === focusedKey ? 0 : -1}
               onClick={() => selectTab(tab.key)}
               onKeyDown={(event) => handleKeyDown(event, index)}
@@ -127,6 +134,7 @@ export function MetricToggle<K extends string = string>({
       </div>
       <div
         ref={panelRef}
+        id={panelId}
         role="tabpanel"
         aria-labelledby={selectedTabId}
         tabIndex={-1}

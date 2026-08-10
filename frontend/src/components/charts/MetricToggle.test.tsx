@@ -75,6 +75,21 @@ describe("MetricToggle", () => {
     expect(panel).toHaveAttribute("aria-labelledby", selectedTab.id);
   });
 
+  // WAI-ARIA APG's tabs pattern lists aria-controls (each tab pointing at
+  // its owned tabpanel) alongside aria-selected/aria-labelledby - not
+  // axe-flagged (only one tabpanel is ever rendered, correctly
+  // aria-labelledby the active tab), but full conformance calls for it too
+  // (TECH_DEBT.md, 2026-08-09). Every tab points at the single rendered
+  // tabpanel, since this component only ever mounts one panel at a time.
+  it("gives every tab aria-controls pointing at the rendered tabpanel's id", () => {
+    renderToggle("kudos");
+
+    const panel = screen.getByRole("tabpanel");
+    for (const name of ["Hits", "Kudos", "Comments"]) {
+      expect(screen.getByRole("tab", { name })).toHaveAttribute("aria-controls", panel.id);
+    }
+  });
+
   it("calls onChange with the clicked tab's key", async () => {
     const user = userEvent.setup();
     const onChange = renderToggle("hits");
