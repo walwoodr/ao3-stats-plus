@@ -98,3 +98,42 @@ describe("stale range window across a selection swap (regression)", () => {
     expect(within(hitsFigure).queryByText(/work late.*2024-01-01/i)).toBeInTheDocument();
   });
 });
+
+// Regression for TECH_DEBT.md (2026-08-03): the role="status" "Comparing N
+// works, START to END." summary used to derive its year span from the full
+// unfiltered union of the selected works' captured dates, never from the
+// currently-applied DateRangeSlider window - so narrowing the visible range
+// changed the charts but not what was announced to screen readers. Fixed to
+// report the currently-active (possibly narrowed) range, matching what's
+// actually shown.
+describe("comparison summary reports the active windowed range, not the full data span (regression)", () => {
+  it("updates the announced year span when the date-range slider is narrowed", async () => {
+    const user = userEvent.setup();
+    const singleWorkWideSpan: PerWorkSeries[] = [
+      work({
+        ao3WorkId: 1,
+        title: "Work Only",
+        fandoms: "Fandom A",
+        points: [
+          { capturedOn: "2018-01-01", hits: 10, kudos: 1 },
+          { capturedOn: "2020-01-01", hits: 20, kudos: 2 },
+          { capturedOn: "2025-01-01", hits: 30, kudos: 3 },
+        ],
+      }),
+    ];
+
+    renderSection({ perWorkSeries: singleWorkWideSpan, earliestPostYear: null });
+
+    expect(screen.getByRole("status")).toHaveTextContent(/2018 to 2025/);
+
+    const endThumb = screen.getByRole("slider", { name: /range end \(year\)/i });
+    const initialEnd = Number(endThumb.getAttribute("aria-valuenow"));
+    endThumb.focus();
+    for (let year = initialEnd; year > 2020; year--) {
+      await user.keyboard("{ArrowLeft}");
+    }
+
+    expect(screen.getByRole("status")).toHaveTextContent(/2018 to 2020/);
+    expect(screen.getByRole("status")).not.toHaveTextContent(/2018 to 2025/);
+  });
+});

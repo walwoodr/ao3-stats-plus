@@ -285,11 +285,22 @@ export function WorkComparisonSection({
     }).filter((series) => series.points.length > 0);
   }
 
+  // Reports the currently-active (possibly narrowed) range, not the full
+  // unfiltered union span - the summary should describe what the charts
+  // actually show right now (TECH_DEBT.md, 2026-08-03). When no window is
+  // applied (effectiveRange null - slider untouched or not shown),
+  // unionDates' own full span is still the right fallback, matching
+  // pre-narrowing behavior.
+  const summaryRangeStart = effectiveRange
+    ? effectiveRange.start
+    : yearOf(unionDates[0] ?? `${currentYear}-01-01`);
+  const summaryRangeEnd = effectiveRange
+    ? effectiveRange.end
+    : yearOf(unionDates[unionDates.length - 1] ?? `${currentYear}-01-01`);
   const summaryMessage =
     selectedWorkIds.length > 0
       ? `Comparing ${selectedWorkIds.length} work${selectedWorkIds.length === 1 ? "" : "s"}, ` +
-        `${yearOf(unionDates[0] ?? `${currentYear}-01-01`)} to ` +
-        `${yearOf(unionDates[unionDates.length - 1] ?? `${currentYear}-01-01`)}.`
+        `${summaryRangeStart} to ${summaryRangeEnd}.`
       : "";
 
   // The Bookmarks tab expands into its own By-Type/By-Work sub-views

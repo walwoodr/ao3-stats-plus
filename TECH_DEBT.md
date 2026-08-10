@@ -44,42 +44,14 @@
   or missed announcement. Deferred: matches the confirmed plan; revisit if
   the cross-origin a11y smoke test (plan section 6) surfaces it.~~ —
   **RESOLVED 2026-08-09**: `renderInfoBanner` now uses `role="alert"`.
-- [2026-07-30] (stage: Implementation, re-examined 2026-08-09 stage:
-  Maintenance - still open) `frontend/src/bookmarklet/banners.ts`'s color
-  mapping onto MASTER.md's 7-token palette consolidates the previous 4-color
-  severity scheme (success/failure/info/retry) into 3 roles (growth/
-  destructive/accent) since the palette has no dedicated "warning" role - the
-  `retryBanner` (network/POST failure, offers a Retry button) now shares
-  `--color-destructive` with hard failures instead of its own amber.
+- [2026-07-30] (stage: Implementation) `frontend/src/bookmarklet/banners.ts`'s
+  color mapping onto MASTER.md's 7-token palette consolidates the previous
+  4-color severity scheme (success/failure/info/retry) into 3 roles
+  (growth/destructive/accent) since the palette has no dedicated "warning"
+  role - the `retryBanner` (network/POST failure, offers a Retry button) now
+  shares `--color-destructive` with hard failures instead of its own amber.
   Distinguished only by copy/button now, not color. Revisit if a future
   design pass wants a dedicated warning/retry role.
-
-  **2026-08-09 re-examination (still deferred, no fix applied):** checked
-  whether an EXISTING token could distinguish retry-vs-hard-failure without
-  adding a new palette role, per this session's Maintenance instructions,
-  before treating this as needing a genuinely new design decision. `accent`
-  (this product's signature wine) was the most plausible candidate, but
-  reusing it here would create a NEW ambiguity rather than resolve the old
-  one: `accent` is already the pre-POST informational banner's color
-  (`renderInfoBanner` - "notice this, nothing has failed yet"), a distinctly
-  lower-severity register than a real POST/network failure that's offering a
-  Retry button. Sharing it would blur that existing, load-bearing
-  distinction. `growth` is semantically wrong (positive/success valence) for
-  any failure state. `ink`/`inkSoft` (neutral text tones) are never used
-  elsewhere as a banner severity color, and would risk under-signaling a
-  real failure needing user action as "nothing to worry about." A same-role
-  visual variation (e.g. a lighter destructive tint, or a dashed vs. solid
-  border) was also considered and rejected: it doesn't touch the underlying
-  concern this entry names (still literally `--color-destructive`), and
-  inventing a new "dashed = less severe" visual language for banners isn't
-  established anywhere in MASTER.md (MASTER.md's only existing dash
-  convention is chart-specific - lead-in segments - and repurposing it here
-  for a different meaning risks its own confusion). No existing-token
-  treatment was clearly better than the status quo, so no fix was applied.
-  This remains a genuine "add a dedicated warning/retry token" design
-  decision, which per this project's `feedback_ui_design_input.md` standing
-  guidance needs real user consultation (a Design or Planning pass), not a
-  unilateral Maintenance pick - left open/deferred, not resolved.
 - [2026-07-30] (stage: Maintenance) The bookmarklet's capability token
   (`read_token`, `SecureRandom`-generated) is an opaque, hard-to-transcribe
   string. Users who lose the "View your dashboard" link and have to
@@ -370,23 +342,11 @@
   loop forever. Not reachable via the `Math.random` default in production
   (measure-zero); only an adversarial/buggy injected rng. Deferred: cosmetic
   robustness only.
-- [2026-08-02] (stage: Review) `InstallPage.tsx`'s open-source disclosure
-  link ("view it on GitHub") fails WCAG 1.4.1 (link-in-text-block):
-  `text-accent` (`#9F1239`) on the surrounding `text-ink-soft` (`#7A6B72`)
-  paragraph is only 1.59:1 contrast (needs 3:1), and the link has no
-  non-color distinguishing style (underline is `hover:` only, not visible at
-  rest) - confirmed failing two real axe scans in `accessibility.spec.ts`
-  ("the install page has no detectable a11y violations",
-  "...revealed code fallback..."), independently reproduced against `main`
-  via `git stash` before any of this session's comparison-graph work, so
-  it's pre-existing, not a regression from that feature. Found incidentally
-  while verifying an unrelated Testing pass's e2e/a11y coverage. Fix: give
-  the link a persistent (not hover-only) underline, and/or a higher-contrast
-  color for inline body-text links specifically (MASTER.md may need a
-  dedicated "inline link in prose" token distinct from standalone CTA links
-  like the dashboard link's `.btn`-style treatment, which doesn't have this
-  problem since it's not sitting inside a paragraph of contrasting body
-  text).
+- ~~[2026-08-02] (stage: Review) `InstallPage.tsx`'s open-source disclosure
+  link fails WCAG 1.4.1 (link-in-text-block): `text-accent` on
+  `text-ink-soft` is only 1.59:1 (needs 3:1), no persistent non-color
+  style.~~ — **RESOLVED 2026-08-09** (together with the 2026-08-05
+  duplicate finding below - same bug, one fix).
 - [2026-08-03] (stage: Implementation) `groupWorksByFandom` (per-work
   comparison graph feature, `docs/plans/per-work-comparison-graph.md`)
   splits the `fandoms` field on `", "` to recover the fandom list for
@@ -415,16 +375,14 @@
   invariant. Regression test:
   `WorkComparisonSection.test.tsx` > "stale range window across a selection
   swap (regression)".
-- [2026-08-03] (stage: Review) `WorkComparisonSection.tsx`'s `role="status"`
-  summary announcement ("Comparing N works, START to END.") derives its year
-  span from the full unfiltered `unionDates` of the selected works, not from
-  the currently-applied slider window. Narrowing the date range does not
-  change the announced years, so a screen-reader user who narrows the window
-  hears a span that doesn't match what the charts now show. Minor a11y/UX
-  inconsistency; the plan's example is ambiguous about whether the summary
-  should report the data span or the active window. Deferred: decide intended
-  semantics, then either feed the windowed range into the summary or document
-  that it intentionally reports the full selection span.
+- ~~[2026-08-03] (stage: Review) `WorkComparisonSection.tsx`'s `role="status"`
+  summary announcement derives its year span from the full unfiltered
+  `unionDates`, not the currently-applied slider window - narrowing the
+  range doesn't change what's announced.~~ — **RESOLVED 2026-08-09**:
+  resolved in favor of parity with the visible charts - the summary now
+  reports `effectiveRange` (the active windowed range) when one is applied,
+  else falls back to the full `unionDates` span as before. Regression test
+  in `WorkComparisonSection.regression.test.tsx`.
 - [2026-08-03] (stage: Review) `frontend/src/lib/markerShapes.tsx` trips a
   single ESLint `react-refresh/only-export-components` *warning* (not error):
   it exports both a component (`MarkerGlyph`) and a plain helper
@@ -636,22 +594,17 @@
   updated in `ComparisonLegend.test.tsx`, `MultiSeriesTrendChart.test.tsx`,
   `WorkComparisonSection.bookmarksByWork.test.tsx`, and
   `WorkComparisonSection.persistence.test.tsx`; full suite green (746/746).
-- [2026-08-05] (stage: Maintenance) `InstallPage`'s "GitHub" link (footer,
-  `href="https://github.com/walwoodr/ao3-stats-plus"`, class `text-accent`)
-  fails `accessibility.spec.ts`'s axe scan with a **real, plausible**
-  color-contrast reading: `fgContrast` 1.59:1 (needs 3:1), `nodeColor: #9f1239`
-  (the real `--color-accent` wine hex) against `parentColor: #7a6b72` (the
-  real `--color-ink-soft` hex) - plus a second, related `link-in-text-block-style`
-  violation: the link has no underline/other non-color distinguishing style, so
-  color is its ONLY differentiator on top of being under-contrast. Distinct from
-  the existing 2026-07-30 entry above (WebKit-only, bogus-looking captured colors
-  consistent with a mid-`transition-colors` capture artifact) - this one reproduces
-  with real token values across chromium/firefox/webkit alike, so it is not that
-  same timing flake; it's a genuine, always-present defect. Confirmed unrelated to
-  the work-comparison-picker-redesign feature (`InstallPage.tsx` untouched by that
-  work). Fix: give the link its own underline (or another non-color signal) and
-  darken/adjust its color so `text-accent`-on-`text-ink-soft` clears 3:1, or move
-  it out of the low-contrast paragraph entirely.
+- ~~[2026-08-05] (stage: Maintenance) `InstallPage`'s "GitHub" link fails
+  `accessibility.spec.ts`'s axe scan: `fgContrast` 1.59:1 (needs 3:1) plus
+  no non-color distinguishing style. Reproduces across chromium/firefox/
+  webkit - not the WebKit-only flake above.~~ — **RESOLVED 2026-08-09**:
+  gave the link a persistent underline instead of adjusting `--color-accent`
+  (darkening it enough to clear 3:1 would drift the shared accent token used
+  for CTAs/focus rings/the chart marker - dark mode is worse anyway, 1.10:1
+  - and WCAG 1.4.1 accepts either technique). Confirmed via
+  `accessibility.spec.ts` (chromium/firefox green); WebKit's remaining
+  failure is the unrelated 2026-07-30 `bg-ink`/`text-paper` flake. No
+  MASTER.md token change needed.
 - [2026-08-05] (stage: Maintenance) `frontend/src/components/WorkPicker.tsx` is
   579 lines, over CODE_STANDARDS.md's 500-line `.tsx` budget - grew during the
   work-comparison-picker-redesign feature (MUI Autocomplete rebuild + the
