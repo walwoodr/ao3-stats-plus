@@ -204,7 +204,10 @@ export function DashboardPage() {
                 valueLabel="Subscribers"
                 points={aggregateSeries.map((point) => ({
                   capturedOn: point.capturedOn,
-                  value: point.totalUserSubscriptions ?? 0,
+                  // totalUserSubscriptions is required on AggregateSeriesPoint
+                  // (TECH_DEBT.md, 2026-08-09) - the `?? 0` fallback that used
+                  // to guard the old optional typing is now provably dead.
+                  value: point.totalUserSubscriptions,
                 }))}
                 leadIn={subscribersLeadIn}
               />

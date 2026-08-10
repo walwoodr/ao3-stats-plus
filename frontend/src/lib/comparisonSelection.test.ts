@@ -17,7 +17,14 @@ import type { PerWorkPoint, PerWorkSeries } from "../queries/useStatsForUser";
 // up to local useState - kept pure and dependency-free so it's unit-testable
 // without rendering (per the plan's "State management" section).
 function points(...dates: string[]): PerWorkPoint[] {
-  return dates.map((capturedOn, index) => ({ capturedOn, hits: index * 10, kudos: index }));
+  return dates.map((capturedOn, index) => ({
+    capturedOn,
+    hits: index * 10,
+    kudos: index,
+    comments: 0,
+    bookmarks: 0,
+    subscriptions: 0,
+  }));
 }
 
 function work(ao3WorkId: number, capturedOnDates: string[] = []): PerWorkSeries {

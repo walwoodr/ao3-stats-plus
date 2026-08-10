@@ -20,9 +20,30 @@ const GROUPED_WORKS: PerWorkSeries[] = [
     title: "The Long Way Home",
     fandoms: "Fandom One",
     points: [
-      { capturedOn: "2018-01-01", hits: 100, kudos: 10 },
-      { capturedOn: "2020-06-01", hits: 400, kudos: 55 },
-      { capturedOn: "2026-01-01", hits: 900, kudos: 120 },
+      {
+        capturedOn: "2018-01-01",
+        hits: 100,
+        kudos: 10,
+        comments: 0,
+        bookmarks: 0,
+        subscriptions: 0,
+      },
+      {
+        capturedOn: "2020-06-01",
+        hits: 400,
+        kudos: 55,
+        comments: 0,
+        bookmarks: 0,
+        subscriptions: 0,
+      },
+      {
+        capturedOn: "2026-01-01",
+        hits: 900,
+        kudos: 120,
+        comments: 0,
+        bookmarks: 0,
+        subscriptions: 0,
+      },
     ],
   },
   {
@@ -30,23 +51,39 @@ const GROUPED_WORKS: PerWorkSeries[] = [
     title: "Sideways",
     fandoms: "Fandom One",
     points: [
-      { capturedOn: "2019-03-01", hits: 40, kudos: 5 },
-      { capturedOn: "2022-06-01", hits: 180, kudos: 30 },
+      { capturedOn: "2019-03-01", hits: 40, kudos: 5, comments: 0, bookmarks: 0, subscriptions: 0 },
+      {
+        capturedOn: "2022-06-01",
+        hits: 180,
+        kudos: 30,
+        comments: 0,
+        bookmarks: 0,
+        subscriptions: 0,
+      },
     ],
   },
   {
     ao3WorkId: 3,
     title: "Crossover Event",
     fandoms: "Fandom One, Fandom Two",
-    points: [{ capturedOn: "2021-01-01", hits: 60, kudos: 8 }],
+    points: [
+      { capturedOn: "2021-01-01", hits: 60, kudos: 8, comments: 0, bookmarks: 0, subscriptions: 0 },
+    ],
   },
   {
     ao3WorkId: 4,
     title: "A Study in Scarlet",
     fandoms: "Fandom Two",
     points: [
-      { capturedOn: "2020-01-01", hits: 30, kudos: 4 },
-      { capturedOn: "2026-07-01", hits: 500, kudos: 70 },
+      { capturedOn: "2020-01-01", hits: 30, kudos: 4, comments: 0, bookmarks: 0, subscriptions: 0 },
+      {
+        capturedOn: "2026-07-01",
+        hits: 500,
+        kudos: 70,
+        comments: 0,
+        bookmarks: 0,
+        subscriptions: 0,
+      },
     ],
   },
 ];
@@ -67,8 +104,22 @@ const ELEVEN_WORKS_SAME_FANDOM: PerWorkSeries[] = Array.from({ length: 11 }, (_,
   title: `Work ${i + 1}`,
   fandoms: "Big Fandom",
   points: [
-    { capturedOn: "2024-01-01", hits: (i + 1) * 10, kudos: i + 1 },
-    { capturedOn: "2026-01-01", hits: (i + 1) * 25, kudos: (i + 1) * 2 },
+    {
+      capturedOn: "2024-01-01",
+      hits: (i + 1) * 10,
+      kudos: i + 1,
+      comments: 0,
+      bookmarks: 0,
+      subscriptions: 0,
+    },
+    {
+      capturedOn: "2026-01-01",
+      hits: (i + 1) * 25,
+      kudos: (i + 1) * 2,
+      comments: 0,
+      bookmarks: 0,
+      subscriptions: 0,
+    },
   ],
 }));
 

@@ -84,15 +84,17 @@ const TWO_WORKS: PerWorkSeries[] = [
     title: "Work One",
     fandoms: "Fandom A",
     points: [
-      { capturedOn: "2026-01-01", hits: 10, kudos: 1 },
-      { capturedOn: "2026-01-08", hits: 20, kudos: 2 },
+      { capturedOn: "2026-01-01", hits: 10, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+      { capturedOn: "2026-01-08", hits: 20, kudos: 2, comments: 0, bookmarks: 0, subscriptions: 0 },
     ],
   }),
   work({
     ao3WorkId: 2,
     title: "Work Two",
     fandoms: "Fandom A",
-    points: [{ capturedOn: "2026-01-08", hits: 5, kudos: 1 }],
+    points: [
+      { capturedOn: "2026-01-08", hits: 5, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+    ],
   }),
 ];
 
@@ -148,15 +150,38 @@ describe("WorkComparisonSection", () => {
           title: "Work One",
           fandoms: "Fandom A",
           points: [
-            { capturedOn: "2020-01-01", hits: 1, kudos: 1 },
-            { capturedOn: "2021-01-01", hits: 2, kudos: 1 },
+            {
+              capturedOn: "2020-01-01",
+              hits: 1,
+              kudos: 1,
+              comments: 0,
+              bookmarks: 0,
+              subscriptions: 0,
+            },
+            {
+              capturedOn: "2021-01-01",
+              hits: 2,
+              kudos: 1,
+              comments: 0,
+              bookmarks: 0,
+              subscriptions: 0,
+            },
           ],
         }),
         work({
           ao3WorkId: 2,
           title: "Work Two",
           fandoms: "Fandom A",
-          points: [{ capturedOn: "2022-01-01", hits: 3, kudos: 1 }],
+          points: [
+            {
+              capturedOn: "2022-01-01",
+              hits: 3,
+              kudos: 1,
+              comments: 0,
+              bookmarks: 0,
+              subscriptions: 0,
+            },
+          ],
         }),
       ];
 
@@ -205,15 +230,38 @@ describe("WorkComparisonSection", () => {
           title: "Work One",
           fandoms: "Fandom A",
           points: [
-            { capturedOn: "2020-01-01", hits: 1, kudos: 1 },
-            { capturedOn: "2021-01-01", hits: 2, kudos: 1 },
+            {
+              capturedOn: "2020-01-01",
+              hits: 1,
+              kudos: 1,
+              comments: 0,
+              bookmarks: 0,
+              subscriptions: 0,
+            },
+            {
+              capturedOn: "2021-01-01",
+              hits: 2,
+              kudos: 1,
+              comments: 0,
+              bookmarks: 0,
+              subscriptions: 0,
+            },
           ],
         }),
         work({
           ao3WorkId: 2,
           title: "Work Two",
           fandoms: "Fandom A",
-          points: [{ capturedOn: "2022-01-01", hits: 3, kudos: 1 }],
+          points: [
+            {
+              capturedOn: "2022-01-01",
+              hits: 3,
+              kudos: 1,
+              comments: 0,
+              bookmarks: 0,
+              subscriptions: 0,
+            },
+          ],
         }),
       ];
 
@@ -254,7 +302,16 @@ describe("WorkComparisonSection", () => {
         ao3WorkId: i + 1,
         title: `Work ${i + 1}`,
         fandoms: "Big Fandom",
-        points: [{ capturedOn: "2026-01-01", hits: i, kudos: i }],
+        points: [
+          {
+            capturedOn: "2026-01-01",
+            hits: i,
+            kudos: i,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+        ],
       }),
     );
 
@@ -312,15 +369,38 @@ describe("WorkComparisonSection", () => {
           title: "Work One",
           fandoms: "Fandom A",
           points: [
-            { capturedOn: "2020-01-01", hits: 1, kudos: 1 },
-            { capturedOn: "2021-01-01", hits: 2, kudos: 1 },
+            {
+              capturedOn: "2020-01-01",
+              hits: 1,
+              kudos: 1,
+              comments: 0,
+              bookmarks: 0,
+              subscriptions: 0,
+            },
+            {
+              capturedOn: "2021-01-01",
+              hits: 2,
+              kudos: 1,
+              comments: 0,
+              bookmarks: 0,
+              subscriptions: 0,
+            },
           ],
         }),
         work({
           ao3WorkId: 2,
           title: "Work Two",
           fandoms: "Fandom A",
-          points: [{ capturedOn: "2022-01-01", hits: 3, kudos: 1 }],
+          points: [
+            {
+              capturedOn: "2022-01-01",
+              hits: 3,
+              kudos: 1,
+              comments: 0,
+              bookmarks: 0,
+              subscriptions: 0,
+            },
+          ],
         }),
       ];
 
@@ -339,15 +419,38 @@ describe("WorkComparisonSection", () => {
           title: "Work One",
           fandoms: "Fandom A",
           points: [
-            { capturedOn: "2020-01-01", hits: 1, kudos: 1 },
-            { capturedOn: "2021-01-01", hits: 2, kudos: 1 },
+            {
+              capturedOn: "2020-01-01",
+              hits: 1,
+              kudos: 1,
+              comments: 0,
+              bookmarks: 0,
+              subscriptions: 0,
+            },
+            {
+              capturedOn: "2021-01-01",
+              hits: 2,
+              kudos: 1,
+              comments: 0,
+              bookmarks: 0,
+              subscriptions: 0,
+            },
           ],
         }),
         work({
           ao3WorkId: 2,
           title: "Work Two",
           fandoms: "Fandom A",
-          points: [{ capturedOn: "2022-01-01", hits: 3, kudos: 1 }],
+          points: [
+            {
+              capturedOn: "2022-01-01",
+              hits: 3,
+              kudos: 1,
+              comments: 0,
+              bookmarks: 0,
+              subscriptions: 0,
+            },
+          ],
         }),
       ];
 
@@ -379,13 +482,31 @@ describe("WorkComparisonSection", () => {
           ao3WorkId: 1,
           title: "Work One",
           fandoms: "Fandom A",
-          points: [{ capturedOn: "2020-06-01", hits: 1, kudos: 1 }],
+          points: [
+            {
+              capturedOn: "2020-06-01",
+              hits: 1,
+              kudos: 1,
+              comments: 0,
+              bookmarks: 0,
+              subscriptions: 0,
+            },
+          ],
         }),
         work({
           ao3WorkId: 2,
           title: "Work Two",
           fandoms: "Fandom A",
-          points: [{ capturedOn: "2026-06-01", hits: 2, kudos: 1 }],
+          points: [
+            {
+              capturedOn: "2026-06-01",
+              hits: 2,
+              kudos: 1,
+              comments: 0,
+              bookmarks: 0,
+              subscriptions: 0,
+            },
+          ],
         }),
       ];
 
@@ -414,7 +535,16 @@ describe("WorkComparisonSection", () => {
         ao3WorkId: i + 1,
         title: `Work ${i + 1}`,
         fandoms: "Fandom A",
-        points: [{ capturedOn: "2026-01-01", hits: (i + 1) * 10, kudos: i + 1 }],
+        points: [
+          {
+            capturedOn: "2026-01-01",
+            hits: (i + 1) * 10,
+            kudos: i + 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+        ],
       }),
     );
 

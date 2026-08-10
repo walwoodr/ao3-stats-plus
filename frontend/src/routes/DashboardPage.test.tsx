@@ -8,7 +8,7 @@ import { DashboardPage } from "./DashboardPage";
 import { useTokenFromUrl } from "../store/useTokenFromUrl";
 import { useTokenStore } from "../store/useTokenStore";
 import { useWorkComparisonStore } from "../store/useWorkComparisonStore";
-import { useStatsForUser } from "../queries/useStatsForUser";
+import { useStatsForUser, type PerWorkSeries } from "../queries/useStatsForUser";
 
 // graphql-request throws ClientError for a real GraphQL-level rejection from
 // the server (e.g. a backend-confirmed bad token), as opposed to a plain
@@ -160,7 +160,13 @@ describe("DashboardPage", () => {
           statsForUser: {
             kudosToHitsRatio: 0.1,
             aggregateSeries: [
-              { capturedOn: "2026-01-01", totalHits: 10, totalKudos: 1, kudosToHitsRatio: 0.1 },
+              {
+                capturedOn: "2026-01-01",
+                totalHits: 10,
+                totalKudos: 1,
+                kudosToHitsRatio: 0.1,
+                totalUserSubscriptions: 0,
+              },
             ],
             perWorkSeries: [],
             earliestPostYear: null,
@@ -191,8 +197,20 @@ describe("DashboardPage", () => {
           statsForUser: {
             kudosToHitsRatio: 0.12,
             aggregateSeries: [
-              { capturedOn: "2026-01-01", totalHits: 10, totalKudos: 1, kudosToHitsRatio: 0.1 },
-              { capturedOn: "2026-01-08", totalHits: 20, totalKudos: 3, kudosToHitsRatio: 0.15 },
+              {
+                capturedOn: "2026-01-01",
+                totalHits: 10,
+                totalKudos: 1,
+                kudosToHitsRatio: 0.1,
+                totalUserSubscriptions: 0,
+              },
+              {
+                capturedOn: "2026-01-08",
+                totalHits: 20,
+                totalKudos: 3,
+                kudosToHitsRatio: 0.15,
+                totalUserSubscriptions: 0,
+              },
             ],
             perWorkSeries: [],
             earliestPostYear: null,
@@ -221,19 +239,31 @@ describe("DashboardPage", () => {
   // the two metrics that pre-date the toggle.)
   describe("with earliestPostYear present and valid", () => {
     const TWO_POINT_SERIES = [
-      { capturedOn: "2026-01-01", totalHits: 10, totalKudos: 1, kudosToHitsRatio: 0.1 },
-      { capturedOn: "2026-01-08", totalHits: 20, totalKudos: 3, kudosToHitsRatio: 0.15 },
+      {
+        capturedOn: "2026-01-01",
+        totalHits: 10,
+        totalKudos: 1,
+        kudosToHitsRatio: 0.1,
+        totalUserSubscriptions: 0,
+      },
+      {
+        capturedOn: "2026-01-08",
+        totalHits: 20,
+        totalKudos: 3,
+        kudosToHitsRatio: 0.15,
+        totalUserSubscriptions: 0,
+      },
     ];
 
+    // perWorkSeries uses the real PerWorkSeries type directly (not a local,
+    // narrower duplicate) so its shape can't drift out of sync with
+    // useStatsForUser.ts's actual GraphQL contract again (TECH_DEBT.md,
+    // 2026-08-09 - a local duplicate here was exactly what let PerWorkPoint
+    // tighten to required fields without this file's own type catching up).
     function mockWithEarliestPostYear(overrides: {
       earliestPostYear: number | null;
       aggregateSeries: typeof TWO_POINT_SERIES;
-      perWorkSeries?: Array<{
-        ao3WorkId: number;
-        title: string;
-        fandoms: string;
-        points: { capturedOn: string; hits: number; kudos: number }[];
-      }>;
+      perWorkSeries?: PerWorkSeries[];
     }) {
       vi.mocked(useTokenFromUrl).mockReturnValue("tok_valid");
       mockStats({
@@ -296,8 +326,22 @@ describe("DashboardPage", () => {
             title: "Work A",
             fandoms: "Fandom One",
             points: [
-              { capturedOn: "2026-01-01", hits: 5, kudos: 1 },
-              { capturedOn: "2026-01-08", hits: 8, kudos: 2 },
+              {
+                capturedOn: "2026-01-01",
+                hits: 5,
+                kudos: 1,
+                comments: 0,
+                bookmarks: 0,
+                subscriptions: 0,
+              },
+              {
+                capturedOn: "2026-01-08",
+                hits: 8,
+                kudos: 2,
+                comments: 0,
+                bookmarks: 0,
+                subscriptions: 0,
+              },
             ],
           },
         ],
@@ -343,7 +387,13 @@ describe("DashboardPage", () => {
           statsForUser: {
             kudosToHitsRatio: 0.1,
             aggregateSeries: [
-              { capturedOn: "2026-01-01", totalHits: 10, totalKudos: 1, kudosToHitsRatio: 0.1 },
+              {
+                capturedOn: "2026-01-01",
+                totalHits: 10,
+                totalKudos: 1,
+                kudosToHitsRatio: 0.1,
+                totalUserSubscriptions: 0,
+              },
             ],
             perWorkSeries: [],
             earliestPostYear: null,
@@ -363,7 +413,13 @@ describe("DashboardPage", () => {
           statsForUser: {
             kudosToHitsRatio: 0.1,
             aggregateSeries: [
-              { capturedOn: "2025-06-01", totalHits: 10, totalKudos: 1, kudosToHitsRatio: 0.1 },
+              {
+                capturedOn: "2025-06-01",
+                totalHits: 10,
+                totalKudos: 1,
+                kudosToHitsRatio: 0.1,
+                totalUserSubscriptions: 0,
+              },
             ],
             perWorkSeries: [],
             // 2026-01-01 does not sort before 2025-06-01, so no leadIn
@@ -395,8 +451,22 @@ describe("DashboardPage", () => {
         title: "Work A",
         fandoms: "Fandom One",
         points: [
-          { capturedOn: "2026-01-01", hits: 5, kudos: 1 },
-          { capturedOn: "2026-01-08", hits: 8, kudos: 2 },
+          {
+            capturedOn: "2026-01-01",
+            hits: 5,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-01-08",
+            hits: 8,
+            kudos: 2,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       },
     ];
@@ -413,8 +483,20 @@ describe("DashboardPage", () => {
           statsForUser: {
             kudosToHitsRatio: 0.12,
             aggregateSeries: [
-              { capturedOn: "2026-01-01", totalHits: 10, totalKudos: 1, kudosToHitsRatio: 0.1 },
-              { capturedOn: "2026-01-08", totalHits: 20, totalKudos: 3, kudosToHitsRatio: 0.15 },
+              {
+                capturedOn: "2026-01-01",
+                totalHits: 10,
+                totalKudos: 1,
+                kudosToHitsRatio: 0.1,
+                totalUserSubscriptions: 0,
+              },
+              {
+                capturedOn: "2026-01-08",
+                totalHits: 20,
+                totalKudos: 3,
+                kudosToHitsRatio: 0.15,
+                totalUserSubscriptions: 0,
+              },
             ],
             perWorkSeries: ONE_WORK_PER_WORK_SERIES,
             earliestPostYear: null,
@@ -435,8 +517,20 @@ describe("DashboardPage", () => {
           statsForUser: {
             kudosToHitsRatio: 0.12,
             aggregateSeries: [
-              { capturedOn: "2026-01-01", totalHits: 10, totalKudos: 1, kudosToHitsRatio: 0.1 },
-              { capturedOn: "2026-01-08", totalHits: 20, totalKudos: 3, kudosToHitsRatio: 0.15 },
+              {
+                capturedOn: "2026-01-01",
+                totalHits: 10,
+                totalKudos: 1,
+                kudosToHitsRatio: 0.1,
+                totalUserSubscriptions: 0,
+              },
+              {
+                capturedOn: "2026-01-08",
+                totalHits: 20,
+                totalKudos: 3,
+                kudosToHitsRatio: 0.15,
+                totalUserSubscriptions: 0,
+              },
             ],
             perWorkSeries: [],
             earliestPostYear: null,
@@ -461,8 +555,20 @@ describe("DashboardPage", () => {
           statsForUser: {
             kudosToHitsRatio: 0.12,
             aggregateSeries: [
-              { capturedOn: "2026-01-01", totalHits: 10, totalKudos: 1, kudosToHitsRatio: 0.1 },
-              { capturedOn: "2026-01-08", totalHits: 20, totalKudos: 3, kudosToHitsRatio: 0.15 },
+              {
+                capturedOn: "2026-01-01",
+                totalHits: 10,
+                totalKudos: 1,
+                kudosToHitsRatio: 0.1,
+                totalUserSubscriptions: 0,
+              },
+              {
+                capturedOn: "2026-01-08",
+                totalHits: 20,
+                totalKudos: 3,
+                kudosToHitsRatio: 0.15,
+                totalUserSubscriptions: 0,
+              },
             ],
             perWorkSeries: ONE_WORK_PER_WORK_SERIES,
             earliestPostYear: null,

@@ -718,7 +718,7 @@
   silently deleted as dead code later. Future cleanup could drop the
   `kudosToHitsRatio` selections from `STATS_FOR_USER_QUERY` if the ratio
   view isn't reinstated.
-- [2026-08-09] (stage: Review) `PerWorkPoint`'s `comments`/`bookmarks`/
+- [2026-08-09] (stage: Review) ~~`PerWorkPoint`'s `comments`/`bookmarks`/
   `subscriptions` and `AggregateSeriesPoint`'s `totalUserSubscriptions` are
   typed OPTIONAL in `frontend/src/queries/useStatsForUser.ts`, deviating from
   docs/plans/additional-metric-trend-charts.md §7's explicit recommendation to
@@ -731,7 +731,32 @@
   the asymmetry the Consultation Check flagged (aggregate optional vs per-work
   required) does NOT exist in the shipped code — all four fields are uniformly
   optional, so the code is internally consistent. Future cleanup could tighten
-  all four to required once the fixture churn is worth doing.
+  all four to required once the fixture churn is worth doing.~~ - **RESOLVED
+  2026-08-09 (stage: Maintenance)**: all four fields tightened to required in
+  `useStatsForUser.ts` (`PerWorkPoint.comments`/`bookmarks`/`subscriptions`,
+  `AggregateSeriesPoint.totalUserSubscriptions`); `publicBookmarks`/
+  `privateBookmarks` deliberately left optional+nullable (genuinely absent at
+  the backend pre-enrichment, unlike the other four). Removed the now-dead
+  `?? 0`/`?? null` fallbacks at their call sites in `perWorkMetrics.ts`
+  (`PER_WORK_METRICS`'s comments/subscriptions `valueOf`s,
+  `BOOKMARK_TYPES`'s Total `valueOf`) and `DashboardPage.tsx` (the
+  Subscribers tab's `totalUserSubscriptions` mapping). Did the full fixture
+  churn `npx tsc -b` demanded (90 errors -> 0) across
+  `WorkComparisonSection.test.tsx`/`.leadIn.test.tsx`/`.caption.test.tsx`/
+  `.persistence.test.tsx`/`.regression.test.tsx`/`.stories.tsx`,
+  `DashboardPage.test.tsx`, and `comparisonSelection.test.ts` - mostly a
+  scripted regex pass (`hits: N, kudos: N }` -> add
+  `comments: 0, bookmarks: 0, subscriptions: 0`; similarly for
+  `totalUserSubscriptions: 0` on `AggregateSeriesPoint` literals), plus a
+  handful of hand-fixed non-literal-number cases and one genuine
+  duplicate-type cleanup (`DashboardPage.test.tsx`'s
+  `mockWithEarliestPostYear` had its own local, narrower `perWorkSeries`
+  point type that had silently drifted out of sync with the real
+  `PerWorkPoint` - replaced with the real `PerWorkSeries` type directly so it
+  can't drift again).
+  `WorkComparisonSection.regression.test.tsx`'s fixture update for this same
+  tightening landed in a separate commit (`e0c2767`). Full suite green
+  (755/755), `npx tsc -b` clean, `npx eslint .` clean (0 errors).
 - [2026-08-09] (stage: Review) Two superfluous
   `// eslint-disable-next-line no-await-in-loop` directives flagged as unused
   warnings by `npx eslint .` — `WorkComparisonSection.metrics.test.tsx:202`

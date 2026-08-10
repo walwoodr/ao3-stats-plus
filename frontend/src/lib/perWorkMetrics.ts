@@ -16,16 +16,15 @@ export interface PerWorkMetricConfig {
 // The four top-level metrics that render directly as one MultiSeriesTrend-
 // Chart (one line per selected work, zero-basis leadIn applied) - Bookmarks
 // is deliberately excluded here since it expands into the By-Type/By-Work
-// sub-tabs instead (§3.4) rather than rendering as a plain chart. Comments/
-// subscriptions are optional on PerWorkPoint (older fixtures predate this
-// feature) but non-null once present at the GraphQL layer - `?? null`
-// treats a genuinely-missing field as "no data for this point," never a
-// crash.
+// sub-tabs instead (§3.4) rather than rendering as a plain chart. comments/
+// subscriptions are required on PerWorkPoint (TECH_DEBT.md, 2026-08-09) -
+// the `?? null` fallback that used to guard the old optional typing is now
+// provably dead (the query always selects them) and has been removed.
 export const PER_WORK_METRICS: PerWorkMetricConfig[] = [
   { key: "hits", label: "Hits", valueOf: (point) => point.hits },
   { key: "kudos", label: "Kudos", valueOf: (point) => point.kudos },
-  { key: "comments", label: "Comments", valueOf: (point) => point.comments ?? null },
-  { key: "subscriptions", label: "Subscriptions", valueOf: (point) => point.subscriptions ?? null },
+  { key: "comments", label: "Comments", valueOf: (point) => point.comments },
+  { key: "subscriptions", label: "Subscriptions", valueOf: (point) => point.subscriptions },
 ];
 
 // The full top-level tablist order, WITH Bookmarks in its real position
@@ -55,7 +54,10 @@ export interface BookmarkTypeConfig {
 // by work (one chart per work, one line per type, fixed style slots 0/1/2
 // in this exact array order).
 export const BOOKMARK_TYPES: BookmarkTypeConfig[] = [
-  { key: "total", label: "Total", valueOf: (point) => point.bookmarks ?? null, applyLeadIn: true },
+  // bookmarks is required on PerWorkPoint (TECH_DEBT.md, 2026-08-09) - no
+  // `?? null` fallback needed for the always-present Total series;
+  // publicBookmarks/privateBookmarks below stay genuinely optional+nullable.
+  { key: "total", label: "Total", valueOf: (point) => point.bookmarks, applyLeadIn: true },
   {
     key: "public",
     label: "Public",

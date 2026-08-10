@@ -53,7 +53,16 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
         ao3WorkId: 1,
         title: "Work One",
         publishedOn: "2020-01-01",
-        points: [{ capturedOn: "2026-01-01", hits: 1, kudos: 1 }],
+        points: [
+          {
+            capturedOn: "2026-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+        ],
       }),
     ];
 
@@ -68,7 +77,16 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
         ao3WorkId: 1,
         title: "Work One",
         publishedOn: null,
-        points: [{ capturedOn: "2026-01-01", hits: 1, kudos: 1 }],
+        points: [
+          {
+            capturedOn: "2026-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+        ],
       }),
     ];
 
@@ -84,13 +102,31 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
         ao3WorkId: 1,
         title: "Work One",
         publishedOn: null,
-        points: [{ capturedOn: "2026-01-01", hits: 1, kudos: 1 }],
+        points: [
+          {
+            capturedOn: "2026-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+        ],
       }),
       work({
         ao3WorkId: 2,
         title: "Work Two",
         publishedOn: "2020-01-01",
-        points: [{ capturedOn: "2026-01-01", hits: 2, kudos: 1 }],
+        points: [
+          {
+            capturedOn: "2026-01-01",
+            hits: 2,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+        ],
       }),
     ];
 
@@ -109,13 +145,31 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
         ao3WorkId: 1,
         title: "Work One",
         publishedOn: "2020-01-01",
-        points: [{ capturedOn: "2026-01-01", hits: 1, kudos: 1 }],
+        points: [
+          {
+            capturedOn: "2026-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+        ],
       }),
       work({
         ao3WorkId: 2,
         title: "Work Two",
         publishedOn: null,
-        points: [{ capturedOn: "2026-01-01", hits: 2, kudos: 1 }],
+        points: [
+          {
+            capturedOn: "2026-01-01",
+            hits: 2,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+        ],
       }),
     ];
 
@@ -139,9 +193,30 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
         title: "Work One",
         publishedOn: "2010-01-01",
         points: [
-          { capturedOn: "2015-01-01", hits: 1, kudos: 1 },
-          { capturedOn: "2018-01-01", hits: 2, kudos: 1 },
-          { capturedOn: "2020-01-01", hits: 3, kudos: 1 },
+          {
+            capturedOn: "2015-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2018-01-01",
+            hits: 2,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2020-01-01",
+            hits: 3,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
     ];
@@ -168,7 +243,16 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
         ao3WorkId: 1,
         title: "Work One",
         publishedOn: "2020-01-01",
-        points: [{ capturedOn: "2026-01-01", hits: 1, kudos: 1 }],
+        points: [
+          {
+            capturedOn: "2026-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+        ],
       }),
     ];
 
@@ -184,7 +268,16 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
         ao3WorkId: 1,
         title: "Work One",
         publishedOn: "2020-01-01",
-        points: [{ capturedOn: "2026-01-01", hits: 1, kudos: 1 }],
+        points: [
+          {
+            capturedOn: "2026-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+        ],
       }),
     ];
 

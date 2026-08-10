@@ -12,31 +12,30 @@ export interface AggregateSeriesPoint {
   kudosToHitsRatio: number;
   // Account-level "Subscribers" metric tab (docs/plans/additional-metric-
   // trend-charts.md §1/§3.0) - people subscribed to the author, NOT
-  // totalSubscriptions (per-work subscriptions summed) - already resolved
-  // (non-null) by the backend's AggregateSeriesPointType. Kept OPTIONAL
-  // here, not required, for the same fixture-churn reason as PerWorkPoint's
-  // new fields below - many pre-existing aggregateSeries point literals
-  // across the test suite predate this feature.
-  totalUserSubscriptions?: number;
+  // totalSubscriptions (per-work subscriptions summed). Required: the query
+  // above always selects it and the backend's AggregateSeriesPointType
+  // resolves it non-null (TECH_DEBT.md, 2026-08-09 - tightened from
+  // optional now that the fixture churn is done; every aggregateSeries
+  // point literal across the test suite includes it).
+  totalUserSubscriptions: number;
 }
 
 // Per-work new metrics (docs/plans/additional-metric-trend-charts.md
 // §1/§3.1-3.3): comments/bookmarks/subscriptions are always present on the
-// backend (non-null PerWorkPointType fields) but kept OPTIONAL here to
-// avoid churning every pre-existing point literal across the test suite
-// that predates this feature (Testing-stage fixture-churn call, plan §7's
-// "Fixture-churn note" - non-blocking) - a missing value is treated the
-// same as "no data for this point" at render time, never a crash.
-// publicBookmarks/privateBookmarks are genuinely nullable at the backend
-// (enrichment hasn't run for every snapshot) - private is null exactly when
-// public is null.
+// backend (non-null PerWorkPointType fields) and required here to match -
+// the query above always selects them, so a value is never actually
+// missing at runtime (TECH_DEBT.md, 2026-08-09 - tightened from optional
+// now that the fixture churn is done). publicBookmarks/privateBookmarks
+// stay genuinely optional+nullable: enrichment hasn't run for every
+// snapshot, so those two really can be absent/null at the backend - private
+// is null exactly when public is null.
 export interface PerWorkPoint {
   capturedOn: string;
   hits: number;
   kudos: number;
-  comments?: number;
-  bookmarks?: number;
-  subscriptions?: number;
+  comments: number;
+  bookmarks: number;
+  subscriptions: number;
   publicBookmarks?: number | null;
   privateBookmarks?: number | null;
 }
