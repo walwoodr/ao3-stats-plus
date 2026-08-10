@@ -285,15 +285,21 @@
   M>=N or "?"), so probability is low. Consider rescuing RecordInvalid ->
   InvalidPayload (422) for a clean, typed failure. Deferred: no user-facing
   impact given the graceful fan-out handling.
-- [2026-08-01] (stage: Implementation) `frontend/src/bookmarklet/fanOut.test.ts`
-  exceeds CODE_STANDARDS.md's 400-line `.ts` file-length guideline (was
-  already at 422 lines pre-existing before this session's throttle/circuit-
-  breaker fix; now 486 after adding three test cases for the Review-flagged
-  fix in `fanOut.ts`). Not addressed here per "no unrelated refactoring" -
-  splitting this spec file (e.g. by describe-block group) is a reasonable
-  future cleanup but out of scope for a targeted bug fix. Flag for Review/
-  Retrospective to decide whether to split by scenario group (throttle/
-  circuit-breaker/safety-caps/banners) into sibling spec files.
+- [2026-08-01] (stage: Implementation, resolved 2026-08-09 stage: Maintenance)
+  ~~`frontend/src/bookmarklet/fanOut.test.ts` exceeds CODE_STANDARDS.md's
+  400-line `.ts` file-length guideline (was already at 422 lines pre-existing
+  before this session's throttle/circuit-breaker fix; now 486 after adding
+  three test cases for the Review-flagged fix in `fanOut.ts`). Not addressed
+  here per "no unrelated refactoring" - splitting this spec file (e.g. by
+  describe-block group) is a reasonable future cleanup but out of scope for a
+  targeted bug fix. Flag for Review/Retrospective to decide whether to split
+  by scenario group (throttle/circuit-breaker/safety-caps/banners) into
+  sibling spec files.~~ - split into `fanOut.sequencing.test.ts`,
+  `fanOut.circuitBreaker.test.ts`, `fanOut.safetyCaps.test.ts`, and
+  `fanOut.banners.test.ts` (exactly the scenario groups this entry
+  suggested), with shared fixtures/mocks extracted into
+  `fanOutTestSupport.ts`. All 16 original tests preserved (16/16 green
+  across the 4 files).
 - [2026-08-01] (stage: Review) `work_bookmarks.note_html` is stored verbatim
   as the raw `innerHTML` scraped from AO3's bookmark-note blockquote
   (`scrapeWorkBookmarks.ts#parseNoteHtml`) with no sanitization on ingest;
@@ -605,15 +611,20 @@
   `accessibility.spec.ts` (chromium/firefox green); WebKit's remaining
   failure is the unrelated 2026-07-30 `bg-ink`/`text-paper` flake. No
   MASTER.md token change needed.
-- [2026-08-05] (stage: Maintenance) `frontend/src/components/WorkPicker.tsx` is
-  579 lines, over CODE_STANDARDS.md's 500-line `.tsx` budget - grew during the
+- [2026-08-05] (stage: Maintenance, re-checked 2026-08-09 stage: Maintenance)
+  ~~`frontend/src/components/WorkPicker.tsx` is 579 lines, over
+  CODE_STANDARDS.md's 500-line `.tsx` budget - grew during the
   work-comparison-picker-redesign feature (MUI Autocomplete rebuild + the
   bulk-select-bar-as-listbox-sibling accessibility fix, see
   `docs/plans/work-comparison-picker-redesign.md`). Not split here per "no
   unrelated refactoring" during a targeted feature; a reasonable split would be
   extracting the hand-rolled icon components (`CloseIcon`/`CheckIcon`/`TriStateIcon`)
   and/or the `BulkSelectPaper`/`renderBulkSelectBar` pairing into their own
-  module(s). Flag for Review/Retrospective to decide.
+  module(s). Flag for Review/Retrospective to decide.~~ - re-checked: the file
+  is now 497 lines (under budget), having shrunk via unrelated intervening
+  changes since 2026-08-05. No split needed at this time; the suggested
+  extraction (icon components / BulkSelectPaper pairing) remains a reasonable
+  option if it grows past 500 again.
 - [2026-08-05] (stage: Review) `WorkComparisonSection.tsx` mutates the external
   `useWorkComparisonStore` during the render phase in two places: the
   `styleAssignment` lazy `useState` initializer calls `store.setSelection(...)`
