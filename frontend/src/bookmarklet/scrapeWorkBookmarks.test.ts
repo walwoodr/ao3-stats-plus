@@ -112,7 +112,10 @@ describe("parseWorkBookmarksPage", () => {
   // matched real AO3 markup at all.
   describe("parseHasNextPage's structural detection (synthetic Pagy markup)", () => {
     function docWithBody(bodyHtml: string): Document {
-      return new DOMParser().parseFromString(`<ol class="bookmark index group"></ol>${bodyHtml}`, "text/html");
+      return new DOMParser().parseFromString(
+        `<ol class="bookmark index group"></ol>${bodyHtml}`,
+        "text/html",
+      );
     }
 
     it("is false for old Kaminari-style markup (ol.pagination/li.next/rel=next), confirming the fix", () => {
