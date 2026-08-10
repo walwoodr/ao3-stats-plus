@@ -9,7 +9,7 @@ import {
   YAxis,
 } from "recharts";
 import { useChartColors } from "../../lib/useChartColors";
-import { renderMarkerShape } from "../../lib/markerShapes";
+import { renderMarkerShape } from "../../lib/markerPaths";
 import { SERIES_STYLE_SLOTS } from "../../lib/seriesStyles";
 import { ComparisonLegend } from "./ComparisonLegend";
 import type { TrendPoint } from "./TrendChart";

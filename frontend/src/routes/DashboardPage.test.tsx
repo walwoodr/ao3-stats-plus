@@ -205,7 +205,6 @@ describe("DashboardPage", () => {
       expect(screen.queryByRole("img", { name: /kudos.to.hits ratio/i })).not.toBeInTheDocument();
 
       for (const tabName of ["Kudos", "Subscribers"]) {
-        // eslint-disable-next-line no-await-in-loop -- sequential tab clicks are the point
         await user.click(screen.getByRole("tab", { name: tabName }));
         expect(screen.queryByRole("img", { name: /kudos.to.hits ratio/i })).not.toBeInTheDocument();
       }

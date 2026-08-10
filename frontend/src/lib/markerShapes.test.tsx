@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
-import { MarkerGlyph, renderMarkerShape } from "./markerShapes";
+import { MarkerGlyph } from "./markerShapes";
+import { renderMarkerShape } from "./markerPaths";
 import type { MarkerShapeName } from "./seriesStyles";
 
 // Testing task 4 (docs/plans/usds-dataviz-color-scheme.md, section 7),

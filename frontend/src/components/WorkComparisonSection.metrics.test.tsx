@@ -199,7 +199,6 @@ describe("WorkComparisonSection: per-work metric toggle", () => {
     const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
     startThumb.focus();
     for (let year = 2020; year < 2021; year++) {
-      // eslint-disable-next-line no-await-in-loop -- sequential key presses drive one slider thumb
       await user.keyboard("{ArrowRight}");
     }
 
