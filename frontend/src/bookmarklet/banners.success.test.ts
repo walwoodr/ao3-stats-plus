@@ -129,6 +129,24 @@ describe("renderSuccessBanner", () => {
     expect(copyButton?.getAttribute("tabindex")).not.toBe("-1");
   });
 
+  // TECH_DEBT.md (2026-07-23): the Copy button's hit target used to be only
+  // as large as its glyph ("⧉" at font-size 1rem), well short of the common
+  // ~44x44 CSS px touch-target minimum - bannerStyles.ts's inputButton now
+  // guarantees that via min-width/min-height. Asserted here (on the actual
+  // rendered button, not just the style helper in isolation) so a future
+  // regression that reintroduces an unpadded/unsized inputButton is caught.
+  it("gives the Copy button a comfortably tappable (>=44px) hit target, not just its glyph's own size", () => {
+    renderSuccessBanner(container, successBannerData());
+
+    const copyButton = Array.from(container.querySelectorAll("button")).find(
+      (b) => b.getAttribute("aria-label") === "Copy",
+    ) as HTMLButtonElement;
+
+    const remPx = 16;
+    expect(parseFloat(copyButton.style.minWidth) * remPx).toBeGreaterThanOrEqual(44);
+    expect(parseFloat(copyButton.style.minHeight) * remPx).toBeGreaterThanOrEqual(44);
+  });
+
   it("copies the CURRENT input value to the clipboard, not the original prop, once the user has edited it", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });

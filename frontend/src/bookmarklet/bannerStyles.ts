@@ -18,12 +18,23 @@ export function primaryButtonStyle(background: string, color: string): string {
     "box-shadow:none;"
   );
 }
+// Unlike primaryButtonStyle, this backs an icon-glyph-only button (the
+// token field's Copy button - see successBannerTokenField.ts) with no text
+// label to pad out its own hit target, so it needs its own explicit
+// touch-target sizing rather than relying on padding shaped for a text
+// button. min-width/min-height (not padding alone) guarantee a >=44x44 CSS
+// px target - the common WCAG/mobile touch-target minimum - regardless of
+// the glyph's own rendered metrics; inline-flex centering keeps the glyph
+// centered within that box rather than pinned to a corner (TECH_DEBT.md,
+// 2026-07-23 "inputButton helper omits any padding").
 export function inputButton(background: string, color: string): string {
   return (
     `background:${background};color:${color};border-radius:0.375rem;` +
     "font-size:1rem;font-weight:600;border:none;" +
     "cursor:pointer;font-family:inherit;align-self:center;" +
-    "box-shadow:none;"
+    "box-shadow:none;" +
+    "padding:0.625rem;min-width:2.75rem;min-height:2.75rem;" +
+    "display:inline-flex;align-items:center;justify-content:center;"
   );
 }
 

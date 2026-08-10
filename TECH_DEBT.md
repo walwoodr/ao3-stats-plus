@@ -133,29 +133,51 @@
   whether this is actually desired (developing against live production
   data has its own risks - accidental writes via `/ingest`, rate limits,
   etc.) before it's built.
-- [2026-07-31] (stage: Retrospective) `npx vitest run --coverage`'s printed
-  report silently omits several source files that have real, passing test
-  files - confirmed via direct verification that `AppLayout.tsx`,
-  `LandingPage.tsx`, `App.tsx`, `TokenEntryForm.tsx`, `useTokenStore.ts`,
-  `useTokenFromUrl.ts`, `useStatsForUser.ts`, `ingestClient.ts`,
-  `buildIngestPayload.ts`, `tokenStorage.ts`, `colorTokens.ts`, and
-  `constants.ts` all have dedicated `.test.ts(x)` files that run and pass
-  (18 test files total across the suite), yet none of them appear in the
-  coverage table - the report only ever lists a handful of files
-  (bookmarklet/*, charts/*, lib's graphqlClient+useChartColors,
-  routes/Dashboard+Install). Tried `coverage.all: true` plus an explicit
-  `include`/`exclude` in `vite.config.ts`'s `test.coverage` block - no
-  effect on which files appear, so the cause is likely specific to this
-  repo's multi-project Vitest config (`test.projects: [...]`, one jsdom
-  project + one Storybook/browser project) not merging/attributing v8
-  coverage correctly across projects, rather than a `coverage.all`
-  misconfiguration. The printed "91.79% statements" figure is real for the
-  files it does cover, but is not the true whole-project number - treat it
-  as a lower bound, not a baseline-compliance verdict, until this is
-  root-caused. Needs Testing/Maintenance to dig into Vitest's
-  multi-project coverage merging (possibly a known Vitest issue/GitHub
-  discussion, or a per-project `coverage` override needed instead of a
-  top-level one).
+- [2026-07-31] (stage: Retrospective, investigated further 2026-08-09 stage:
+  Maintenance) `npx vitest run --coverage`'s printed report silently omits
+  several source files that have real, passing test files -
+  `AppLayout.tsx`, `LandingPage.tsx`, `App.tsx`, `TokenEntryForm.tsx`,
+  `useTokenStore.ts`, `useTokenFromUrl.ts`, `useStatsForUser.ts`,
+  `ingestClient.ts`, `buildIngestPayload.ts`, `tokenStorage.ts`,
+  `colorTokens.ts`, and `constants.ts` never appear in the printed console
+  table. **The original "multi-project merge" hypothesis is REFUTED**:
+  running the SAME suite with only the jsdom project selected
+  (`vitest run --project='!storybook*' --coverage`, no Storybook/browser
+  project involved at all) reproduces the identical omission, so this is
+  not about merging coverage across `test.projects`. **Root cause narrowed
+  much further**: the omitted files' coverage data is genuinely present and
+  correct - confirmed by parsing the run's own `coverage/coverage-final.json`
+  directly (all files present with real, correct statement-hit counts, e.g.
+  `colorTokens.ts` shows 2/2 statements hit) and by checking the HTML
+  reporter's output (`coverage/frontend/src/components/AppLayout.tsx.html`
+  etc. all exist with real per-line data). Feeding that exact
+  `coverage-final.json` into a **standalone** `istanbul-lib-report` "pkg"
+  tree-summarizer script (bypassing Vitest's live run entirely) correctly
+  visits and would print all 46 files, proving `istanbul-lib-report`/
+  `istanbul-reports`' `text` reporter is not inherently broken given a
+  clean `CoverageMap`. That isolates the defect to something specific about
+  Vitest's own **live, incrementally-built in-memory `CoverageMap`**
+  (built via many sequential `.merge()` calls as each test file's V8
+  coverage is converted and folded in during the run) producing a
+  structurally different object than a fresh one loaded from the same
+  serialized JSON - correct in aggregate (the printed "All files" summary
+  row's percentages are computed by summing the coverage map directly and
+  ARE accurate/trustworthy) but apparently confusing whatever tree-walk
+  `onDetail`/`onSummary` visitation the live run's `context.getTree('pkg')`
+  performs, silently dropping certain file nodes from the printed table
+  without affecting the aggregate totals or the other reporters (html,
+  json). This is a real, reproducible bug in `@vitest/coverage-v8`
+  4.1.10's/`istanbul-lib-report`'s live-run reporting path, not a project
+  misconfiguration - no clean in-repo fix available (would mean patching
+  Vitest/istanbul internals, out of scope for an app-level fix). **Reliable
+  workaround**: don't trust "file absent from the printed table" as "0%/
+  uncovered" - cross-check `coverage/coverage-final.json` or open
+  `coverage/index.html` (both confirmed complete and accurate for every
+  file) instead of the console `text` table for true per-file numbers.
+  The aggregate "All files" row IS trustworthy as printed (it already
+  includes the omitted files' real data), so - contrary to the original
+  entry's caution - it does NOT need to be treated as a lower bound; only
+  the per-file breakdown view is unreliable.
 - [2026-07-31] (stage: Testing, independently re-verified stage: main
   thread) `frontend/src/bookmarklet/fixtures/work-page-*.html` fixtures
   (backing `scrapeWorkPage.ts`/`scrapeWorkPage.test.ts`, work-page
