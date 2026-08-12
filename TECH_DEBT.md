@@ -797,12 +797,13 @@
   `WorkComparisonSection.regression.test.tsx`'s fixture update for this same
   tightening landed in a separate commit (`e0c2767`). Full suite green
   (755/755), `npx tsc -b` clean, `npx eslint .` clean (0 errors).
-- [2026-08-09] (stage: Review) Two superfluous
+- ~~[2026-08-09] (stage: Review) Two superfluous
   `// eslint-disable-next-line no-await-in-loop` directives flagged as unused
   warnings by `npx eslint .` — `WorkComparisonSection.metrics.test.tsx:202`
-  and `DashboardPage.test.tsx:208`. The `no-await-in-loop` rule isn't enabled
-  in the project ESLint config, so the disables are inert noise; drop them (or
-  enable the rule if intended).
+  and `DashboardPage.test.tsx:208`.~~ — **RESOLVED**: both removed by commit
+  `3d4eab1`; this entry was never struck through despite the fix landing
+  in-range, caught during the post-batch independent Review pass
+  (2026-08-12).
 - [2026-08-09] (stage: Maintenance) `frontend/tests/dashboard-populated.spec.ts`'s
   "switching Bookmarks to the By Work sub-tab is axe-clean" test fails with a
   Playwright strict-mode violation: `getByRole("img", { name: "Work A" })`
@@ -820,3 +821,13 @@
   `aria-controls` pointing at their owned `tabpanel`.~~ — **RESOLVED
   2026-08-09**: tabpanel now has a stable `id`; every tab's `aria-controls`
   points at it. Test added in `MetricToggle.test.tsx`.
+- [2026-08-12] (stage: Review) The 2026-08-09 required-field fixture churn
+  (`dc76f8e`) pushed two test files past CODE_STANDARDS.md's 500-line `.tsx`
+  budget: `frontend/src/components/WorkComparisonSection.test.tsx` (466 -> 596)
+  and `frontend/src/routes/DashboardPage.test.tsx` (483 -> 588). Separately,
+  `frontend/src/bookmarklet/entrypoint.test.ts` (523 -> 553) remains over the
+  400-line `.ts` budget (pre-existing, +30 this batch). Non-blocking (a
+  file-length signal to split, not a rejection), and somewhat ironic given the
+  same batch split `fanOut.test.ts`/`banners.test.ts` for exactly this reason.
+  Candidate split: by describe-block group, mirroring the fanOut/banners
+  splits this batch already did.
