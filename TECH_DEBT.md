@@ -2,6 +2,40 @@
 
 ## Backlog
 
+- [2026-08-28] (stage: Deployment/main thread) **GitHub Actions CI has been
+  red on every push to `main` since at least 2026-07-31** (confirmed via
+  `gh run list` history) - this predates and is unrelated to the current
+  deploy (`c7a7a8a`); the live app itself is independently verified healthy
+  (health checks, GraphQL introspection, HTML shell all responding). Two
+  distinct real causes, neither of which is the Deployment agent's initial
+  (incorrect) diagnosis of a Fast Refresh ESLint warning on
+  `MultiSeriesTrendChart.tsx` - that warning is real but genuinely harmless
+  and already logged/accepted (2026-08-04 entry), not a failure cause.
+  1. **`frontend-lint-and-unit` CI job ("Frontend (ESLint + Vitest)") -
+     genuine CI config bug, not a code defect.** All 715 actual Vitest tests
+     pass; the job still fails on an "Unhandled Error" - `vite.config.ts`'s
+     second Vitest project (`name: "storybook"`) runs component tests in a
+     real headless Chromium via `@vitest/browser-playwright`, but
+     `.github/workflows/ci.yml`'s `frontend-lint-and-unit` job never runs
+     `npx playwright install` (only the separate `frontend-e2e` job does) -
+     so the browser binary genuinely doesn't exist on that job's runner.
+     Never caught locally because every dev/agent environment already has
+     Playwright browsers installed from other work. Fix: add a `Install
+     Playwright browsers` step (mirroring the e2e job's) to
+     `frontend-lint-and-unit` before its `Vitest` step.
+  2. **`frontend-e2e` job - one already-known issue, one not yet
+     root-caused.** "switching Bookmarks to the By Work sub-tab is
+     axe-clean" is the exact locator collision already logged 2026-08-09
+     (`getByRole("img", {name: "Work A"})` matching both the chart figure
+     and the "Remove Work A" chip icon) - not new, still out of scope here.
+     "home page loads and renders the app heading" newly fails across all
+     three browsers (chromium/firefox/webkit) with a 5s timeout waiting for
+     the heading - not yet root-caused in this pass (no `webServer`
+     startup-failure evidence found in the job log); needs a dedicated
+     Maintenance pass to reproduce and diagnose (dev-server-not-ready-in-time
+     under CI load is a plausible candidate given this project's documented
+     history of Playwright `webServer` startup flakiness, but this is a
+     hypothesis, not confirmed).
 - [2026-07-30] (stage: Maintenance) Three `accessibility.spec.ts` axe scans
   (landing page, install page, no-token dashboard state) fail only under the
   WebKit Playwright project with `color-contrast` violations reporting
