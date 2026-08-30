@@ -451,15 +451,15 @@
   reports `effectiveRange` (the active windowed range) when one is applied,
   else falls back to the full `unionDates` span as before. Regression test
   in `WorkComparisonSection.regression.test.tsx`.
-- [2026-08-03] (stage: Review) `frontend/src/lib/markerShapes.tsx` trips a
+- ~~[2026-08-03] (stage: Review) `frontend/src/lib/markerShapes.tsx` trips a
   single ESLint `react-refresh/only-export-components` *warning* (not error):
   it exports both a component (`MarkerGlyph`) and a plain helper
-  (`renderMarkerShape`) from one file. The colocation is deliberate - both
-  the Recharts custom dot and the legend glyph call `renderMarkerShape` so
-  the two never drift - and the rule only affects Fast Refresh DX in dev, not
-  production or correctness. Fine to leave as a warning; if a clean lint run
-  is wanted, move `renderMarkerShape` (and `starPoints`) into a sibling
-  `markerPaths.ts` and re-export, leaving `markerShapes.tsx` component-only.
+  (`renderMarkerShape`) from one file.~~ — **RESOLVED**: `renderMarkerShape`
+  (and its geometry helpers) extracted into `markerPaths.tsx`;
+  `markerShapes.tsx` now exports only `MarkerGlyph`. Fixed by commit
+  `3d4eab1` in the 2026-08-09 Maintenance batch; this entry was never struck
+  through despite the fix landing in-range, caught while answering a
+  "what's still open" question (2026-08-29).
 - [2026-08-03] (stage: Maintenance) **Resolved, but the root cause is a
   process gap worth recording.** `npm run build` failed with 12 real
   TypeScript errors (6 in `DateRangeSlider.stories.tsx`/`WorkPicker.stories.tsx` -
