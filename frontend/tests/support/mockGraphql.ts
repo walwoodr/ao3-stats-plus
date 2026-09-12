@@ -87,6 +87,76 @@ export const TOKEN_MISMATCH_RESPONSE = {
   errors: [{ message: "That token does not match this username." }],
 };
 
+// Synthetic fixture data for the bookmark notes feed
+// (docs/plans/bookmark-notes-feed.md, task T-10) - not tied to any external
+// system, so no EXTERNAL-UNVERIFIED tag applies here (contrast the
+// scrapeWorkBookmarks.ts fixtures, which DO model unverified live-AO3
+// markup). "Popular Work" carries 30 bookmarks (one with an adversarial
+// XSS payload note) so the default all-works view is genuinely multi-page;
+// "Quiet Work" and "Empty Work" exist to exercise a 2-work filter (glyphs
+// shown, Decision D5) and the genuinely-empty state (a single-work filter
+// with zero bookmarks) respectively.
+function syntheticBookmark(overrides: {
+  bookmarkerName: string;
+  bookmarkedOn: string;
+  noteHtml?: string | null;
+}) {
+  return {
+    bookmarkerName: overrides.bookmarkerName,
+    noteHtml: overrides.noteHtml ?? "<p>Loved this fic!</p>",
+    bookmarkerTags: ["favorite"],
+    bookmarkedOn: overrides.bookmarkedOn,
+    collections: [],
+  };
+}
+
+export const BOOKMARK_FEED_STATS_RESPONSE = {
+  data: {
+    statsForUser: {
+      kudosToHitsRatio: 0.12,
+      aggregateSeries: [],
+      perWorkSeries: [
+        {
+          ao3WorkId: 201,
+          title: "Popular Work",
+          fandoms: "Fandom One",
+          publishedOn: null,
+          points: [],
+          bookmarks: Array.from({ length: 30 }, (_, i) =>
+            syntheticBookmark({
+              bookmarkerName: `Reader ${i + 1}`,
+              bookmarkedOn: `2026-01-${String((i % 28) + 1).padStart(2, "0")}`,
+              // A seeded XSS payload on one row, per T-10's "a seeded XSS
+              // payload does not execute (no dialog/altered DOM)" e2e check.
+              noteHtml:
+                i === 0
+                  ? '<p>Nice fic!</p><script>window.__xss = true;</script><img src="x" onerror="window.__xss = true;">'
+                  : undefined,
+            }),
+          ),
+        },
+        {
+          ao3WorkId: 202,
+          title: "Quiet Work",
+          fandoms: "Fandom Two",
+          publishedOn: null,
+          points: [],
+          bookmarks: [syntheticBookmark({ bookmarkerName: "Reader Q", bookmarkedOn: "2026-02-01" })],
+        },
+        {
+          ao3WorkId: 203,
+          title: "Empty Work",
+          fandoms: "Fandom Three",
+          publishedOn: null,
+          points: [],
+          bookmarks: [],
+        },
+      ],
+      earliestPostYear: 2025,
+    },
+  },
+};
+
 // EXTERNAL-UNVERIFIED: not tied to any external system - this is purely
 // synthetic fixture data for the per-work comparison feature
 // (WorkComparisonSection). Eleven works sharing one fandom, one more than
