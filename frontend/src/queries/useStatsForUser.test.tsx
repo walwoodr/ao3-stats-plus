@@ -7,6 +7,7 @@ import {
   type AggregateSeriesPoint,
   type PerWorkPoint,
   type PerWorkSeries,
+  type WorkBookmark,
 } from "./useStatsForUser";
 
 // useStatsForUser wraps graphql-request in a TanStack Query hook keyed
@@ -183,6 +184,90 @@ describe("useStatsForUser", () => {
     expect(pointsBlock).toMatch(/\bsubscriptions\b/);
     expect(pointsBlock).toMatch(/\bpublicBookmarks\b/);
     expect(pointsBlock).toMatch(/\bprivateBookmarks\b/);
+  });
+
+  // docs/plans/bookmark-notes-feed.md (Testing task T-03): the ONE real
+  // data-layer change this plan makes is extending STATS_FOR_USER_QUERY with
+  // a `bookmarks {...}` selection inside perWorkSeries - the backend field
+  // already resolves (WorkBookmarkType/PerWorkSeriesType#bookmarks, non-null
+  // list), so this is a genuine runtime RED (no tsc -b needed) until the
+  // query document is extended, mirroring the plan's own "one field per
+  // regex block" testing convention used above for points/aggregateSeries.
+  it("selects a bookmarks block with bookmarkerName/noteHtml/bookmarkerTags/bookmarkedOn/collections inside the perWorkSeries block of the query document", () => {
+    vi.mocked(graphqlClient.request).mockResolvedValue({
+      statsForUser: { aggregateSeries: [], perWorkSeries: [], earliestPostYear: null },
+    });
+
+    renderWithClient("someauthor", "tok_valid");
+
+    const [query] = vi.mocked(graphqlClient.request).mock.calls[0];
+    const perWorkSeriesBlock = String(query).match(/perWorkSeries\s*{([^}]*bookmarks[^}]*})/s)?.[0] ?? "";
+    const bookmarksBlock = perWorkSeriesBlock.match(/bookmarks\s*{([^}]*)}/s)?.[1] ?? "";
+    expect(bookmarksBlock).toMatch(/\bbookmarkerName\b/);
+    expect(bookmarksBlock).toMatch(/\bnoteHtml\b/);
+    expect(bookmarksBlock).toMatch(/\bbookmarkerTags\b/);
+    expect(bookmarksBlock).toMatch(/\bbookmarkedOn\b/);
+    expect(bookmarksBlock).toMatch(/\bcollections\b/);
+  });
+
+  // Compile-time companion (same "caught by tsc -b, not vitest run"
+  // discipline used throughout this file): WorkBookmark must expose all
+  // five fields as nullable (matching the backend's `null: true` on every
+  // field, per the plan's data-model section) - a null-heavy literal like
+  // an anonymous/deleted bookmarker with no tags/collections/date must be
+  // assignable.
+  it("WorkBookmark accepts all-null optional fields (compile-time shape, verified via tsc -b)", () => {
+    const populated: WorkBookmark = {
+      bookmarkerName: "reader123",
+      noteHtml: "<p>Loved this!</p>",
+      bookmarkerTags: ["favorite"],
+      bookmarkedOn: "2026-01-01",
+      collections: ["Staff Picks"],
+    };
+    const allNull: WorkBookmark = {
+      bookmarkerName: null,
+      noteHtml: null,
+      bookmarkerTags: [],
+      bookmarkedOn: null,
+      collections: [],
+    };
+
+    expect(populated.bookmarkerName).toBe("reader123");
+    expect(allNull.bookmarkerName).toBeNull();
+    expect(allNull.noteHtml).toBeNull();
+    expect(allNull.bookmarkedOn).toBeNull();
+  });
+
+  // Compile-time companion: PerWorkSeries.bookmarks is a required, non-null
+  // LIST field (the plan: "the list itself is non-null") - an empty array
+  // for a never-enriched work, or a populated one, must both satisfy the
+  // type without the field being optional.
+  it("PerWorkSeries.bookmarks is a required WorkBookmark[] (compile-time shape, verified via tsc -b)", () => {
+    const noBookmarksYet: PerWorkSeries = {
+      ao3WorkId: 1,
+      title: "Work One",
+      fandoms: "",
+      points: [],
+      bookmarks: [],
+    };
+    const withBookmarks: PerWorkSeries = {
+      ao3WorkId: 2,
+      title: "Work Two",
+      fandoms: "",
+      points: [],
+      bookmarks: [
+        {
+          bookmarkerName: "reader123",
+          noteHtml: "<p>Loved this!</p>",
+          bookmarkerTags: [],
+          bookmarkedOn: "2026-01-01",
+          collections: [],
+        },
+      ],
+    };
+
+    expect(noBookmarksYet.bookmarks).toEqual([]);
+    expect(withBookmarks.bookmarks).toHaveLength(1);
   });
 
   // Compile-time companions to the two query-document tests above (same
