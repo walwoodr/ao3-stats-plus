@@ -865,3 +865,26 @@
   same batch split `fanOut.test.ts`/`banners.test.ts` for exactly this reason.
   Candidate split: by describe-block group, mirroring the fanOut/banners
   splits this batch already did.
+- [2026-09-12] (stage: main thread) **Feature idea, not yet scoped**: replace
+  the current hover-tooltip/popover interaction on the trend/comparison charts
+  (`TrendChart`, `RatioChart`, `MultiSeriesTrendChart`, and the
+  `WorkComparisonSection` per-work charts) with a horizontally scrollable data
+  table rendered below each figure, listing the metric's numeric values across
+  time points. The two views should stay in sync in both directions: hovering
+  a point on the chart highlights the corresponding column in the table, and
+  hovering a column in the table highlights the corresponding point on the
+  chart. Motivation (user's words): the current popover is "a huge popover" -
+  this is meant to shrink the on-hover footprint and make it easier to read
+  exact values across multiple series at once. Deferred rather than
+  implemented directly: this touches shared chart-rendering behavior across
+  several components and the project's design-context snapshot
+  (`design-system/ao3-stats-plus/MASTER.md`), so it should go through Planning
+  (with the user's UI/UX preferences solicited up front, not assumed) before
+  Testing/Implementation - not a quick Maintenance-style tweak. Open questions
+  for that Planning pass: does the table replace the tooltip entirely or
+  supplement it; does it apply to every chart component uniformly or only the
+  multi-series ones where cross-series comparison is the actual pain point;
+  keyboard/touch equivalent for the hover-sync interaction (accessibility
+  parity, per this project's existing axe-scan discipline); and whether the
+  table should be virtualized/paginated for long time series or just
+  horizontally scrollable as stated.
