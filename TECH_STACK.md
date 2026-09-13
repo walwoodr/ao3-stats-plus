@@ -48,5 +48,13 @@ global `CLAUDE.md`.
   finding #3).
 - **Approved**: by the user, 2026-07-31 (Retrospective follow-up).
 
+### DOMPurify
+
+- **What**: client-side HTML sanitizer.
+- **Why**: the feed renders raw scraped AO3 `noteHtml` as rich HTML; the
+  in-stack alternative (strip to plain text) was explicitly rejected by the
+  user in favor of safe rich rendering; no in-stack sanitizer exists.
+- **Approved**: by the user, during Planning, 2026-08-28.
+
 Anything not listed above is still governed by the global
 `~/.claude/TECH_STACK.md` and its "ask before adding" policy.
