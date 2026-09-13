@@ -40,6 +40,19 @@ export interface PerWorkPoint {
   privateBookmarks?: number | null;
 }
 
+// A single public bookmark note on a work (docs/plans/bookmark-notes-feed.md
+// §2/T-03). All five fields are nullable, matching the backend's `null:
+// true` on every field of WorkBookmarkType - the DOM markup this is scraped
+// from is EXTERNAL-UNVERIFIED (see scrapeWorkBookmarks.ts), so any field can
+// genuinely be missing.
+export interface WorkBookmark {
+  bookmarkerName: string | null;
+  noteHtml: string | null;
+  bookmarkerTags: string[];
+  bookmarkedOn: string | null;
+  collections: string[];
+}
+
 export interface PerWorkSeries {
   ao3WorkId: number;
   title: string;
@@ -51,6 +64,11 @@ export interface PerWorkSeries {
   // compiling; WorkComparisonSection treats a missing/null value the same
   // (fall back to earliestPostYear).
   publishedOn?: string | null;
+  // Bookmark notes feed (docs/plans/bookmark-notes-feed.md): the backend
+  // resolver (`object.work_bookmarks`) is non-null and always selected by
+  // the query below, so this is required (empty array, not undefined, when
+  // a work has no public bookmarks or hasn't been enriched yet).
+  bookmarks: WorkBookmark[];
 }
 
 export interface StatsForUserData {
@@ -79,6 +97,13 @@ const STATS_FOR_USER_QUERY = gql`
         title
         fandoms
         publishedOn
+        bookmarks {
+          bookmarkerName
+          noteHtml
+          bookmarkerTags
+          bookmarkedOn
+          collections
+        }
         points {
           capturedOn
           hits

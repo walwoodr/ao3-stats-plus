@@ -343,6 +343,7 @@ describe("DashboardPage", () => {
                 subscriptions: 0,
               },
             ],
+            bookmarks: [],
           },
         ],
       });
@@ -468,6 +469,7 @@ describe("DashboardPage", () => {
             subscriptions: 0,
           },
         ],
+        bookmarks: [],
       },
     ];
 

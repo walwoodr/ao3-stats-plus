@@ -20,7 +20,7 @@ import type { PerWorkSeries } from "../queries/useStatsForUser";
 // in the option's `aria-label`, for screen readers - §Accessibility), and
 // the group divider moves from below the header to above it.
 function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWorkSeries {
-  return { title: `Work ${overrides.ao3WorkId}`, fandoms: "", points: [], ...overrides };
+  return { title: `Work ${overrides.ao3WorkId}`, fandoms: "", points: [], bookmarks: [], ...overrides };
 }
 
 const TWO_FANDOM_WORKS: PerWorkSeries[] = [

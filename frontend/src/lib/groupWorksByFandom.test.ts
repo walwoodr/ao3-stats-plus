@@ -15,6 +15,7 @@ function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWor
     title: `Work ${overrides.ao3WorkId}`,
     fandoms: "",
     points: [],
+    bookmarks: [],
     ...overrides,
   };
 }

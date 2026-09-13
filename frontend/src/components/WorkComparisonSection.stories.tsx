@@ -19,6 +19,7 @@ const GROUPED_WORKS: PerWorkSeries[] = [
     ao3WorkId: 1,
     title: "The Long Way Home",
     fandoms: "Fandom One",
+    bookmarks: [],
     points: [
       {
         capturedOn: "2018-01-01",
@@ -50,6 +51,7 @@ const GROUPED_WORKS: PerWorkSeries[] = [
     ao3WorkId: 2,
     title: "Sideways",
     fandoms: "Fandom One",
+    bookmarks: [],
     points: [
       { capturedOn: "2019-03-01", hits: 40, kudos: 5, comments: 0, bookmarks: 0, subscriptions: 0 },
       {
@@ -66,6 +68,7 @@ const GROUPED_WORKS: PerWorkSeries[] = [
     ao3WorkId: 3,
     title: "Crossover Event",
     fandoms: "Fandom One, Fandom Two",
+    bookmarks: [],
     points: [
       { capturedOn: "2021-01-01", hits: 60, kudos: 8, comments: 0, bookmarks: 0, subscriptions: 0 },
     ],
@@ -74,6 +77,7 @@ const GROUPED_WORKS: PerWorkSeries[] = [
     ao3WorkId: 4,
     title: "A Study in Scarlet",
     fandoms: "Fandom Two",
+    bookmarks: [],
     points: [
       { capturedOn: "2020-01-01", hits: 30, kudos: 4, comments: 0, bookmarks: 0, subscriptions: 0 },
       {
@@ -103,6 +107,7 @@ const ELEVEN_WORKS_SAME_FANDOM: PerWorkSeries[] = Array.from({ length: 11 }, (_,
   ao3WorkId: i + 1,
   title: `Work ${i + 1}`,
   fandoms: "Big Fandom",
+  bookmarks: [],
   points: [
     {
       capturedOn: "2024-01-01",
@@ -155,6 +160,7 @@ const BOOKMARK_SPLIT_WORKS: PerWorkSeries[] = [
     ao3WorkId: 1,
     title: "The Long Way Home",
     fandoms: "Fandom One",
+    bookmarks: [],
     publishedOn: "2018-01-01",
     points: [
       {
@@ -193,6 +199,7 @@ const BOOKMARK_SPLIT_WORKS: PerWorkSeries[] = [
     ao3WorkId: 2,
     title: "Sideways",
     fandoms: "Fandom One",
+    bookmarks: [],
     points: [
       {
         capturedOn: "2019-03-01",
@@ -220,6 +227,7 @@ const BOOKMARK_SPLIT_WORKS: PerWorkSeries[] = [
     ao3WorkId: 3,
     title: "Crossover Event",
     fandoms: "Fandom One, Fandom Two",
+    bookmarks: [],
     points: [
       {
         capturedOn: "2021-01-01",

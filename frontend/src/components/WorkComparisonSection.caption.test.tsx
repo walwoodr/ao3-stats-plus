@@ -23,6 +23,7 @@ function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWor
     fandoms: "",
     points: [],
     publishedOn: null,
+    bookmarks: [],
     ...overrides,
   };
 }

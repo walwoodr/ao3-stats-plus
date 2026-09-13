@@ -8,7 +8,7 @@ import type { PerWorkSeries } from "../queries/useStatsForUser";
 const USERNAME = "testauthor";
 
 function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWorkSeries {
-  return { title: `Work ${overrides.ao3WorkId}`, fandoms: "", points: [], ...overrides };
+  return { title: `Work ${overrides.ao3WorkId}`, fandoms: "", points: [], bookmarks: [], ...overrides };
 }
 
 function renderSection(props: { perWorkSeries: PerWorkSeries[]; earliestPostYear: number | null }) {

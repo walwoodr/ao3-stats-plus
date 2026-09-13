@@ -133,6 +133,7 @@ describe("useStatsForUser", () => {
       fandoms: "",
       points: [],
       publishedOn: "2020-06-01",
+      bookmarks: [],
     };
     const missing: PerWorkSeries = {
       ao3WorkId: 2,
@@ -140,6 +141,7 @@ describe("useStatsForUser", () => {
       fandoms: "",
       points: [],
       publishedOn: null,
+      bookmarks: [],
     };
 
     expect(accurate.publishedOn).toBe("2020-06-01");

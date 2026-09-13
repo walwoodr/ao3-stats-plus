@@ -8,7 +8,7 @@ import type { PerWorkSeries } from "../queries/useStatsForUser";
 // component-level scan pattern already established for TrendChart/
 // RatioChart's stories.
 function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWorkSeries {
-  return { title: `Work ${overrides.ao3WorkId}`, fandoms: "", points: [], ...overrides };
+  return { title: `Work ${overrides.ao3WorkId}`, fandoms: "", points: [], bookmarks: [], ...overrides };
 }
 
 const meta = {

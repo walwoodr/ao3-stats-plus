@@ -17,7 +17,7 @@ import type { PerWorkSeries } from "../queries/useStatsForUser";
 // works correctly under uncontrolled `open` - i.e. removing the bar-specific
 // workaround caused no regression.
 function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWorkSeries {
-  return { title: `Work ${overrides.ao3WorkId}`, fandoms: "", points: [], ...overrides };
+  return { title: `Work ${overrides.ao3WorkId}`, fandoms: "", points: [], bookmarks: [], ...overrides };
 }
 
 const TWO_FANDOM_WORKS: PerWorkSeries[] = [

@@ -28,7 +28,13 @@ function points(...dates: string[]): PerWorkPoint[] {
 }
 
 function work(ao3WorkId: number, capturedOnDates: string[] = []): PerWorkSeries {
-  return { ao3WorkId, title: `Work ${ao3WorkId}`, fandoms: "", points: points(...capturedOnDates) };
+  return {
+    ao3WorkId,
+    title: `Work ${ao3WorkId}`,
+    fandoms: "",
+    points: points(...capturedOnDates),
+    bookmarks: [],
+  };
 }
 
 describe("comparisonSelection: MAX_SELECTED_WORKS", () => {
