@@ -1,9 +1,11 @@
 # Plan: Bookmark notes feed (cross-work aggregated bookmark-notes list)
 
-Status: **FINALIZED — ready for Testing.** All five decisions (D1–D5) are
-resolved by direct user answer (see "Decisions resolved" at the end). Scope,
-data source, componentry reuse, persistence model, the DOMPurify approval, and
-the conditional-glyph rule (D5) are locked and are NOT to be relitigated.
+Status: **FINALIZED — ready for Implementation** (Testing complete for
+T-02–T-10; see D6 for a 2026-09-13 Testing-stage correction). All six decisions
+(D1–D6) are resolved by direct user answer (see "Decisions resolved" at the
+end). Scope, data source, componentry reuse, persistence model, the DOMPurify
+approval, the conditional-glyph rule (D5), and the no-live-announcements rule
+(D6) are locked and are NOT to be relitigated.
 
 Source: Discovery (2026-08 roadmap "Display per-work bookmark notes/comments in
 the UI" deferral) + direct user consultation. The backend/GraphQL already
@@ -183,7 +185,8 @@ BookmarkFeedPage (route)                     new  frontend/src/routes/BookmarkFe
 │    driven by useBookmarkFeedStore (new); empty selection = "no filter, show all"
 │    + "No filter — showing bookmarks from all works" hint when selection empty
 └─ BookmarkFeed                              new  frontend/src/components/BookmarkFeed.tsx
-   ├─ role="status" live region (counts / empty state / page-change announce)
+   ├─ (no own live region — see D6: the feed's content never changes without a
+   │   full page reload, so no announcement is needed)
    ├─ <ul> (current page slice)
    │   └─ BookmarkFeedItem  (× page size)    new  frontend/src/components/BookmarkFeedItem.tsx
    └─ BookmarkFeedPagination (numbered pages + prev/next)  new (or inline in BookmarkFeed)
@@ -422,17 +425,21 @@ onerror=alert(1)>` and a `<script>` tag are neutralized (no `onerror`, no
   the title text is the true identifier).
 - **Pagination a11y:** `<nav aria-label="Bookmark feed pagination">`; page buttons
   are real `<button>`s; current page marked `aria-current="page"`; prev/next carry
-  accessible names and are `disabled` at the bounds. On page change, the
-  `role="status"` live region announces "Page X of Y — showing bookmarks A–B of
-  T," and focus is kept on the activated control unless it just became disabled
-  (reached a bound), in which case focus moves to the still-enabled sibling
-  control (or the list heading). No focus is lost or dumped to `<body>`.
+  accessible names and are `disabled` at the bounds. Focus is kept on the
+  activated control unless it just became disabled (reached a bound), in which
+  case focus moves to the still-enabled sibling control (or the list heading).
+  No focus is lost or dumped to `<body>`. **No live-region announcement on page
+  change (D6)** — visible page-position text (e.g. "Page X of Y") is sufficient;
+  it doesn't need to be pushed via `role="status"` since nothing in the feed
+  changes asynchronously.
 - Focus management: reuse `AppLayout`'s existing route-change focus-to-main
   behavior for arrival on the page.
-- Dynamic content: selection changes, result counts, and page changes are all
-  announced via a single polite `role="status"` region (same one-region
-  convention as `WorkPicker`'s status region — keep it to ONE region on the page
-  to avoid competing announcements).
+- Dynamic content: **`BookmarkFeed` has no live region of its own (D6)** —
+  selection changes, result counts, and page changes are all purely visual, not
+  announced. This is a deliberate departure from `WorkPicker`'s existing status
+  region (which is unaffected and remains in place for picker-specific state);
+  the two are not merged into "one shared region," the feed-side one is simply
+  removed as unnecessary, per the user's D6 answer.
 - Links: note-prose links and the AO3 link are keyboard-focusable with a visible
   `--color-accent` focus ring; external links carry `rel="noopener noreferrer"`.
 - Images inside notes: DOMPurify keeps `alt` if the author wrote one but can't
@@ -521,13 +528,15 @@ Retrospective read scope from.)
   only, no reserved layout gap); **`showGlyph=true` renders the glyph,
   `aria-hidden`**; `<time dateTime>`; AO3 link href + rel/target.
 - **T-07 — `BookmarkFeed` + pagination + tests + stories.** The `<ul>` +
-  `role="status"` + **real pagination** (numbered pages + prev/next, page size 25,
-  client-side slicing) + default all-works vs filtered subset + genuinely-empty
-  state (C1). Tests: empty selection renders all works; subset renders only the
-  subset; newest-first order in DOM; empty-state copy names both ambiguity causes;
-  pagination renders only when >1 page; page buttons/prev-next work, disable at
-  bounds, mark `aria-current`; page change announces "Page X of Y…" and manages
-  focus (C10 clamp + page-1 reset on selection change); **glyph visibility
+  **real pagination** (numbered pages + prev/next, page size 25, client-side
+  slicing, no live-region announcement per D6) + default all-works vs filtered
+  subset + genuinely-empty state (C1). Tests: empty selection renders all works;
+  subset renders only the subset; newest-first order in DOM; empty-state copy
+  names both ambiguity causes; pagination renders only when >1 page; page
+  buttons/prev-next work, disable at bounds, mark `aria-current`; page change
+  updates visible "Page X of Y…" text and manages focus, with **no
+  `role="status"` announcement asserted (D6)** (C10 clamp + page-1 reset on
+  selection change); **glyph visibility
   matches D5 end-to-end** — no filter renders zero `MarkerGlyph`s across the
   whole list, a single-work filter renders zero, a 2–10-work filter renders one
   per row matching each row's owning work.
@@ -631,3 +640,31 @@ All five resolved by direct user answer — no open decisions remain.
   `shouldShowGlyphs` helper (T-04) is the single source of truth for this rule;
   `BookmarkFeedItem` (T-06) takes it as a plain `showGlyph` prop rather than
   re-deriving it, so the rule lives in exactly one place.
+- **D6 — no live-region announcements inside `BookmarkFeed` at all (confirmed
+  2026-09-13, direct user instruction, raised as a Testing-stage ambiguity
+  after D1–D5 were already locked).** The Accessibility section above (and the
+  component-tree diagram) conflict with each other: the diagram shows
+  `BookmarkFeed` owning its own `role="status"` region, while the prose says to
+  keep announcements to "ONE region on the page" shared with `WorkPicker`'s
+  existing status region. Testing-stage resolved this ambiguity as two
+  separate, purpose-scoped regions pending Review. The user's answer settles
+  it more strongly than either reading: **`BookmarkFeed` should not announce
+  anything at all** — no page-change announcement ("Page X of Y — showing
+  bookmarks A–B of T"), no selection/count-change announcement. Reasoning
+  (user's words): "bookmark feed shouldn't ever require an announcement, as
+  there isn't an actual 'feed' — the data won't update on page unless the user
+  has re-scraped their stats page, which will require a full refresh and
+  re-render." Concretely: the `role="status"` live region shown in the
+  component tree (line ~186) and the pagination-announce/selection-announce
+  behavior described in the Accessibility section (lines ~423–435) are
+  **removed from scope**. `BookmarkFeedPage`'s token/loading/error state
+  machine (mirrors `DashboardPage`, T-08) is unaffected and keeps its own
+  status handling — that covers a real async state (the initial GraphQL
+  fetch), not the static-once-loaded feed content this decision is about.
+  `WorkPicker`'s pre-existing status region is likewise unaffected. Pagination
+  UI (numbered pages + prev/next, `aria-current="page"`, focus management on
+  bound-disable) is unchanged — only the live-announcement behavior is
+  dropped. Testing-stage test files written before this decision
+  (`BookmarkFeed.test.tsx`, `BookmarkFeed.pagination.test.tsx`,
+  `BookmarkFeedPage.test.tsx`) need a follow-up commit removing the
+  now-incorrect status-announcement assertions.
