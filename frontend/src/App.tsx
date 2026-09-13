@@ -4,6 +4,7 @@ import { AppLayout } from "./components/AppLayout";
 import { LandingPage } from "./routes/LandingPage";
 import { InstallPage } from "./routes/InstallPage";
 import { DashboardPage } from "./routes/DashboardPage";
+import { BookmarkFeedPage } from "./routes/BookmarkFeedPage";
 
 // statsForUser errors (unknown username, mismatched token) are
 // authorization failures, not transient network blips - retrying them can
@@ -23,6 +24,7 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/install" element={<InstallPage />} />
             <Route path="/u/:username" element={<DashboardPage />} />
+            <Route path="/u/:username/bookmarks" element={<BookmarkFeedPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
