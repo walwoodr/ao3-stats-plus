@@ -888,3 +888,58 @@
   parity, per this project's existing axe-scan discipline); and whether the
   table should be virtualized/paginated for long time series or just
   horizontally scrollable as stated.
+- [2026-09-13] (stage: Implementation) **Deferred exact-bookmark permalink**
+  (docs/plans/bookmark-notes-feed.md, Decision D4). AO3's bookmark markup
+  carries a per-bookmark `id="bookmark_NNNN"` (EXTERNAL-UNVERIFIED - see
+  `scrapeWorkBookmarks.ts`'s header comment), which would let a bookmark
+  row deep-link straight to `https://archiveofourown.org/bookmarks/:id`
+  instead of today's per-work bookmarks-page link. Not implemented: this is
+  a 5-layer change (scraper parse -> `work_bookmarks` migration -> ingest ->
+  `WorkBookmarkType` -> frontend query) that exceeds this plan's confirmed
+  "frontend query extension only" scope, and depends on unverified live-AO3
+  markup. Future path if picked up: parse `li[id^="bookmark_"]` in
+  `scrapeWorkBookmarks.ts`, store `ao3_bookmark_id` on `work_bookmarks`,
+  expose it on `WorkBookmarkType`, select it in `STATS_FOR_USER_QUERY`, link
+  `/bookmarks/:id` from `BookmarkFeedItem`.
+- [2026-09-13] (stage: Implementation) **`workPageCapturedAt` not exposed on
+  `PerWorkSeriesType`** (docs/plans/bookmark-notes-feed.md, Corner case C1).
+  An empty `bookmarks` list is ambiguous between "genuinely no public
+  bookmarks" and "Phase-2 enrichment never ran for this work" - the feed's
+  empty-state copy names both possibilities rather than guessing. Exposing
+  this field (backend already has it) would let a future version say "not
+  captured yet" vs "no bookmarks" precisely, in `BookmarkFeed.tsx`'s
+  genuinely-empty message.
+- [2026-09-13] (stage: Implementation) **Potential separate bookmark-feed-
+  only GraphQL query** (docs/plans/bookmark-notes-feed.md §2). Extending the
+  shared `statsForUser`/`STATS_FOR_USER_QUERY` with `bookmarks {...}` means
+  `DashboardPage` now fetches bookmark HTML it never renders - a potentially
+  large payload for heavily-bookmarked authors. Chosen deliberately for the
+  free cross-page React Query cache sharing (dashboard<->feed navigation
+  needs no second fetch); watch real payload sizes, and split to a separate
+  `perWorkSeries { ao3WorkId title fandoms bookmarks {...} }` (no `points`)
+  query fetched only on `/u/:username/bookmarks` if it becomes a real
+  problem.
+- [2026-09-13] (stage: Implementation) **Potential shared token/loading/
+  error scaffold** (docs/plans/bookmark-notes-feed.md §3 "States").
+  `BookmarkFeedPage.tsx` duplicates `DashboardPage.tsx`'s token/loading/
+  error state machine (mismatch-vs-network `messageForStatsError` split,
+  manual-entry form, loading `role="status"`) nearly verbatim rather than
+  sharing it, per the plan's explicit "recommend a small shared wrapper/hook
+  later... rather than a refactor now." A future pass could extract a
+  `useStatsPageState`-style hook or a `<StatsGatedPage>` wrapper component
+  once a third page needs the same machinery, rather than before.
+- [2026-09-13] (stage: Implementation) **`sanitizeHtml.ts` marks alt-less
+  `<img>` elements decorative (`alt=""`)** - a deviation from
+  docs/plans/bookmark-notes-feed.md §6's literal "DOMPurify keeps `alt` if
+  the author wrote one but can't invent one... documented limitation, not a
+  regression we can fix from here" wording, discovered while making T-10's
+  e2e axe suite (`tests/bookmarkFeed.accessibility.spec.ts`) pass against a
+  real browser - a bare `<img src="x">` (surviving sanitization per T-02's
+  own "keeps `<img>`, drops `onerror`" requirement) trips axe's mandatory
+  `image-alt` rule on whichever page state renders it. The fix adds
+  `alt=""` only when no `alt` is already present - this marks the image as
+  decorative (a standard, WCAG-compliant practice for content we genuinely
+  can't describe), not "invented" descriptive text, so it doesn't contradict
+  the plan's actual concern (fabricating a false description). Flagged here
+  for Review to confirm this reading of the plan's intent is acceptable
+  rather than a scope overreach.

@@ -1,9 +1,15 @@
 # Plan: Bookmark notes feed (cross-work aggregated bookmark-notes list)
 
-Status: **FINALIZED — ready for Testing.** All five decisions (D1–D5) are
-resolved by direct user answer (see "Decisions resolved" at the end). Scope,
-data source, componentry reuse, persistence model, the DOMPurify approval, and
-the conditional-glyph rule (D5) are locked and are NOT to be relitigated.
+Status: **IMPLEMENTED (2026-09-13) — Testing and Implementation stages
+complete, all task-list items (T-01–T-11) green, handed off to Review.** All
+five decisions (D1–D5) are resolved by direct user answer (see "Decisions
+resolved" at the end). Scope, data source, componentry reuse, persistence
+model, the DOMPurify approval, and the conditional-glyph rule (D5) were
+locked and were NOT relitigated during Implementation. One narrow,
+documented deviation surfaced during Implementation (T-10): `sanitizeHtml.ts`
+marks alt-less note images decorative (`alt=""`) to satisfy the e2e axe
+suite - see TECH_DEBT.md, 2026-09-13, for the reasoning and a flag for
+Review.
 
 Source: Discovery (2026-08 roadmap "Display per-work bookmark notes/comments in
 the UI" deferral) + direct user consultation. The backend/GraphQL already
