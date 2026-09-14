@@ -25,7 +25,7 @@ const EMPTY_STATE_MESSAGE =
   "are never shown.";
 
 const PAGE_BUTTON_CLASSES =
-  "rounded-md border border-ink/15 px-3 py-1 text-sm text-ink transition-colors duration-200 hover:border-ink/30 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40";
+  "rounded-md border border-ink/12 px-3 py-1 text-sm text-ink transition-colors duration-200 hover:border-ink/24 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40";
 
 // Composes bookmarkFeed.ts's pure pipeline (resolve displayed works ->
 // flatten -> drop-empty -> sort -> paginate, plus Decision D5's glyph-
