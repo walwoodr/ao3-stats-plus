@@ -125,7 +125,14 @@ export const BOOKMARK_FEED_STATS_RESPONSE = {
           bookmarks: Array.from({ length: 30 }, (_, i) =>
             syntheticBookmark({
               bookmarkerName: `Reader ${i + 1}`,
-              bookmarkedOn: `2026-01-${String((i % 28) + 1).padStart(2, "0")}`,
+              // The XSS-payload row (i === 0) gets a date newer than every
+              // other row across all three works (see below), so it's
+              // guaranteed to sort onto page 1 of the default, unfiltered
+              // newest-first feed without any pagination - required by
+              // T-10's "does not execute" e2e check, which asserts
+              // visibility without navigating.
+              bookmarkedOn:
+                i === 0 ? "2026-03-15" : `2026-01-${String((i % 28) + 1).padStart(2, "0")}`,
               // A seeded XSS payload on one row, per T-10's "a seeded XSS
               // payload does not execute (no dialog/altered DOM)" e2e check.
               noteHtml:
