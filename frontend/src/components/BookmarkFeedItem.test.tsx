@@ -125,14 +125,24 @@ describe("BookmarkFeedItem", () => {
   describe("conditional glyph (Decision D5)", () => {
     it("renders no MarkerGlyph element at all when showGlyph is false (title only, no reserved gap)", () => {
       const { container } = render(
-        <BookmarkFeedItem {...BASE_PROPS} showGlyph={false} glyphShape="circle" glyphColor="#123456" />,
+        <BookmarkFeedItem
+          {...BASE_PROPS}
+          showGlyph={false}
+          glyphShape="circle"
+          glyphColor="#123456"
+        />,
       );
       expect(container.querySelector('svg[aria-hidden="true"]')).not.toBeInTheDocument();
     });
 
     it("renders the glyph, aria-hidden, when showGlyph is true", () => {
       const { container } = render(
-        <BookmarkFeedItem {...BASE_PROPS} showGlyph={true} glyphShape="circle" glyphColor="#123456" />,
+        <BookmarkFeedItem
+          {...BASE_PROPS}
+          showGlyph={true}
+          glyphShape="circle"
+          glyphColor="#123456"
+        />,
       );
       const glyph = container.querySelector("svg");
       expect(glyph).toBeInTheDocument();
@@ -143,7 +153,12 @@ describe("BookmarkFeedItem", () => {
     // in every state - the glyph never carries meaning on its own.
     it("still renders the title as plain accessible text when the glyph is shown", () => {
       render(
-        <BookmarkFeedItem {...BASE_PROPS} showGlyph={true} glyphShape="circle" glyphColor="#123456" />,
+        <BookmarkFeedItem
+          {...BASE_PROPS}
+          showGlyph={true}
+          glyphShape="circle"
+          glyphColor="#123456"
+        />,
       );
       expect(screen.getByText("The Long Way Home")).toBeInTheDocument();
     });

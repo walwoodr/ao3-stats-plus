@@ -203,7 +203,8 @@ describe("useStatsForUser", () => {
     renderWithClient("someauthor", "tok_valid");
 
     const [query] = vi.mocked(graphqlClient.request).mock.calls[0];
-    const perWorkSeriesBlock = String(query).match(/perWorkSeries\s*{([^}]*bookmarks[^}]*})/s)?.[0] ?? "";
+    const perWorkSeriesBlock =
+      String(query).match(/perWorkSeries\s*{([^}]*bookmarks[^}]*})/s)?.[0] ?? "";
     const bookmarksBlock = perWorkSeriesBlock.match(/bookmarks\s*{([^}]*)}/s)?.[1] ?? "";
     expect(bookmarksBlock).toMatch(/\bbookmarkerName\b/);
     expect(bookmarksBlock).toMatch(/\bnoteHtml\b/);

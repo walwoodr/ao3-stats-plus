@@ -111,7 +111,8 @@ export function BookmarkFeed({ perWorkSeries, selectedWorkIds }: BookmarkFeedPro
       <ul className="flex flex-col gap-4">
         {paginated.items.map((row, index) => {
           const styleIndex = glyphAssignment?.get(row.workId);
-          const glyphShape = styleIndex !== undefined ? SERIES_STYLE_SLOTS[styleIndex].shape : undefined;
+          const glyphShape =
+            styleIndex !== undefined ? SERIES_STYLE_SLOTS[styleIndex].shape : undefined;
           const glyphColor = styleIndex !== undefined ? colors.series[styleIndex] : undefined;
           return (
             <BookmarkFeedItem

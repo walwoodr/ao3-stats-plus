@@ -148,7 +148,9 @@ export const BOOKMARK_FEED_STATS_RESPONSE = {
           fandoms: "Fandom Two",
           publishedOn: null,
           points: [],
-          bookmarks: [syntheticBookmark({ bookmarkerName: "Reader Q", bookmarkedOn: "2026-02-01" })],
+          bookmarks: [
+            syntheticBookmark({ bookmarkerName: "Reader Q", bookmarkedOn: "2026-02-01" }),
+          ],
         },
         {
           ao3WorkId: 203,

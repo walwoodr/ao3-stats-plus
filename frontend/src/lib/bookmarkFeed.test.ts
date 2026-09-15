@@ -214,10 +214,7 @@ describe("sortRowsNewestFirst (newest bookmarkedOn first; undated last, stable w
   });
 
   it("preserves original relative order (stable sort) among undated rows", () => {
-    const rows = [
-      row({ workId: 1, bookmarkedOn: null }),
-      row({ workId: 2, bookmarkedOn: null }),
-    ];
+    const rows = [row({ workId: 1, bookmarkedOn: null }), row({ workId: 2, bookmarkedOn: null })];
 
     const sorted = sortRowsNewestFirst(rows);
 
@@ -225,7 +222,10 @@ describe("sortRowsNewestFirst (newest bookmarkedOn first; undated last, stable w
   });
 
   it("does not mutate the input array", () => {
-    const rows = [row({ workId: 1, bookmarkedOn: "2026-01-01" }), row({ workId: 2, bookmarkedOn: "2026-03-01" })];
+    const rows = [
+      row({ workId: 1, bookmarkedOn: "2026-01-01" }),
+      row({ workId: 2, bookmarkedOn: "2026-03-01" }),
+    ];
     const original = [...rows];
 
     sortRowsNewestFirst(rows);

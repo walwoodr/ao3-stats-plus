@@ -138,9 +138,7 @@ export function BookmarkFeedPage() {
               onChange={(nextSelectedWorkIds) => setSelectionInStore(username, nextSelectedWorkIds)}
             />
             {reconciledSelectedWorkIds.length === 0 && (
-              <p className="text-sm text-ink-soft">
-                No filter — showing bookmarks from all works.
-              </p>
+              <p className="text-sm text-ink-soft">No filter — showing bookmarks from all works.</p>
             )}
           </div>
 

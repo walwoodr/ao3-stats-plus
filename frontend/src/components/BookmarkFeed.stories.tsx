@@ -40,9 +40,21 @@ function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWor
 }
 
 const THREE_WORKS: PerWorkSeries[] = [
-  work({ ao3WorkId: 1, title: "The Long Way Home", bookmarks: [bookmark({ bookmarkerName: "Alice" })] }),
-  work({ ao3WorkId: 2, title: "Sideways", bookmarks: [bookmark({ bookmarkerName: "Bob", bookmarkedOn: "2026-02-01" })] }),
-  work({ ao3WorkId: 3, title: "Crossover Event", bookmarks: [bookmark({ bookmarkerName: "Cara", bookmarkedOn: "2026-03-01" })] }),
+  work({
+    ao3WorkId: 1,
+    title: "The Long Way Home",
+    bookmarks: [bookmark({ bookmarkerName: "Alice" })],
+  }),
+  work({
+    ao3WorkId: 2,
+    title: "Sideways",
+    bookmarks: [bookmark({ bookmarkerName: "Bob", bookmarkedOn: "2026-02-01" })],
+  }),
+  work({
+    ao3WorkId: 3,
+    title: "Crossover Event",
+    bookmarks: [bookmark({ bookmarkerName: "Cara", bookmarkedOn: "2026-03-01" })],
+  }),
 ];
 
 export const UnfilteredAllWorksLight: Story = {

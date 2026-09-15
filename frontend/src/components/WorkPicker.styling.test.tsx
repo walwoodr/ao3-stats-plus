@@ -18,7 +18,13 @@ import type { PerWorkSeries } from "../queries/useStatsForUser";
 // color for every assertion below - useChartColors.test.ts covers the
 // dark-mode branch of the hook itself, not re-verified per-component here.
 function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWorkSeries {
-  return { title: `Work ${overrides.ao3WorkId}`, fandoms: "", points: [], bookmarks: [], ...overrides };
+  return {
+    title: `Work ${overrides.ao3WorkId}`,
+    fandoms: "",
+    points: [],
+    bookmarks: [],
+    ...overrides,
+  };
 }
 
 const TWO_FANDOM_WORKS: PerWorkSeries[] = [

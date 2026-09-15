@@ -975,3 +975,27 @@
   the nav. Fine at typical scale (hundreds of bookmarks -> <20 pages). Consider
   a windowed/ellipsis pattern (first/last + neighbors of current) if real
   accounts approach that size.
+- [2026-09-14] (stage: Deployment) **Process gap, now fixed for this batch, not
+  yet fixed structurally.** The bookmark-notes-feed Testing/Implementation
+  cycle committed 9 new/edited frontend files that were never run through
+  Prettier, discovered only when GitHub Actions CI's `frontend-lint-and-unit`
+  job failed its Prettier check post-deploy. `CODE_STANDARDS.md`'s Enforcement
+  section only wires the pre-commit hook to check ESLint (`.ts`/`.tsx`/`.js`/
+  `.jsx`) and RuboCop (`.rb`) on staged files - Prettier is named in the Code
+  standards section ("ESLint + Prettier must pass") but never actually gated
+  at commit time, so formatting drift accumulates silently until something
+  else (a CI run, a manual check) surfaces it. This is the same failure mode
+  as at least two prior incidents (see the 2026-08-XX `style: apply prettier
+  formatting to ...` commits in git log) - a recurring pattern, not a one-off.
+  Fixed for this batch: ran `npx prettier --write .` across `frontend/`,
+  landing 21 files' formatting (9 from this cycle + 12 pre-existing,
+  unrelated-to-this-feature drift in `WorkComparisonSection.*`/`WorkPicker.*`
+  test files, swept up in the same pass since CI's check runs repo-wide, not
+  scoped to changed files). Verified clean after: `npx prettier --check .`
+  zero issues, `npx eslint .` clean (one pre-existing unrelated
+  `MultiSeriesTrendChart.tsx` warning), `npx vitest run` 915/915. **Not fixed
+  structurally**: the pre-commit hook still doesn't check Prettier, so this
+  will recur. Fix: add a Prettier `--check` step to the guardrail hook
+  alongside the existing ESLint/RuboCop checks (see `~/.claude/CODE_STANDARDS.md`
+  Enforcement section - this would need a matching update there, since it's a
+  global spec, not project-local).

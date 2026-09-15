@@ -60,9 +60,7 @@ export const NoteLessButTaggedDark: Story = {
 };
 
 const LONG_NOTE_HTML =
-  "<p>" +
-  "This story genuinely wrecked me in the best possible way. ".repeat(20) +
-  "</p>";
+  "<p>" + "This story genuinely wrecked me in the best possible way. ".repeat(20) + "</p>";
 
 export const LongNoteLight: Story = {
   args: { ...BASE_ARGS, noteHtml: LONG_NOTE_HTML },
@@ -90,10 +88,20 @@ export const XssPayloadDark: Story = {
 };
 
 export const WithGlyphLight: Story = {
-  args: { ...BASE_ARGS, showGlyph: true, glyphShape: "circle", glyphColor: LIGHT_COLOR_TOKENS.series[0] },
+  args: {
+    ...BASE_ARGS,
+    showGlyph: true,
+    glyphShape: "circle",
+    glyphColor: LIGHT_COLOR_TOKENS.series[0],
+  },
 };
 
 export const WithGlyphDark: Story = {
-  args: { ...BASE_ARGS, showGlyph: true, glyphShape: "circle", glyphColor: DARK_COLOR_TOKENS.series[0] },
+  args: {
+    ...BASE_ARGS,
+    showGlyph: true,
+    glyphShape: "circle",
+    glyphColor: DARK_COLOR_TOKENS.series[0],
+  },
   parameters: { backgrounds: { default: "dark" } },
 };

@@ -20,7 +20,9 @@ test.describe("bookmark notes feed - keyboard nav, focus order, ARIA", () => {
 
     await page.getByRole("link", { name: /bookmarks/i }).click();
     await expect(page).toHaveURL(/\/u\/testauthor\/bookmarks$/);
-    await expect(page.getByRole("heading", { name: /testauthor.?s bookmark notes/i })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /testauthor.?s bookmark notes/i }),
+    ).toBeVisible();
 
     await page.getByRole("link", { name: /dashboard/i }).click();
     await expect(page).toHaveURL(/\/u\/testauthor$/);
