@@ -999,3 +999,13 @@
   alongside the existing ESLint/RuboCop checks (see `~/.claude/CODE_STANDARDS.md`
   Enforcement section - this would need a matching update there, since it's a
   global spec, not project-local).
+- [2026-09-15] (stage: Review) `frontend/src/lib/bookmarkFeed.test.ts` crossed
+  CODE_STANDARDS.md's 400-line `.ts` budget in commit `50781d8` (396 -> 474
+  lines), pushed over by the legitimate `parseCommaList`/bare-bookmark
+  regression describe block added there (real added coverage, not fixture
+  churn). Not blocking the bookmark-feed hotfix; same "over-budget spec file,
+  split by describe-block group" shape already handled twice in this project
+  (`fanOut.test.ts`, `banners.test.ts`). Reasonable future split: separate the
+  `flattenWorksToRows`/comma-joined-string cases from the sort/drop/paginate/
+  glyph cases into sibling spec files. Deferred: no behavior impact, and
+  splitting is out of scope for a targeted production bug fix.
