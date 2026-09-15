@@ -6,6 +6,7 @@ import {
   dropEmptyRows,
   flattenWorksToRows,
   paginate,
+  reconcileSelectedWorkIds,
   resolveDisplayedWorks,
   shouldShowGlyphs,
   sortRowsNewestFirst,
@@ -59,7 +60,15 @@ export function BookmarkFeed({ perWorkSeries, selectedWorkIds }: BookmarkFeedPro
     [displayedWorks],
   );
 
-  const filterWidth = selectedWorkIds.length === 0 ? 0 : displayedWorks.length;
+  // Decision D5's glyph-width input: the RECONCILED filter width, not raw
+  // selectedWorkIds.length or displayedWorks.length. This is 0 both for a
+  // literally empty selection and a fully-stale one (C9/D1 - both mean "no
+  // active filter," so glyphs must stay off for either), while a partial-
+  // stale selection still correctly sizes to its surviving ids.
+  const filterWidth = useMemo(
+    () => reconcileSelectedWorkIds(perWorkSeries, selectedWorkIds).length,
+    [perWorkSeries, selectedWorkIds],
+  );
   const showGlyphs = shouldShowGlyphs(filterWidth);
   const glyphAssignment = useMemo(
     () => (showGlyphs ? buildGlyphStyleAssignment(displayedWorks.map((w) => w.ao3WorkId)) : null),

@@ -22,16 +22,37 @@ export interface BookmarkFeedRow {
   ao3WorkBookmarksUrl: string;
 }
 
-// D1: empty selectedWorkIds means "no filter, show ALL works" - a
-// deliberate departure from useWorkComparisonStore's empty-means-fallback
-// convention (see plan §Decisions D1). C9: stale ids (works no longer in
-// perWorkSeries) are silently filtered out, never errored.
+// C9/D1 (Review-flagged fix, 2026-09-14): filters selectedWorkIds down to
+// ids that still exist in `works`. Returns [] both for a literally empty
+// selection AND for a non-empty-but-fully-stale one (every id references a
+// work no longer present, e.g. deleted/renamed since) - the two are
+// deliberately indistinguishable downstream, per C9's own wording ("an
+// empty result stays empty and is interpreted downstream as 'no filter -
+// show all works'"). This is the single source of truth for "is a filter
+// genuinely active," used both to resolve which works display and to size
+// Decision D5's glyph-visibility rule - a partial-stale selection (e.g.
+// [2, 999] where only 2 still exists) still reconciles to a real, non-empty
+// filter ([2]), correctly staying distinct from the fully-stale case.
+export function reconcileSelectedWorkIds(
+  works: PerWorkSeries[],
+  selectedWorkIds: number[],
+): number[] {
+  if (selectedWorkIds.length === 0) return [];
+  const available = new Set(works.map((w) => w.ao3WorkId));
+  return selectedWorkIds.filter((id) => available.has(id));
+}
+
+// D1: empty (or fully-stale, C9) selectedWorkIds means "no filter, show ALL
+// works" - a deliberate departure from useWorkComparisonStore's empty-
+// means-fallback-to-first-work convention (see plan §Decisions D1); this
+// feed's fallback target is always "all works," never "first work."
 export function resolveDisplayedWorks(
   works: PerWorkSeries[],
   selectedWorkIds: number[],
 ): PerWorkSeries[] {
-  if (selectedWorkIds.length === 0) return works;
-  const selected = new Set(selectedWorkIds);
+  const reconciled = reconcileSelectedWorkIds(works, selectedWorkIds);
+  if (reconciled.length === 0) return works;
+  const selected = new Set(reconciled);
   return works.filter((w) => selected.has(w.ao3WorkId));
 }
 

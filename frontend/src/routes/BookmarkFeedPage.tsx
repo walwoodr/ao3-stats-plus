@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { ClientError } from "graphql-request";
 import { useTokenFromUrl } from "../store/useTokenFromUrl";
 import { useTokenStore } from "../store/useTokenStore";
 import { useBookmarkFeedStore } from "../store/useBookmarkFeedStore";
-import { useStatsForUser } from "../queries/useStatsForUser";
+import { useStatsForUser, type PerWorkSeries } from "../queries/useStatsForUser";
+import { reconcileSelectedWorkIds } from "../lib/bookmarkFeed";
 import { TokenEntryForm } from "../components/TokenEntryForm";
 import { WorkPicker } from "../components/WorkPicker";
 import { BookmarkFeed } from "../components/BookmarkFeed";
@@ -27,6 +28,12 @@ function messageForStatsError(error: Error): string {
   return error instanceof ClientError ? TOKEN_MISMATCH_MESSAGE : NETWORK_ERROR_MESSAGE;
 }
 
+// Referenced by identity (not a fresh `[]` literal inline) so `perWorkSeries`
+// stays referentially stable across renders while `data` is still loading -
+// otherwise the useMemo below would recompute on every render regardless of
+// whether the underlying selection actually changed.
+const EMPTY_PER_WORK_SERIES: PerWorkSeries[] = [];
+
 export function BookmarkFeedPage() {
   const { username = "" } = useParams<{ username: string }>();
   const token = useTokenFromUrl(username);
@@ -36,6 +43,18 @@ export function BookmarkFeedPage() {
 
   const setSelectionInStore = useBookmarkFeedStore((state) => state.setSelection);
   const selectedWorkIds = useBookmarkFeedStore((state) => state.getSelection(username));
+  // Computed above any early return (rules-of-hooks: `data` is already
+  // available - possibly undefined pre-load - regardless of loading/error
+  // state) so the "no filter" hint's gate (below) can use the SAME
+  // effectively-no-filter signal as BookmarkFeed itself: a fully-stale
+  // persisted selection (C9/D1, Review-flagged 2026-09-14) reconciles to []
+  // identically to a genuinely empty one, while a partial-stale selection
+  // still correctly reconciles to a real, non-empty filter.
+  const perWorkSeries = data?.statsForUser.perWorkSeries ?? EMPTY_PER_WORK_SERIES;
+  const reconciledSelectedWorkIds = useMemo(
+    () => reconcileSelectedWorkIds(perWorkSeries, selectedWorkIds),
+    [perWorkSeries, selectedWorkIds],
+  );
 
   // Same "adjust during render" pattern DashboardPage uses for its own
   // mismatch message, so clearing the token doesn't also erase the error
@@ -102,8 +121,6 @@ export function BookmarkFeedPage() {
     );
   }
 
-  const perWorkSeries = data?.statsForUser.perWorkSeries ?? [];
-
   return (
     <div className="mx-auto max-w-4xl p-8">
       <h1 className="font-display text-2xl font-semibold text-ink">
@@ -120,7 +137,7 @@ export function BookmarkFeedPage() {
               selectedWorkIds={selectedWorkIds}
               onChange={(nextSelectedWorkIds) => setSelectionInStore(username, nextSelectedWorkIds)}
             />
-            {selectedWorkIds.length === 0 && (
+            {reconciledSelectedWorkIds.length === 0 && (
               <p className="text-sm text-ink-soft">
                 No filter — showing bookmarks from all works.
               </p>
