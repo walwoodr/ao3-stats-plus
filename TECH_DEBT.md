@@ -943,3 +943,35 @@
   the plan's actual concern (fabricating a false description). Flagged here
   for Review to confirm this reading of the plan's intent is acceptable
   rather than a scope overreach.
+- [2026-09-14] (stage: Review) **DOMPurify default config permits interactive
+  form elements in bookmark notes** (docs/plans/bookmark-notes-feed.md §6,
+  `frontend/src/lib/sanitizeHtml.ts`). Independent re-verification of the seam
+  against 14 XSS vectors confirmed all scripting is neutralized (script tags,
+  `onerror`/`onload`/`onmouseover`, `javascript:` hrefs incl. mixed-case,
+  `<iframe>`, data-URI `<img>`, `<svg onload>`, mXSS obfuscation, `<style>` all
+  stripped) - the load-bearing XSS surface is sound. However, DOMPurify's
+  default profile still permits `<form>`/`<input>`/`<button>`/`<textarea>` to
+  survive. A malicious bookmarker on the author's work could embed a phishing
+  form (e.g. a fake login posting to an external URL) that renders in the
+  author's own feed. No JS execution, single bounded victim (the author viewing
+  their own works' bookmarks), so low severity - but consider tightening with
+  `FORBID_TAGS: ['form','input','button','textarea','select']` (or an explicit
+  `ALLOWED_TAGS` prose allowlist) since AO3 bookmark notes are prose, not forms.
+- [2026-09-14] (stage: Review) **Rendered bookmark-note `<img>` tags load
+  remote resources on view** (`frontend/src/lib/sanitizeHtml.ts`,
+  `BookmarkFeedItem.tsx`). DOMPurify keeps `<img src="https://...">` (correct
+  for rich rendering, and the alt-less-decorative `alt=""` handling is sound -
+  verified it never overwrites an author-provided alt). Side effect: when the
+  author opens the feed, any remote image URL a bookmarker embedded is fetched,
+  leaking the author's IP/User-Agent/timing to a bookmarker-controlled host
+  (tracking-pixel pattern). Inherent to the approved rich-HTML rendering; low
+  concern at personal-tool scale. Candidate hardening if it ever matters: a
+  referrer-policy/`loading=lazy` pass, or proxying/stripping remote image src.
+- [2026-09-14] (stage: Review) **Pagination renders every page-number button
+  with no windowing** (`frontend/src/components/BookmarkFeed.tsx`, ~line 140:
+  `Array.from({ length: totalPages })`). At the plan's own stated worst case
+  (§2: "low thousands of rows") this produces ~40-80+ numbered buttons in a
+  single `<nav>` - visually noisy and verbose for screen-reader users tabbing
+  the nav. Fine at typical scale (hundreds of bookmarks -> <20 pages). Consider
+  a windowed/ellipsis pattern (first/last + neighbors of current) if real
+  accounts approach that size.
