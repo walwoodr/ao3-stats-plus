@@ -59,6 +59,33 @@ describe("BookmarkFeed", () => {
       expect(screen.queryByText("Alice")).not.toBeInTheDocument();
       expect(screen.getByText("Bob")).toBeInTheDocument();
     });
+
+    // Review-flagged regression (C9/D1, 2026-09-14): a persisted selection
+    // that no longer matches ANY currently-displayed work (e.g. the
+    // selected works were deleted/renamed since) must fall back to "no
+    // filter, show all" identically to a genuinely empty selection - not
+    // resolve to zero displayed works/the genuinely-empty state. Also
+    // asserts the knock-on glyph consequence in the same test (rather than
+    // a separate one that would pass vacuously today, since the row-level
+    // bug alone already yields zero rows/zero glyphs): once
+    // resolveDisplayedWorks is fixed to fall back to all works here, this
+    // component's own glyph-width computation must ALSO treat the fully-
+    // stale case as "no active filter," or it would wrongly show glyphs for
+    // what D1/D5 both treat as the unfiltered default.
+    it("renders bookmarks from every work, with zero glyphs, when selectedWorkIds is non-empty but every id is stale (C9/D1)", () => {
+      const works = [
+        work({ ao3WorkId: 1, bookmarks: [bookmark({ bookmarkerName: "Alice" })] }),
+        work({ ao3WorkId: 2, bookmarks: [bookmark({ bookmarkerName: "Bob" })] }),
+      ];
+
+      const { container } = render(
+        <BookmarkFeed perWorkSeries={works} selectedWorkIds={[9998, 9999]} />,
+      );
+
+      expect(screen.getByText("Alice")).toBeInTheDocument();
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+      expect(container.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(0);
+    });
   });
 
   describe("sort order (newest bookmarkedOn first, as a flat cross-work list)", () => {

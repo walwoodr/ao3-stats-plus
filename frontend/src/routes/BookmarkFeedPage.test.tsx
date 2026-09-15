@@ -184,6 +184,27 @@ describe("BookmarkFeedPage", () => {
       expect(screen.getByText("Bob")).toBeInTheDocument();
     });
 
+    // Review-flagged regression (C9/D1, 2026-09-14): C9 says a stale
+    // persisted selection is "interpreted downstream as 'no filter - show
+    // all works'" - the SAME as a genuinely empty one - once every selected
+    // id is reconciled away. That must include the hint text and the
+    // visible feed content, not just the pure resolveDisplayedWorks helper -
+    // otherwise the picker shows no chips (correct) with no explanation
+    // (the hint stays hidden today because it strictly gates on
+    // `selectedWorkIds.length === 0`, which is false for a non-empty-but-
+    // fully-stale array), a confusing combined UX gap.
+    it("shows the 'no filter' hint and all works' bookmarks when the persisted selection is non-empty but fully stale (C9/D1)", () => {
+      useBookmarkFeedStore.getState().setSelection("someauthor", [9998, 9999]);
+      vi.mocked(useTokenFromUrl).mockReturnValue("tok_valid");
+      mockStats({ data: TWO_WORKS_RESPONSE });
+
+      renderPage();
+
+      expect(screen.getByText(/no filter.*showing bookmarks from all works/i)).toBeInTheDocument();
+      expect(screen.getByText("Alice")).toBeInTheDocument();
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
     it("renders the page footnote disclaimers", () => {
       vi.mocked(useTokenFromUrl).mockReturnValue("tok_valid");
       mockStats({ data: TWO_WORKS_RESPONSE });

@@ -62,6 +62,25 @@ describe("resolveDisplayedWorks (D1: empty selection means 'no filter, show all'
     expect(result.map((w) => w.ao3WorkId)).toEqual([2]);
   });
 
+  // Review-flagged fix (2026-09-14, confirmed by code read against
+  // frontend/src/lib/bookmarkFeed.ts): a persisted selectedWorkIds that is
+  // non-empty but references ONLY stale ids (none still exist in
+  // perWorkSeries - e.g. the selected works were deleted/renamed) must fall
+  // back to "no filter, show all works" identically to a genuinely empty
+  // selection (C9: "Reconcile by filtering to still-existing ids only ...
+  // An empty result stays empty and is interpreted downstream as 'no
+  // filter - show all works.'"). Previously this resolved to zero displayed
+  // works instead, which downstream renders as the genuinely-empty state
+  // rather than D1's unfiltered default - a real bug, not a hypothetical.
+  it("falls back to ALL works when selectedWorkIds is non-empty but every id is stale (C9/D1: fully-stale selection is NOT the same as 'zero works selected')", () => {
+    const result = resolveDisplayedWorks(works, [998, 999]);
+
+    expect(result).toEqual(works);
+    // Same rows, same order as the genuinely-empty-selection case - the two
+    // inputs must be indistinguishable downstream.
+    expect(result).toEqual(resolveDisplayedWorks(works, []));
+  });
+
   it("does not cap the unfiltered default even past 10 works (C2)", () => {
     const manyWorks = Array.from({ length: 12 }, (_, i) => work({ ao3WorkId: i + 1 }));
     expect(resolveDisplayedWorks(manyWorks, [])).toHaveLength(12);
