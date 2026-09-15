@@ -17,9 +17,9 @@ function bookmark(overrides: Partial<WorkBookmark> = {}): WorkBookmark {
   return {
     bookmarkerName: "reader",
     noteHtml: "<p>Loved it</p>",
-    bookmarkerTags: [],
+    bookmarkerTags: null,
     bookmarkedOn: "2026-01-01",
-    collections: [],
+    collections: null,
     ...overrides,
   };
 }
@@ -128,11 +128,14 @@ describe("BookmarkFeed", () => {
     // D2: a bookmark with no note AND no tags AND no collections is dropped
     // entirely, so a work whose only bookmarks are all fully-empty also
     // reaches the genuinely-empty state, not an empty-looking populated one.
+    // This is the real-world "bare bookmark" wire shape (null tags/
+    // collections, not empty arrays) - also a regression guard for the
+    // maintenance fix that made this render at all instead of crashing.
     it("reaches the genuinely-empty state when every bookmark is fully empty (D2 drops them all)", () => {
       const works = [
         work({
           ao3WorkId: 1,
-          bookmarks: [bookmark({ noteHtml: null, bookmarkerTags: [], collections: [] })],
+          bookmarks: [bookmark({ noteHtml: null, bookmarkerTags: null, collections: null })],
         }),
       ];
 

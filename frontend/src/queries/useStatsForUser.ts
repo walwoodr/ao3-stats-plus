@@ -45,12 +45,23 @@ export interface PerWorkPoint {
 // true` on every field of WorkBookmarkType - the DOM markup this is scraped
 // from is EXTERNAL-UNVERIFIED (see scrapeWorkBookmarks.ts), so any field can
 // genuinely be missing.
+//
+// Maintenance fix (2026-09-15): bookmarkerTags/collections are SCALAR,
+// ", "-joined strings on the wire (backend/app/graphql/types/
+// work_bookmark_type.rb: `field :bookmarker_tags, String, null: true`; the
+// ingest service stores `Array(...).join(", ").presence`, which is nil for
+// an empty list), NOT lists - the same comma-joined-string wire shape as
+// `fandoms` (see groupWorksByFandom.ts's splitFandoms). Previously typed as
+// non-nullable `string[]`, which crashed dropEmptyRows on any real "bare"
+// bookmark (no note, no own tags, no collection - the common case on AO3):
+// bookmarkFeed.ts's flattenWorksToRows now does the split (see
+// parseCommaList there), matching this corrected wire type.
 export interface WorkBookmark {
   bookmarkerName: string | null;
   noteHtml: string | null;
-  bookmarkerTags: string[];
+  bookmarkerTags: string | null;
   bookmarkedOn: string | null;
-  collections: string[];
+  collections: string | null;
 }
 
 export interface PerWorkSeries {

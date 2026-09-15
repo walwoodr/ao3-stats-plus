@@ -22,9 +22,9 @@ function bookmark(overrides: Partial<WorkBookmark> = {}): WorkBookmark {
   return {
     bookmarkerName: "reader123",
     noteHtml: "<p>Loved this fic!</p>",
-    bookmarkerTags: ["favorite"],
+    bookmarkerTags: "favorite",
     bookmarkedOn: "2026-01-01",
-    collections: [],
+    collections: null,
     ...overrides,
   };
 }

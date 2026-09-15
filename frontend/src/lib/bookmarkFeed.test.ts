@@ -23,9 +23,9 @@ function bookmark(overrides: Partial<WorkBookmark> = {}): WorkBookmark {
   return {
     bookmarkerName: "reader",
     noteHtml: "<p>Loved it</p>",
-    bookmarkerTags: [],
+    bookmarkerTags: null,
     bookmarkedOn: "2026-01-01",
-    collections: [],
+    collections: null,
     ...overrides,
   };
 }
@@ -127,7 +127,7 @@ describe("flattenWorksToRows (one row per bookmark, carrying owning-work identit
     expect(row.ao3WorkBookmarksUrl).toBe("https://archiveofourown.org/works/42/bookmarks");
   });
 
-  it("carries every per-bookmark field onto the row unchanged", () => {
+  it("carries every per-bookmark field onto the row, splitting the wire's comma-joined tags/collections strings", () => {
     const works = [
       work({
         ao3WorkId: 1,
@@ -135,9 +135,9 @@ describe("flattenWorksToRows (one row per bookmark, carrying owning-work identit
           bookmark({
             bookmarkerName: "reader123",
             noteHtml: "<p>hi</p>",
-            bookmarkerTags: ["favorite"],
+            bookmarkerTags: "favorite",
             bookmarkedOn: "2026-02-01",
-            collections: ["Staff Picks"],
+            collections: "Staff Picks",
           }),
         ],
       }),
@@ -156,6 +156,84 @@ describe("flattenWorksToRows (one row per bookmark, carrying owning-work identit
     const works = [work({ ao3WorkId: 1, bookmarks: [] }), work({ ao3WorkId: 2, bookmarks: [] })];
 
     expect(flattenWorksToRows(works)).toEqual([]);
+  });
+});
+
+// Maintenance regression (2026-09-15): the backend's WorkBookmarkType
+// exposes bookmarker_tags/collections as nullable SCALAR strings (comma-
+// joined, matching the same wire-shape precedent as `fandoms` -
+// groupWorksByFandom.ts's splitFandoms), NOT arrays - confirmed against
+// backend/app/graphql/types/work_bookmark_type.rb (`field :bookmarker_tags,
+// String, null: true`) and the ingest service
+// (`Array(...).join(", ").presence`, which yields nil for an empty list -
+// the common "bare bookmark" case on real AO3, no note/no own tags/no
+// collection). flattenWorksToRows previously assumed these fields already
+// arrived as string[] and copied them straight onto the row unchanged; a
+// bare bookmark's null value then crashed dropEmptyRows's `.length` check,
+// blanking the entire feed (no error boundary exists in the app to contain
+// it) for every real-world author with ordinary, note-less bookmarks -
+// exactly the reported "works with bookmarks DO NOT show bookmarks" bug.
+describe("flattenWorksToRows: comma-joined-string bookmarkerTags/collections from the real backend contract", () => {
+  it("does not throw and produces empty arrays for a bare bookmark (null tags/collections on the wire)", () => {
+    const works = [
+      work({
+        ao3WorkId: 1,
+        bookmarks: [
+          bookmark({
+            noteHtml: null,
+            bookmarkerTags: null,
+            collections: null,
+          }),
+        ],
+      }),
+    ];
+
+    expect(() => flattenWorksToRows(works)).not.toThrow();
+    const [row] = flattenWorksToRows(works);
+    expect(row.bookmarkerTags).toEqual([]);
+    expect(row.collections).toEqual([]);
+  });
+
+  it("splits a single comma-joined bookmarkerTags string into individual tags", () => {
+    const works = [
+      work({
+        ao3WorkId: 1,
+        bookmarks: [bookmark({ bookmarkerTags: "fluff, hurt/comfort" })],
+      }),
+    ];
+
+    const [row] = flattenWorksToRows(works);
+    expect(row.bookmarkerTags).toEqual(["fluff", "hurt/comfort"]);
+  });
+
+  it("splits a single comma-joined collections string into individual collection names", () => {
+    const works = [
+      work({
+        ao3WorkId: 1,
+        bookmarks: [bookmark({ collections: "Collection A, Collection B" })],
+      }),
+    ];
+
+    const [row] = flattenWorksToRows(works);
+    expect(row.collections).toEqual(["Collection A", "Collection B"]);
+  });
+
+  it("a bare bookmark (null note/tags/collections on the wire) is dropped by dropEmptyRows without throwing", () => {
+    const works = [
+      work({
+        ao3WorkId: 1,
+        bookmarks: [
+          bookmark({
+            noteHtml: null,
+            bookmarkerTags: null,
+            collections: null,
+          }),
+        ],
+      }),
+    ];
+
+    expect(() => dropEmptyRows(flattenWorksToRows(works))).not.toThrow();
+    expect(dropEmptyRows(flattenWorksToRows(works))).toEqual([]);
   });
 });
 

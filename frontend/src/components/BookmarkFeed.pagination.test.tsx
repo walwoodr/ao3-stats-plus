@@ -20,9 +20,9 @@ function manyBookmarksWork(): PerWorkSeries {
     return {
       bookmarkerName: `Reader ${i + 1}`,
       noteHtml: "<p>hi</p>",
-      bookmarkerTags: [],
+      bookmarkerTags: null,
       bookmarkedOn: `2026-01-${day}`,
-      collections: [],
+      collections: null,
     };
   });
 
@@ -39,9 +39,9 @@ function singlePageWork(): PerWorkSeries {
       {
         bookmarkerName: "reader",
         noteHtml: "<p>hi</p>",
-        bookmarkerTags: [],
+        bookmarkerTags: null,
         bookmarkedOn: "2026-01-01",
-        collections: [],
+        collections: null,
       },
     ],
   };
@@ -162,9 +162,9 @@ describe("BookmarkFeed pagination", () => {
         bookmarks: Array.from({ length: 55 }, (_, i) => ({
           bookmarkerName: `Reader ${i + 1}`,
           noteHtml: "<p>hi</p>",
-          bookmarkerTags: [],
+          bookmarkerTags: null,
           bookmarkedOn: `2026-01-${String((i % 28) + 1).padStart(2, "0")}`,
-          collections: [],
+          collections: null,
         })),
       };
       render(<BookmarkFeed perWorkSeries={[work]} selectedWorkIds={[]} />);

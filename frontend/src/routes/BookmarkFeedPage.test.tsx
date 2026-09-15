@@ -67,9 +67,9 @@ const TWO_WORKS_RESPONSE = {
           {
             bookmarkerName: "Alice",
             noteHtml: "<p>Loved it</p>",
-            bookmarkerTags: [],
+            bookmarkerTags: null,
             bookmarkedOn: "2026-01-01",
-            collections: [],
+            collections: null,
           },
         ],
       },
@@ -82,9 +82,9 @@ const TWO_WORKS_RESPONSE = {
           {
             bookmarkerName: "Bob",
             noteHtml: "<p>Also loved it</p>",
-            bookmarkerTags: [],
+            bookmarkerTags: null,
             bookmarkedOn: "2026-02-01",
-            collections: [],
+            collections: null,
           },
         ],
       },
@@ -276,9 +276,9 @@ describe("BookmarkFeedPage", () => {
               bookmarks: Array.from({ length: 30 }, (_, i) => ({
                 bookmarkerName: `Reader ${i + 1}`,
                 noteHtml: "<p>hi</p>",
-                bookmarkerTags: [],
+                bookmarkerTags: null,
                 bookmarkedOn: `2026-01-${String((i % 28) + 1).padStart(2, "0")}`,
-                collections: [],
+                collections: null,
               })),
             },
             {
@@ -290,9 +290,9 @@ describe("BookmarkFeedPage", () => {
                 {
                   bookmarkerName: "Bob",
                   noteHtml: "<p>hi</p>",
-                  bookmarkerTags: [],
+                  bookmarkerTags: null,
                   bookmarkedOn: "2026-02-01",
-                  collections: [],
+                  collections: null,
                 },
               ],
             },

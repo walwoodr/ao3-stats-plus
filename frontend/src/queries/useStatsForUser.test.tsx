@@ -218,21 +218,23 @@ describe("useStatsForUser", () => {
   // five fields as nullable (matching the backend's `null: true` on every
   // field, per the plan's data-model section) - a null-heavy literal like
   // an anonymous/deleted bookmarker with no tags/collections/date must be
-  // assignable.
+  // assignable. Maintenance fix (2026-09-15): bookmarkerTags/collections are
+  // nullable SCALAR strings on the wire (comma-joined), not arrays - see
+  // WorkBookmark's own header comment and bookmarkFeed.ts's parseCommaList.
   it("WorkBookmark accepts all-null optional fields (compile-time shape, verified via tsc -b)", () => {
     const populated: WorkBookmark = {
       bookmarkerName: "reader123",
       noteHtml: "<p>Loved this!</p>",
-      bookmarkerTags: ["favorite"],
+      bookmarkerTags: "favorite",
       bookmarkedOn: "2026-01-01",
-      collections: ["Staff Picks"],
+      collections: "Staff Picks",
     };
     const allNull: WorkBookmark = {
       bookmarkerName: null,
       noteHtml: null,
-      bookmarkerTags: [],
+      bookmarkerTags: null,
       bookmarkedOn: null,
-      collections: [],
+      collections: null,
     };
 
     expect(populated.bookmarkerName).toBe("reader123");
@@ -262,9 +264,9 @@ describe("useStatsForUser", () => {
         {
           bookmarkerName: "reader123",
           noteHtml: "<p>Loved this!</p>",
-          bookmarkerTags: [],
+          bookmarkerTags: null,
           bookmarkedOn: "2026-01-01",
-          collections: [],
+          collections: null,
         },
       ],
     };

@@ -62,6 +62,20 @@ export function buildAo3WorkBookmarksUrl(ao3WorkId: number): string {
   return `https://archiveofourown.org/works/${ao3WorkId}/bookmarks`;
 }
 
+// Maintenance fix (2026-09-15): bookmarkerTags/collections arrive on the
+// wire as a single ", "-joined scalar string, or null when empty - the same
+// comma-joined-string precedent as `fandoms` (groupWorksByFandom.ts's
+// splitFandoms), confirmed against WorkBookmarkType's `String, null: true`
+// fields and the ingest service's `Array(...).join(", ").presence`. Split
+// here, once, at the flatten boundary, so every downstream consumer
+// (dropEmptyRows, BookmarkFeedItem's pill lists) works with real arrays.
+// Same lossy-split caveat as `fandoms` applies (C8): a tag/collection name
+// literally containing ", " splits wrong - accepted, not over-engineered.
+function parseCommaList(value: string | null): string[] {
+  if (!value) return [];
+  return value.split(", ");
+}
+
 export function flattenWorksToRows(works: PerWorkSeries[]): BookmarkFeedRow[] {
   const rows: BookmarkFeedRow[] = [];
   for (const work of works) {
@@ -73,9 +87,9 @@ export function flattenWorksToRows(works: PerWorkSeries[]): BookmarkFeedRow[] {
         workFandoms: work.fandoms,
         bookmarkerName: bookmark.bookmarkerName,
         noteHtml: bookmark.noteHtml,
-        bookmarkerTags: bookmark.bookmarkerTags,
+        bookmarkerTags: parseCommaList(bookmark.bookmarkerTags),
         bookmarkedOn: bookmark.bookmarkedOn,
-        collections: bookmark.collections,
+        collections: parseCommaList(bookmark.collections),
         ao3WorkBookmarksUrl,
       });
     }
