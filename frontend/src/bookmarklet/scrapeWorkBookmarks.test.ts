@@ -12,12 +12,12 @@ import { fetchAllWorkBookmarks, parseWorkBookmarksPage } from "./scrapeWorkBookm
 // + the page cap, so this spec exercises pure parsing/pagination logic with
 // no real network involved.
 //
-// EXTERNAL-UNVERIFIED: each fixture's per-bookmark field markup is modeled
-// on general community knowledge of AO3's rendered /works/:id/bookmarks
-// template, not verified against a live AO3 page - see each fixture file
-// and TECH_DEBT.md. The pagination markup, however, IS confirmed against
-// Pagy 9.3.3's actual pagy_nav source (the version AO3 pins) - see
-// parseHasNextPage's regression tests below and scrapeWorkBookmarks.ts.
+// Each fixture's per-bookmark field markup is confirmed 2026-09-17 against
+// otwcode/otwarchive's actual _bookmark_user_module.html.erb source - see
+// each fixture file and TECH_DEBT.md. The pagination markup is likewise
+// confirmed against Pagy 9.3.3's actual pagy_nav source (the version AO3
+// pins) - see parseHasNextPage's regression tests below and
+// scrapeWorkBookmarks.ts.
 function loadFixture(name: string): Document {
   const html = readFileSync(join(__dirname, "fixtures", name), "utf-8");
   return new DOMParser().parseFromString(html, "text/html");
@@ -57,7 +57,7 @@ describe("parseWorkBookmarksPage", () => {
     });
   });
 
-  describe("a page with a deleted/orphaned bookmarker and no note", () => {
+  describe("a page with a deleted/orphaned bookmarker and a genuinely bare bookmark", () => {
     const doc = loadFixture("work-bookmarks-page2.html");
     const result = parseWorkBookmarksPage(doc);
 
@@ -66,12 +66,21 @@ describe("parseWorkBookmarksPage", () => {
       expect(result.bookmarks[0].bookmarkerName).toBeNull();
     });
 
-    it("parses noteHtml as null when no note was left", () => {
+    // Real AO3 markup only renders the Notes heading+blockquote when a note
+    // exists at all - a bare bookmark has no such block in the DOM.
+    it("parses noteHtml as null when no note block is present in the DOM", () => {
       expect(result.bookmarks[0].noteHtml).toBeNull();
     });
 
-    it("defaults bookmarkerTags to an empty list when the tags list is empty", () => {
+    // Same story for Tags/Collections: the heading+list pair only renders
+    // when the underlying data is present, so a bare bookmark has neither
+    // block in the DOM rather than an empty list.
+    it("defaults bookmarkerTags to an empty list when no tags block is present", () => {
       expect(result.bookmarks[0].bookmarkerTags).toEqual([]);
+    });
+
+    it("defaults collections to an empty list when no collections block is present", () => {
+      expect(result.bookmarks[0].collections).toEqual([]);
     });
   });
 

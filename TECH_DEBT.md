@@ -332,9 +332,43 @@
   (synthetic Pagy markup)", including an explicit case proving the old
   Kaminari-shaped markup now correctly reports `hasNextPage: false`) and
   all three paginated fixtures (`work-bookmarks-page1/2/3-last.html`)
-  rebuilt to match confirmed real Pagy 9.3.3 output. The per-bookmark field
-  markup (byline/note/tags/collections/datetime) remains unverified as
-  before - only the pagination markup was in scope for this pass.
+  rebuilt to match confirmed real Pagy 9.3.3 output. ~~The per-bookmark
+  field markup (byline/note/tags/collections/datetime) remains unverified
+  as before - only the pagination markup was in scope for this pass.~~ —
+  **RESOLVED 2026-09-17** (stage: Maintenance): independently verified the
+  per-bookmark field selectors against otwcode/otwarchive's actual
+  `app/views/bookmarks/_bookmark_user_module.html.erb` source and found
+  three of the four wrong (this was surfaced by a live user report of "No
+  public bookmark notes found" for an account with real public bookmark
+  notes, once the crash-fix in `50781d8`/`c5df500` stopped masking it).
+  `parseNoteHtml` looked for `blockquote.userstuff.bookmark-notes`; the real
+  class is `userstuff notes`. `parseListAfterHeading` looked for
+  `h6.landmark.heading` with exact text `"Tags"`/`"Collections"`; the real
+  heading is `h6.meta.heading` with text `"Bookmarker's Tags:"`/
+  `"Bookmarker's Collections:"` - `landmark heading` is actually the class
+  AO3 uses on the **Notes** heading instead, so it looks like the original
+  author swapped which heading got which class. Net effect: every real
+  bookmark's `noteHtml`/`bookmarkerTags`/`collections` came back
+  null/[]/[] regardless of what was actually on AO3, which
+  `bookmarkFeed.ts`'s D2 `dropEmptyRows` rule then correctly (but
+  misleadingly) treated as empty rows and dropped - the rule itself was
+  never buggy, it was fed uniformly-empty data. Fixed both selectors and
+  their call-site heading text in `scrapeWorkBookmarks.ts`; rebuilt
+  `work-bookmarks-page1/2/3-last.html` to match the real per-bookmark field
+  order and markup (byline, datetime, then the Tags/Collections/Notes
+  blocks, each rendered only when present - confirmed page2's deleted-
+  account bookmark is genuinely bare in the DOM, not an empty list, per the
+  real erb's conditionals) and added a dedicated `collections` assertion
+  for that bare case. Confirmed a real red→green cycle: the rebuilt
+  fixtures against the still-buggy selectors failed exactly as the live bug
+  report described (`noteHtml: null`, `bookmarkerTags: []` for bookmarks
+  that do have a note/tags in the fixture), then passed after the selector
+  fix. Note: `work_detail_ingest_service.rb`'s `replace_work_bookmarks!`
+  deletes and recreates bookmarks on every capture, so this fix requires an
+  affected user to re-run their bookmarklet capture for their previously-
+  stored (permanently empty) bookmark rows to be corrected - there is no
+  backend backfill needed or possible, since the old data wasn't wrong
+  data, it was correctly-empty data for wrongly-parsed content.
 - [2026-08-01] (stage: Review) `POST /ingest/work` does not rescue
   `ActiveRecord::RecordInvalid`: a scraped payload that violates a `WorkStat`
   validation (negative count, or `chapters_expected < chapter_count`) makes

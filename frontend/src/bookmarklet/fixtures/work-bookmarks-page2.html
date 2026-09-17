@@ -1,19 +1,19 @@
 <!--
-  EXTERNAL-UNVERIFIED: see work-bookmarks-page1.html's header comment - same
-  per-bookmark markup-shape caveat applies here, including the assumption
-  that a deleted/orphaned bookmarker's byline renders with no <a> at all
-  inside h5.byline.heading. The pagination markup is confirmed Pagy 9.3.3
-  output - see work-bookmarks-page1.html's header comment.
+  Per-bookmark markup confirmed 2026-09-17 - see work-bookmarks-page1.html's
+  header comment. The pagination markup is confirmed Pagy 9.3.3 output - see
+  work-bookmarks-page1.html's header comment.
 
   This fixture: page 2 of 3 - one bookmark from a deleted/orphaned account
-  (no bookmarker name to link) with no note left, active "previous" and
-  "next" links (page 1 and page 3 respectively).
+  (no bookmarker name to link) that is genuinely bare: no note, no tags, no
+  collections. Per the real erb, the Tags/Collections/Notes heading+list
+  blocks only render at all when the underlying bookmark data is present -
+  a bare bookmark like this one has none of those blocks in the DOM, not
+  empty ones. Active "previous" and "next" links (page 1 and page 3
+  respectively).
 -->
 <ol class="bookmark index group">
   <li class="bookmark blurb group" id="bookmark_1003">
     <h5 class="byline heading">bookmarked this</h5>
-    <h6 class="landmark heading">Tags</h6>
-    <ul class="meta tags commas"></ul>
     <p class="datetime">03 May 2024</p>
   </li>
 </ol>

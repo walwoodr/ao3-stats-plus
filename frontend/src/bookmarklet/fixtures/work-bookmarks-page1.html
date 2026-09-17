@@ -1,52 +1,53 @@
 <!--
-  EXTERNAL-UNVERIFIED: this fixture's per-bookmark markup shape
-  (ol.bookmark.index.group, h5.byline.heading, blockquote.userstuff for the
-  note, ul.meta.tags.commas for the bookmarker's own tags, p.datetime, and
-  the "Collections" landmark heading + list) is modeled on general
-  community knowledge of AO3's rendered /works/:id/bookmarks template - it
-  has not been verified against a live AO3 page. See TECH_DEBT.md for the
-  corresponding entry.
+  Per-bookmark markup (byline, datetime, tags, collections, note) confirmed
+  2026-09-17 against otwcode/otwarchive's actual
+  app/views/bookmarks/_bookmark_user_module.html.erb source - see
+  TECH_DEBT.md and scrapeWorkBookmarks.ts's header comment. Field order is
+  byline, datetime, then the Tags/Collections/Notes blocks (each rendered
+  only when the underlying data is present).
 
-  The pagination markup below IS confirmed: it's Pagy's stock pagy_nav
-  output (Pagy 9.3.3, matching otwcode/otwarchive's pinned version),
-  verified directly against ddnexus/pagy's tagged 9.3.3 source plus AO3's
-  own locale override of "next"/"prev"/"aria_label.nav" text
-  (config/locales/views/en.yml) - not Kaminari-style markup.
+  The pagination markup below is confirmed Pagy's stock pagy_nav output
+  (Pagy 9.3.3, matching otwcode/otwarchive's pinned version) - see
+  scrapeWorkBookmarks.ts's header comment.
 
-  This fixture: page 1 of 3 - two full bookmarks, an active "next" link to
-  page 2 (disabled "previous" since this is the first page).
+  This fixture: page 1 of 3 - two full bookmarks (the first with a note,
+  tags, and a collection; the second with multiple tags and a note but no
+  collection), an active "next" link to page 2 (disabled "previous" since
+  this is the first page).
 -->
 <ol class="bookmark index group">
   <li class="bookmark blurb group" id="bookmark_1001">
     <h5 class="byline heading">
       <a href="/users/avid_reader/pseuds/avid_reader">avid_reader</a> bookmarked this
     </h5>
-    <blockquote class="userstuff bookmark-notes">
-      <p>Loved this so much!</p>
-    </blockquote>
-    <h6 class="landmark heading">Tags</h6>
-    <ul class="meta tags commas">
-      <li class="freeforms"><a class="tag" href="/tags/fluff">fluff</a></li>
-    </ul>
     <p class="datetime">01 May 2024</p>
-    <h6 class="landmark heading">Collections</h6>
+    <h6 class="meta heading">Bookmarker's Tags:</h6>
     <ul class="meta tags commas">
+      <li><a class="tag" href="/tags/fluff">fluff</a></li>
+    </ul>
+    <h6 class="meta heading">Bookmarker's Collections:</h6>
+    <ul class="meta commas">
       <li><a href="/collections/collection-a">Collection A</a></li>
     </ul>
+    <h6 class="landmark heading">Bookmarker's Notes</h6>
+    <blockquote class="userstuff notes">
+      <p>Loved this so much!</p>
+    </blockquote>
   </li>
   <li class="bookmark blurb group" id="bookmark_1002">
     <h5 class="byline heading">
       <a href="/users/second_reader/pseuds/second_reader">second_reader</a> bookmarked this
     </h5>
-    <blockquote class="userstuff bookmark-notes">
+    <p class="datetime">02 May 2024</p>
+    <h6 class="meta heading">Bookmarker's Tags:</h6>
+    <ul class="meta tags commas">
+      <li><a class="tag" href="/tags/hurt-comfort">hurt/comfort</a></li>
+      <li><a class="tag" href="/tags/wip">wip</a></li>
+    </ul>
+    <h6 class="landmark heading">Bookmarker's Notes</h6>
+    <blockquote class="userstuff notes">
       <p>Can't wait for the next chapter.</p>
     </blockquote>
-    <h6 class="landmark heading">Tags</h6>
-    <ul class="meta tags commas">
-      <li class="freeforms"><a class="tag" href="/tags/hurt-comfort">hurt/comfort</a></li>
-      <li class="freeforms"><a class="tag" href="/tags/wip">wip</a></li>
-    </ul>
-    <p class="datetime">02 May 2024</p>
   </li>
 </ol>
 <nav class="pagy nav" aria-label="Pagination">

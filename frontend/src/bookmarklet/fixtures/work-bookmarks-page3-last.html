@@ -1,25 +1,26 @@
 <!--
-  EXTERNAL-UNVERIFIED: see work-bookmarks-page1.html's header comment - same
-  per-bookmark markup-shape caveat applies here. The pagination markup is
-  confirmed Pagy 9.3.3 output - see work-bookmarks-page1.html's header
-  comment.
+  Per-bookmark markup confirmed 2026-09-17 - see work-bookmarks-page1.html's
+  header comment. The pagination markup is confirmed Pagy 9.3.3 output - see
+  work-bookmarks-page1.html's header comment.
 
-  This fixture: page 3 of 3 (the last page) - one full bookmark, an active
-  "previous" link and a disabled (href-less) "next" link.
+  This fixture: page 3 of 3 (the last page) - one full bookmark with a note
+  and a tag but no collection, an active "previous" link and a disabled
+  (href-less) "next" link.
 -->
 <ol class="bookmark index group">
   <li class="bookmark blurb group" id="bookmark_1004">
     <h5 class="byline heading">
       <a href="/users/third_reader/pseuds/third_reader">third_reader</a> bookmarked this
     </h5>
-    <blockquote class="userstuff bookmark-notes">
+    <p class="datetime">04 May 2024</p>
+    <h6 class="meta heading">Bookmarker's Tags:</h6>
+    <ul class="meta tags commas">
+      <li><a class="tag" href="/tags/angst">angst</a></li>
+    </ul>
+    <h6 class="landmark heading">Bookmarker's Notes</h6>
+    <blockquote class="userstuff notes">
       <p>Beautifully written.</p>
     </blockquote>
-    <h6 class="landmark heading">Tags</h6>
-    <ul class="meta tags commas">
-      <li class="freeforms"><a class="tag" href="/tags/angst">angst</a></li>
-    </ul>
-    <p class="datetime">04 May 2024</p>
   </li>
 </ol>
 <nav class="pagy nav" aria-label="Pagination">

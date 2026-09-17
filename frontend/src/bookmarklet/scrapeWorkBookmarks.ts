@@ -7,11 +7,11 @@
 // the page cap, so parsing/pagination logic stays independently testable
 // with no real network involved.
 //
-// EXTERNAL-UNVERIFIED: the per-bookmark field fixtures (byline, note, tags,
-// datetime, collections) are modeled on general community knowledge of
-// AO3's rendered /works/:id/bookmarks template, not verified against a live
-// AO3 page - see TECH_DEBT.md. Pagination detection, however, IS confirmed:
-// AO3's bookmarks/index.html.erb calls Pagy's stock `pagy_nav` (Pagy 9.3.3,
+// Per-bookmark field selectors (byline, note, tags, datetime, collections)
+// are confirmed 2026-09-17 directly against otwcode/otwarchive's actual
+// app/views/bookmarks/_bookmark_user_module.html.erb source - see
+// TECH_DEBT.md. Pagination detection is likewise confirmed: AO3's
+// bookmarks/index.html.erb calls Pagy's stock `pagy_nav` (Pagy 9.3.3,
 // per otwcode/otwarchive's Gemfile.lock, verified directly against
 // raw.githubusercontent.com/ddnexus/pagy's tagged 9.3.3 source), not
 // Kaminari - see parseHasNextPage below.
@@ -107,9 +107,9 @@ function parseBookmarkItem(item: Element): ScrapedBookmark {
   return {
     bookmarkerName: parseBookmarkerName(item),
     noteHtml: parseNoteHtml(item),
-    bookmarkerTags: parseListAfterHeading(item, "Tags"),
+    bookmarkerTags: parseListAfterHeading(item, "Bookmarker's Tags:"),
     bookmarkedOn: parseBookmarkedOn(item.querySelector("p.datetime")?.textContent),
-    collections: parseListAfterHeading(item, "Collections"),
+    collections: parseListAfterHeading(item, "Bookmarker's Collections:"),
   };
 }
 
@@ -121,17 +121,21 @@ function parseBookmarkerName(item: Element): string | null {
 }
 
 function parseNoteHtml(item: Element): string | null {
-  const note = item.querySelector("blockquote.userstuff.bookmark-notes");
+  const note = item.querySelector("blockquote.userstuff.notes");
   const html = note?.innerHTML.trim();
   return html || null;
 }
 
-// Tags and Collections are each their own "h6.landmark.heading" + list pair
+// Tags and Collections are each their own "h6.meta.heading" + list pair
 // within a bookmark item, sharing the same list markup shape - identified
 // by the heading text immediately preceding the list rather than by class,
-// since both lists use the same classes.
+// since both lists use the same classes. Heading text is matched exactly on
+// the confirmed English strings ("Bookmarker's Tags:"/"Bookmarker's
+// Collections:") - reasonable given the rest of this scraper already
+// assumes English AO3 output, even though the real heading text comes from
+// AO3's i18n `ts()` helper and could theoretically vary by locale.
 function parseListAfterHeading(item: Element, headingText: string): string[] {
-  const headings = Array.from(item.querySelectorAll("h6.landmark.heading"));
+  const headings = Array.from(item.querySelectorAll("h6.meta.heading"));
   const heading = headings.find((h) => h.textContent?.trim() === headingText);
   const list = heading?.nextElementSibling;
   if (!list) return [];
