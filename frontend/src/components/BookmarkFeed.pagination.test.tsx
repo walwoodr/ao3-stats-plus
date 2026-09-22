@@ -84,6 +84,17 @@ describe("BookmarkFeed pagination", () => {
     expect(screen.getByRole("button", { name: "2" })).not.toHaveAttribute("aria-current");
   });
 
+  // Maintenance fix (TECH_DEBT.md 2026-09-14 Review finding /2026-09-22
+  // item 6): aria-current was already correct (a11y) but every page button
+  // shared one class list, with no visual difference for sighted users.
+  it("gives the current page's button a visually distinct class from the other page buttons", () => {
+    render(<BookmarkFeed perWorkSeries={[manyBookmarksWork()]} selectedWorkIds={[]} />);
+
+    const currentButton = screen.getByRole("button", { name: "1" });
+    const otherButton = screen.getByRole("button", { name: "2" });
+    expect(currentButton.className).not.toBe(otherButton.className);
+  });
+
   it("disables the Previous button on page 1", () => {
     render(<BookmarkFeed perWorkSeries={[manyBookmarksWork()]} selectedWorkIds={[]} />);
 

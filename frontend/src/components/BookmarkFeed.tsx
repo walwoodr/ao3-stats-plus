@@ -28,6 +28,15 @@ const EMPTY_STATE_MESSAGE =
 const PAGE_BUTTON_CLASSES =
   "rounded-md border border-ink/12 px-3 py-1 text-sm text-ink transition-colors duration-200 hover:border-ink/24 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40";
 
+// Item 6 (TECH_DEBT.md 2026-09-14/2026-09-22): aria-current="page" is
+// already a11y-correct on the current-page button, but every button shared
+// PAGE_BUTTON_CLASSES with no visual difference. Reuses MASTER.md's own
+// `.btn-primary` treatment (filled ink background, paper text) rather than
+// `--color-accent` - accent is documented as "spent sparingly" (one CTA/the
+// lead-in marker/focus rings), and a page indicator isn't a CTA.
+const CURRENT_PAGE_BUTTON_CLASSES =
+  "rounded-md border border-ink bg-ink px-3 py-1 text-sm font-semibold text-paper transition-colors duration-200 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+
 // Item 5 (TECH_DEBT.md 2026-09-22): land the user at the top of the page
 // after any pagination click. AppLayout's own route-change "scroll to top"
 // is focus-based (moves focus to <main>), but reusing that here would fight
@@ -162,7 +171,11 @@ export function BookmarkFeed({ perWorkSeries, selectedWorkIds }: BookmarkFeedPro
             <button
               key={pageNumber}
               type="button"
-              className={PAGE_BUTTON_CLASSES}
+              className={
+                pageNumber === paginated.currentPage
+                  ? CURRENT_PAGE_BUTTON_CLASSES
+                  : PAGE_BUTTON_CLASSES
+              }
               aria-current={pageNumber === paginated.currentPage ? "page" : undefined}
               onClick={() => {
                 scrollFeedToTop();
