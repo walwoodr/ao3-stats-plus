@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { PerWorkSeries, WorkBookmark } from "../queries/useStatsForUser";
 import { BookmarkFeed } from "./BookmarkFeed";
@@ -27,6 +27,27 @@ function manyBookmarksWork(): PerWorkSeries {
   });
 
   return { ao3WorkId: 1, title: "Popular Work", fandoms: "Fandom One", points: [], bookmarks };
+}
+
+// `pageCount` exact multiples of the page size (25), so the total page
+// count is exactly `pageCount` with no short final page complicating the
+// windowing math under test.
+function manyPagesWork(pageCount: number): PerWorkSeries {
+  const bookmarks: WorkBookmark[] = Array.from({ length: pageCount * 25 }, (_, i) => ({
+    bookmarkerName: `Reader ${i + 1}`,
+    noteHtml: "<p>hi</p>",
+    bookmarkerTags: null,
+    bookmarkedOn: "2026-01-01",
+    collections: null,
+  }));
+
+  return {
+    ao3WorkId: 1,
+    title: "Very Popular Work",
+    fandoms: "Fandom One",
+    points: [],
+    bookmarks,
+  };
 }
 
 function singlePageWork(): PerWorkSeries {
@@ -235,6 +256,45 @@ describe("BookmarkFeed pagination", () => {
       // pagination reset behavior above already covers the "back to page 1"
       // case; this asserts the app doesn't crash/blank out mid-transition.
       expect(screen.getByRole("list")).toBeInTheDocument();
+    });
+  });
+
+  // Maintenance fix (TECH_DEBT.md 2026-09-14 Review finding/2026-09-22 item
+  // 6): the numbered-page buttons are windowed (first + last + current±2)
+  // once the total exceeds that window, with a non-interactive ellipsis gap
+  // indicator between non-adjacent groups - the pure windowing logic itself
+  // is covered by bookmarkFeed.pagination.test.ts's buildPageWindow suite;
+  // this covers the rendered wiring (which buttons actually appear, and
+  // that the ellipsis is not itself a clickable control).
+  describe("windowed page-number buttons (item 6)", () => {
+    it("shows every page number with no ellipsis when the total fits within the window (<=5 pages)", () => {
+      render(<BookmarkFeed perWorkSeries={[manyPagesWork(5)]} selectedWorkIds={[]} />);
+
+      const nav = screen.getByRole("navigation", { name: /bookmark feed pagination/i });
+      expect(within(nav).queryByText("…")).not.toBeInTheDocument();
+      for (const pageNumber of ["1", "2", "3", "4", "5"]) {
+        expect(within(nav).getByRole("button", { name: pageNumber })).toBeInTheDocument();
+      }
+    });
+
+    it("windows the page buttons with ellipsis gaps once the total exceeds the window, centered on the current page", async () => {
+      const user = userEvent.setup();
+      render(<BookmarkFeed perWorkSeries={[manyPagesWork(20)]} selectedWorkIds={[]} />);
+      const nextButton = screen.getByRole("button", { name: /next/i });
+      for (let i = 0; i < 9; i++) {
+        await user.click(nextButton);
+      }
+      expect(screen.getByRole("button", { name: "10" })).toHaveAttribute("aria-current", "page");
+
+      const nav = screen.getByRole("navigation", { name: /bookmark feed pagination/i });
+      const pageButtonLabels = within(nav)
+        .getAllByRole("button")
+        .map((button) => button.textContent);
+
+      expect(pageButtonLabels).toEqual(["Previous", "1", "8", "9", "10", "11", "12", "20", "Next"]);
+      // The ellipsis gap indicator is present but is not itself a button -
+      // it must never appear in the getAllByRole("button") list above.
+      expect(within(nav).getAllByText("…")).toHaveLength(2);
     });
   });
 

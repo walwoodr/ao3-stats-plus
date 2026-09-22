@@ -134,6 +134,43 @@ export function paginate<T>(items: T[], page: number, pageSize: number): Paginat
   return { items: items.slice(start, start + pageSize), currentPage, totalPages };
 }
 
+export type PageWindowItem = number | "ellipsis";
+
+// Item 6 (TECH_DEBT.md 2026-09-14 Review finding/2026-09-22): windows the
+// page-number buttons instead of rendering one per page at any scale -
+// user's exact spec is first page, last page, and the current page with up
+// to 2 pages before/after it (5 consecutive numbers around current), with a
+// non-interactive ellipsis marker between non-adjacent groups. Built as a
+// sorted-unique-set-with-gap-detection rather than hand-branching the
+// near-start/near-end/middle cases separately, so the boundary conditions
+// (current page 1 or 2, or within 2 of the last page) fall out correctly
+// without special-casing - a gap of exactly 1 never gets an ellipsis (it's
+// just the next consecutive number), any bigger gap does.
+export function buildPageWindow(currentPage: number, totalPages: number): PageWindowItem[] {
+  // A current±2 window can miss a page near the OPPOSITE edge from current
+  // even when the total is small (e.g. current=1 of 5: window [1..3] plus
+  // the forced-included last page 5 skips page 4) - but 5 or fewer pages
+  // never needs windowing at all, regardless of which page is current, so
+  // short-circuit before the gap-detection logic below can ever see that
+  // false gap.
+  if (totalPages <= 5) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+
+  const windowStart = Math.max(1, currentPage - 2);
+  const windowEnd = Math.min(totalPages, currentPage + 2);
+  const pages = new Set<number>([1, totalPages]);
+  for (let page = windowStart; page <= windowEnd; page++) pages.add(page);
+
+  const sorted = Array.from(pages).sort((a, b) => a - b);
+  const result: PageWindowItem[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    if (i > 0 && sorted[i] - sorted[i - 1] > 1) result.push("ellipsis");
+    result.push(sorted[i]);
+  }
+  return result;
+}
+
 // Decision D5: the marker glyph is shown only when the active filter
 // narrows the feed to 2-10 displayed works - never for the unfiltered
 // default (0 here means "no filter", since resolveDisplayedWorks always

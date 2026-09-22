@@ -3,6 +3,7 @@ import type { PerWorkSeries } from "../queries/useStatsForUser";
 import {
   DEFAULT_PAGE_SIZE,
   buildGlyphStyleAssignment,
+  buildPageWindow,
   dropEmptyRows,
   flattenWorksToRows,
   paginate,
@@ -167,24 +168,34 @@ export function BookmarkFeed({ perWorkSeries, selectedWorkIds }: BookmarkFeedPro
           >
             Previous
           </button>
-          {Array.from({ length: paginated.totalPages }, (_, i) => i + 1).map((pageNumber) => (
-            <button
-              key={pageNumber}
-              type="button"
-              className={
-                pageNumber === paginated.currentPage
-                  ? CURRENT_PAGE_BUTTON_CLASSES
-                  : PAGE_BUTTON_CLASSES
-              }
-              aria-current={pageNumber === paginated.currentPage ? "page" : undefined}
-              onClick={() => {
-                scrollFeedToTop();
-                setPage(pageNumber);
-              }}
-            >
-              {pageNumber}
-            </button>
-          ))}
+          {buildPageWindow(paginated.currentPage, paginated.totalPages).map((entry, index) =>
+            entry === "ellipsis" ? (
+              <span
+                key={`ellipsis-${index}`}
+                aria-hidden="true"
+                className="px-1 text-sm text-ink-soft"
+              >
+                …
+              </span>
+            ) : (
+              <button
+                key={entry}
+                type="button"
+                className={
+                  entry === paginated.currentPage
+                    ? CURRENT_PAGE_BUTTON_CLASSES
+                    : PAGE_BUTTON_CLASSES
+                }
+                aria-current={entry === paginated.currentPage ? "page" : undefined}
+                onClick={() => {
+                  scrollFeedToTop();
+                  setPage(entry);
+                }}
+              >
+                {entry}
+              </button>
+            ),
+          )}
           <button
             ref={nextButtonRef}
             type="button"
