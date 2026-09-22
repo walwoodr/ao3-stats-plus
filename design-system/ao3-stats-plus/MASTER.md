@@ -229,6 +229,33 @@ transforms, in both modes.
 }
 ```
 
+### Blockquotes
+
+Added for the bookmark-notes feed (TECH_DEBT.md 2026-09-22, item 3), but scoped as a general,
+app-wide pattern by explicit user direction: **any** real `<blockquote>` rendered anywhere in
+the app — not just this feature — should read as visually distinct quoted content, via a
+left-hand border plus a matching indent, using this system's already-established tokens rather
+than a new ad-hoc color: `--color-ink-soft`, whose Color Palette role is already documented as
+covering "body copy, secondary labels, **borders**." Used at full strength (not the
+`color-mix`-diluted percentage `--surface-border`/`--surface-border-hover` use for 1px card
+edges above) since a blockquote's border needs to read as a clearly thicker, more deliberate
+rule than a faint card-edge hairline.
+
+```css
+blockquote {
+  margin: 0;
+  border-left: 4px solid var(--color-ink-soft);
+  padding-left: 16px; /* 4px/8px rhythm - 4x the border width */
+}
+```
+
+Applied as a **global element selector** (`frontend/src/index.css`), not a component-scoped
+class, so it reaches both (a) the bookmark-note wrapper itself (which renders as a real
+`<blockquote>`, not a `<div>` — bookmark notes ARE quoted content, semantically, not just
+visually) and (b) any `<blockquote>` an AO3 author nested inside sanitized bookmark-note HTML
+(DOMPurify's default profile already permits the tag) — both get the identical treatment
+automatically, with no risk of the two drifting apart.
+
 ### The signature element: the lead-in marker
 
 The synthetic "earliest post year" baseline point (added to the trend/ratio charts) is this

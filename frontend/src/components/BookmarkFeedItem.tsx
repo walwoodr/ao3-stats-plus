@@ -126,7 +126,14 @@ export function BookmarkFeedItem({
         </div>
 
         {noteHtml && (
-          <div
+          // A bookmark note IS quoted content (someone else's words about
+          // this work), so it renders as a real <blockquote> rather than a
+          // plain <div> - picks up the app-wide left-border+indent treatment
+          // from index.css's global `blockquote` rule (MASTER.md's
+          // "Blockquotes" spec, item 3), the same rule any real
+          // `<blockquote>` nested inside the sanitized noteHtml itself also
+          // gets automatically.
+          <blockquote
             className="bookmark-note break-words font-sans text-ink"
             dangerouslySetInnerHTML={{ __html: sanitizeHtml(noteHtml) }}
           />

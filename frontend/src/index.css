@@ -58,6 +58,18 @@ body {
   color: var(--color-ink);
 }
 
+/* Blockquotes, app-wide (design-system/ao3-stats-plus/MASTER.md's
+   "Blockquotes" component spec, TECH_DEBT.md 2026-09-22 item 3): a global
+   element-selector rule, not a component-scoped class, so both the
+   bookmark-note wrapper below (a real <blockquote>) AND any <blockquote>
+   an AO3 author nested inside sanitized note HTML get the identical
+   left-border+indent quoted-content treatment automatically. */
+blockquote {
+  margin: 0;
+  border-left: 4px solid var(--color-ink-soft);
+  padding-left: 16px;
+}
+
 /* Bookmark note prose (docs/plans/bookmark-notes-feed.md §3): the only place
    this app renders arbitrary user-authored HTML via dangerouslySetInnerHTML
    (always through sanitizeHtml.ts first). Inline links are underlined

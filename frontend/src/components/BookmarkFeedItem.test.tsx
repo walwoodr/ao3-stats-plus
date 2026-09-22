@@ -108,6 +108,21 @@ describe("BookmarkFeedItem", () => {
     });
   });
 
+  // Maintenance fix (TECH_DEBT.md 2026-09-22, item 3): bookmark notes are
+  // semantically quoted content, so the wrapper renders as a real
+  // <blockquote> (which the app-wide `blockquote` CSS rule in index.css then
+  // styles - see design-system/ao3-stats-plus/MASTER.md's new "Blockquotes"
+  // spec), not a plain <div>.
+  describe("bookmark-note wrapper is a real <blockquote> (item 3)", () => {
+    it("renders the .bookmark-note wrapper as a <blockquote> element", () => {
+      const { container } = render(
+        <BookmarkFeedItem {...BASE_PROPS} noteHtml="<p>Loved this fic!</p>" />,
+      );
+      const note = container.querySelector(".bookmark-note");
+      expect(note?.tagName).toBe("BLOCKQUOTE");
+    });
+  });
+
   describe("sanitized note render (the load-bearing XSS test - asserts neutralized output in the actual DOM)", () => {
     it("renders benign note HTML formatting", () => {
       render(<BookmarkFeedItem {...BASE_PROPS} noteHtml="<p>Loved this fic!</p>" />);
