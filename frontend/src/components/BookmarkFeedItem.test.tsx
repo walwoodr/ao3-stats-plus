@@ -111,6 +111,36 @@ describe("BookmarkFeedItem", () => {
     });
   });
 
+  // Maintenance fix (TECH_DEBT.md 2026-09-22, item 1): the label and its
+  // pill list must render on one flex-wrap row, not the label stacked above
+  // the pills (the old `<ul class="mt-1 ...">` markup).
+  describe("Tags/Collections same-line layout (label + pills on one row, not stacked)", () => {
+    it("renders the Tags label and its pill list as a single flex-wrap row, not vertically stacked", () => {
+      render(<BookmarkFeedItem {...BASE_PROPS} />);
+      const label = screen.getByText("Tags");
+      const row = label.parentElement;
+      const list = screen.getByRole("list", { name: /tags/i });
+
+      expect(row).not.toBeNull();
+      expect(row?.className).toEqual(expect.stringContaining("flex"));
+      expect(row?.className).toEqual(expect.stringContaining("flex-wrap"));
+      expect(list.parentElement).toBe(row);
+      // The old stacked layout pushed the list below the label with a top
+      // margin - that must be gone now that they share a row.
+      expect(list.className).not.toEqual(expect.stringContaining("mt-1"));
+    });
+
+    it("applies the identical same-line layout to Collections", () => {
+      render(<BookmarkFeedItem {...BASE_PROPS} />);
+      const label = screen.getByText("Collections");
+      const row = label.parentElement;
+      const list = screen.getByRole("list", { name: /collections/i });
+
+      expect(row?.className).toEqual(expect.stringContaining("flex-wrap"));
+      expect(list.parentElement).toBe(row);
+    });
+  });
+
   describe("<time dateTime> semantics", () => {
     it("sets dateTime to the raw bookmarkedOn value", () => {
       const { container } = render(<BookmarkFeedItem {...BASE_PROPS} bookmarkedOn="2026-02-01" />);

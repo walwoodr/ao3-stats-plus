@@ -25,12 +25,16 @@ export interface BookmarkFeedItemProps {
 const LINK_CLASSES =
   "underline text-ink outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
+// Maintenance fix (TECH_DEBT.md 2026-09-22, item 1): label and pills render
+// on one flex-wrap row (the label as an inline lead-in, pills flowing after
+// it), instead of the label stacked above the list - so the whole group
+// wraps together rather than leaving the label alone on its own line.
 function PillList({ label, items }: { label: string; items: string[] }) {
   if (items.length === 0) return null;
   return (
-    <div>
+    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
       <span className="text-xs font-medium text-ink-soft">{label}</span>
-      <ul aria-label={label} className="mt-1 flex flex-wrap gap-1">
+      <ul aria-label={label} className="flex flex-wrap items-baseline gap-1">
         {items.map((item) => (
           <li
             key={item}
