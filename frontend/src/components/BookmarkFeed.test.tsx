@@ -34,6 +34,17 @@ function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWor
   };
 }
 
+// Every row's AO3 icon link (item 2, TECH_DEBT.md 2026-09-22) is ALSO an
+// `svg[aria-hidden="true"]`, always present regardless of the glyph-
+// visibility rule under test here - excluded via the same semantic
+// distinction as BookmarkFeedItem.test.tsx's own helper (the icon is always
+// inside an <a>; the MarkerGlyph never is).
+function queryGlyphSvgs(container: HTMLElement): Element[] {
+  return Array.from(container.querySelectorAll('svg[aria-hidden="true"]')).filter(
+    (svg) => svg.closest("a") === null,
+  );
+}
+
 describe("BookmarkFeed", () => {
   describe("filtering (Decision D1: empty selection means 'no filter, show all')", () => {
     it("renders bookmarks from every work when selectedWorkIds is empty", () => {
@@ -84,7 +95,7 @@ describe("BookmarkFeed", () => {
 
       expect(screen.getByText("Alice")).toBeInTheDocument();
       expect(screen.getByText("Bob")).toBeInTheDocument();
-      expect(container.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(0);
+      expect(queryGlyphSvgs(container)).toHaveLength(0);
     });
   });
 
@@ -187,7 +198,7 @@ describe("BookmarkFeed", () => {
         <BookmarkFeed perWorkSeries={threeWorks()} selectedWorkIds={[]} />,
       );
 
-      expect(container.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(0);
+      expect(queryGlyphSvgs(container)).toHaveLength(0);
     });
 
     it("renders zero glyphs for a single-work filter", () => {
@@ -195,7 +206,7 @@ describe("BookmarkFeed", () => {
         <BookmarkFeed perWorkSeries={threeWorks()} selectedWorkIds={[1]} />,
       );
 
-      expect(container.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(0);
+      expect(queryGlyphSvgs(container)).toHaveLength(0);
     });
 
     it("renders exactly one glyph per row for a 2-10-work filter", () => {
@@ -204,7 +215,7 @@ describe("BookmarkFeed", () => {
       );
 
       // Only works 1 and 2 are in the filtered subset (one bookmark each).
-      expect(container.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(2);
+      expect(queryGlyphSvgs(container)).toHaveLength(2);
     });
 
     it("gives every row from the same work the identical glyph fill color, and different works different colors, within a 2-10-work filter", () => {
@@ -218,7 +229,7 @@ describe("BookmarkFeed", () => {
 
       const { container } = render(<BookmarkFeed perWorkSeries={works} selectedWorkIds={[1, 2]} />);
 
-      const glyphs = Array.from(container.querySelectorAll('svg[aria-hidden="true"]'));
+      const glyphs = queryGlyphSvgs(container);
       expect(glyphs).toHaveLength(3);
       const fills = glyphs.map((glyph) => glyph.querySelector("[fill]")?.getAttribute("fill"));
       // The two Work 1 rows (Alice, Amy) share one color; Work 2's row (Bob)

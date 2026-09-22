@@ -9,6 +9,17 @@ import { BookmarkFeedItem } from "./BookmarkFeedItem";
 // HTML, and null-field fallbacks for every optional bookmark field (C5).
 // The component does not exist yet - every test below is expected to fail
 // on import alone.
+// The card's AO3 icon link (item 2, TECH_DEBT.md 2026-09-22) is ALSO an
+// `svg[aria-hidden="true"]`, always present - the MarkerGlyph-specific
+// tests below must exclude it. The icon is always inside an <a>; the
+// MarkerGlyph never is - a real semantic distinction, not an incidental
+// styling detail.
+function queryGlyphSvgs(container: HTMLElement): Element[] {
+  return Array.from(container.querySelectorAll('svg[aria-hidden="true"]')).filter(
+    (svg) => svg.closest("a") === null,
+  );
+}
+
 const BASE_PROPS = {
   workTitle: "The Long Way Home",
   workFandoms: "Fandom One, Fandom Two",
@@ -58,6 +69,42 @@ describe("BookmarkFeedItem", () => {
       expect(link).toHaveAttribute("target", "_blank");
       expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
       expect(link).toHaveAttribute("rel", expect.stringContaining("noreferrer"));
+    });
+  });
+
+  // Maintenance fix (TECH_DEBT.md 2026-09-22, item 2): the AO3 link moves
+  // from a full-text link at the bottom of the card to an icon-only link
+  // next to the work title. This is the ONLY AO3 link the card renders.
+  describe("AO3 link relocation (icon-only, next to the work title)", () => {
+    it("positions the AO3 link inside the same row as the work title, not at the bottom of the card", () => {
+      render(<BookmarkFeedItem {...BASE_PROPS} />);
+      const link = screen.getByRole("link", { name: /view this work's bookmarks on ao3/i });
+      const titleRow = screen.getByText("The Long Way Home").parentElement;
+      expect(titleRow).not.toBeNull();
+      expect(titleRow).toContainElement(link);
+    });
+
+    it("carries both a title attribute and an aria-label with the same accessible-name text", () => {
+      render(<BookmarkFeedItem {...BASE_PROPS} />);
+      const link = screen.getByRole("link", { name: /view this work's bookmarks on ao3/i });
+      expect(link).toHaveAttribute("title", "View this work's bookmarks on AO3");
+      expect(link).toHaveAttribute("aria-label", "View this work's bookmarks on AO3");
+    });
+
+    it("renders no visible text content on the link itself - only an aria-hidden icon", () => {
+      render(<BookmarkFeedItem {...BASE_PROPS} />);
+      const link = screen.getByRole("link", { name: /view this work's bookmarks on ao3/i });
+      expect(link.textContent).toBe("");
+      const icon = link.querySelector("svg");
+      expect(icon).not.toBeNull();
+      expect(icon).toHaveAttribute("aria-hidden", "true");
+    });
+
+    it("renders exactly one AO3 link on the whole card (the old bottom-of-card text link is gone)", () => {
+      render(<BookmarkFeedItem {...BASE_PROPS} />);
+      expect(
+        screen.getAllByRole("link", { name: /view this work's bookmarks on ao3/i }),
+      ).toHaveLength(1);
     });
   });
 
@@ -162,7 +209,7 @@ describe("BookmarkFeedItem", () => {
           glyphColor="#123456"
         />,
       );
-      expect(container.querySelector('svg[aria-hidden="true"]')).not.toBeInTheDocument();
+      expect(queryGlyphSvgs(container)).toHaveLength(0);
     });
 
     it("renders the glyph, aria-hidden, when showGlyph is true", () => {
@@ -174,7 +221,7 @@ describe("BookmarkFeedItem", () => {
           glyphColor="#123456"
         />,
       );
-      const glyph = container.querySelector("svg");
+      const [glyph] = queryGlyphSvgs(container);
       expect(glyph).toBeInTheDocument();
       expect(glyph).toHaveAttribute("aria-hidden", "true");
     });

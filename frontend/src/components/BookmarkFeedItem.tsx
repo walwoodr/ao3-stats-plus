@@ -22,8 +22,36 @@ export interface BookmarkFeedItemProps {
   glyphColor?: string;
 }
 
-const LINK_CLASSES =
-  "underline text-ink outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+const ICON_LINK_CLASSES =
+  "inline-flex shrink-0 items-center justify-center rounded-sm text-ink-soft outline-none transition-colors duration-200 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+
+// Hand-authored inline SVG (this app's first icon - matches the existing
+// MarkerGlyph/markerPaths.tsx pattern rather than pulling in an icon
+// library, per TECH_STACK.md's ask-before-adding policy). `aria-hidden` so
+// it never carries its own accessible name - the wrapping <a>'s
+// aria-label/title are the sole accessible name and tooltip (TECH_DEBT.md
+// 2026-09-22, item 2).
+function ExternalLinkIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+      focusable="false"
+      className="inline-block"
+    >
+      <path
+        d="M4 12 L12 4 M6 4 H12 V10"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 // Maintenance fix (TECH_DEBT.md 2026-09-22, item 1): label and pills render
 // on one flex-wrap row (the label as an inline lead-in, pills flowing after
@@ -69,6 +97,16 @@ export function BookmarkFeedItem({
             <MarkerGlyph shape={glyphShape} color={glyphColor} />
           )}
           <span className="font-sans text-ink">{workTitle}</span>
+          <a
+            href={ao3WorkBookmarksUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="View this work's bookmarks on AO3"
+            aria-label="View this work's bookmarks on AO3"
+            className={ICON_LINK_CLASSES}
+          >
+            <ExternalLinkIcon />
+          </a>
         </div>
         <span className="text-sm text-ink-soft">{workFandoms}</span>
       </div>
@@ -96,15 +134,6 @@ export function BookmarkFeedItem({
 
         <PillList label="Tags" items={bookmarkerTags} />
         <PillList label="Collections" items={collections} />
-
-        <a
-          href={ao3WorkBookmarksUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`${LINK_CLASSES} text-sm`}
-        >
-          View this work&apos;s bookmarks on AO3
-        </a>
       </div>
     </li>
   );
