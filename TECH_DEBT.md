@@ -953,15 +953,31 @@
   (user decision 2026-09-21): slated as the first of a small feature batch
   after the current bookmark-notes-feed loose-ends cleanup.
 - [2026-09-13] (stage: Implementation) **Deferred exact-bookmark permalink**
-  (docs/plans/bookmark-notes-feed.md, Decision D4). AO3's bookmark markup
+  (docs/plans/bookmark-notes-feed.md, Decision D4). ~~AO3's bookmark markup
   carries a per-bookmark `id="bookmark_NNNN"` (EXTERNAL-UNVERIFIED - see
   `scrapeWorkBookmarks.ts`'s header comment), which would let a bookmark
   row deep-link straight to `https://archiveofourown.org/bookmarks/:id`
-  instead of today's per-work bookmarks-page link. Not implemented: this is
+  instead of today's per-work bookmarks-page link.~~ **CORRECTED
+  2026-09-21/annotated 2026-09-22 (stage: Maintenance): this premise is
+  REFUTED, not just unverified.** The 2026-09-21 live-HTML-verified
+  `scrapeWorkBookmarks.ts` fix (see that date's entry below, item #6)
+  fetched real bookmark `<li>` items directly from
+  `https://archiveofourown.org/works/85527071/bookmarks` and confirmed they
+  carry **no `id` attribute at all** across all ~60 real items checked -
+  `li[id^="bookmark_"]` is a dead selector that will never match anything
+  real; it was also independently re-confirmed by the same-day 2026-09-21
+  Review pass (20 live items checked). Do NOT implement the "future path"
+  below as originally written - re-verify against a real live-fetched
+  `/works/:id/bookmarks` page first (e.g. checking `<a>` hrefs within the
+  item, or another real attribute) before picking this up, per this file's
+  own now well-established lesson (three straight `scrapeWorkBookmarks.ts`
+  passes got real AO3 markup wrong by trusting a secondary source instead
+  of live HTML - see the 2026-09-21 entry's closing "Process note").
+  Not implemented for the reasons originally given: this is
   a 5-layer change (scraper parse -> `work_bookmarks` migration -> ingest ->
   `WorkBookmarkType` -> frontend query) that exceeds this plan's confirmed
-  "frontend query extension only" scope, and depends on unverified live-AO3
-  markup. Future path if picked up: parse `li[id^="bookmark_"]` in
+  "frontend query extension only" scope. Original (now-refuted) future path,
+  kept for reference only: parse `li[id^="bookmark_"]` in
   `scrapeWorkBookmarks.ts`, store `ao3_bookmark_id` on `work_bookmarks`,
   expose it on `WorkBookmarkType`, select it in `STATS_FOR_USER_QUERY`, link
   `/bookmarks/:id` from `BookmarkFeedItem`.
