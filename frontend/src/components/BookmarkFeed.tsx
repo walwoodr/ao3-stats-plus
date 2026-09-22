@@ -98,10 +98,16 @@ export function BookmarkFeed({ perWorkSeries, selectedWorkIds }: BookmarkFeedPro
   const paginated = paginate(rows, page, DEFAULT_PAGE_SIZE);
 
   useEffect(() => {
+    // preventScroll: true - a plain .focus() call scrolls the focused
+    // element into view, and these buttons sit at the bottom of the feed,
+    // which would silently undo scrollFeedToTop()'s scroll-to-top on
+    // exactly these two (endpoint) transitions. The focus move itself is
+    // still correct/required; only its default scroll side effect is
+    // suppressed.
     if (lastActionRef.current === "next" && paginated.currentPage === paginated.totalPages) {
-      prevButtonRef.current?.focus();
+      prevButtonRef.current?.focus({ preventScroll: true });
     } else if (lastActionRef.current === "prev" && paginated.currentPage === 1) {
-      nextButtonRef.current?.focus();
+      nextButtonRef.current?.focus({ preventScroll: true });
     }
     lastActionRef.current = null;
   }, [paginated.currentPage, paginated.totalPages]);

@@ -1299,3 +1299,30 @@
      - that finding's suggested approach and the user's spec here are the
      same fix; implement per the user's explicit numbers (first + last +
      current±2) rather than re-deriving a windowing scheme from scratch.
+- [2026-09-22] (stage: Review) `backend/spec/services/work_detail_ingest_service_spec.rb`
+  is 480 lines, over CODE_STANDARDS.md's 450-line `_spec.rb` budget — pushed
+  past the limit by cf046cd's +72-line "sanitizes noteHtml at rest"
+  describe block. Not split here (Review is read-only on the code under
+  review). A reasonable split would extract the sanitization/defense-in-depth
+  describe block into a sibling spec, mirroring the frontend's own
+  `bookmarkFeed.*.test.ts` per-concern split. Deferred: non-blocking, no
+  behavior impact.
+- [2026-09-22] (stage: Review) Inaccurate justification in
+  `backend/app/services/bookmark_note_sanitizer.rb`'s header comment (and the
+  cf046cd commit message it mirrors): the comment claims
+  `Rails::Html::SafeListSanitizer`'s default allowlist "already PERMITS
+  form/input/button/textarea/select/option - the same gap DOMPurify's stock
+  default had." That is false — verified via `rails runner`:
+  `Rails::HTML5/HTML4/Html::SafeListSanitizer.allowed_tags` (a 43-tag
+  allowlist) contains NONE of the form family. The claim IS true for Loofah's
+  own `ACCEPTABLE_ELEMENTS` (the other subject in the same parenthetical),
+  which does permit the form family — that half is correct and is the real
+  reason Loofah's stock scrubber couldn't be used as-is. The genuinely
+  correct reason NOT to use Rails' SafeListSanitizer is different and
+  stronger: its narrow allowlist would STRIP `<details>`/`<summary>` (only
+  `blockquote` among the semantic tags we want is in its 43-tag list), which
+  the user explicitly requires preserved. The custom blocklist scrubber is
+  the right design and its runtime behavior is verified correct; only the
+  comment's stated rationale about Rails is wrong and would mislead a future
+  maintainer weighing whether to swap in Rails' sanitizer. Deferred: comment
+  fix only, no runtime/security impact.
