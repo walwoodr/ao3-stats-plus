@@ -17,6 +17,15 @@
 # four ways that guarantee can fail (no Ao3User, no Snapshot, no Work, no
 # WorkStat) - they all collapse to the same error since the fan-out handles
 # them identically (skip this work, tally it, continue).
+#
+# Per TECH_DEBT.md (2026-08-01, closed 2026-09-21 stage: Maintenance):
+# bookmark noteHtml is sanitized here at ingest (BookmarkNoteSanitizer)
+# before being persisted, as a second, independent boundary alongside the
+# frontend's own render-time sanitization (frontend/src/lib/sanitizeHtml.ts)
+# - not a replacement for it, since a render-time sanitizer is still
+# mandatory defense against any future bug in either boundary, but this
+# closes the "any future consumer... inherits a safe value" gap the
+# TECH_DEBT entry flagged.
 class WorkDetailIngestService
   class InvalidPayload < StandardError; end
   class UnsupportedSchemaVersion < StandardError; end
@@ -122,7 +131,7 @@ class WorkDetailIngestService
     bookmarks_payload.each do |bookmark_data|
       work.work_bookmarks.create!(
         bookmarker_name: bookmark_data["bookmarkerName"],
-        note_html: bookmark_data["noteHtml"],
+        note_html: BookmarkNoteSanitizer.sanitize(bookmark_data["noteHtml"]),
         bookmarker_tags: Array(bookmark_data["bookmarkerTags"]).join(", ").presence,
         bookmarked_on: parse_date(bookmark_data["bookmarkedOn"]),
         collections: Array(bookmark_data["collections"]).join(", ").presence,

