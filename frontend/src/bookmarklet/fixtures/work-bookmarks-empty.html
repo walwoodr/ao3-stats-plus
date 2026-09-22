@@ -1,8 +1,15 @@
 <!--
-  Markup confirmed 2026-09-17 - see work-bookmarks-page1.html's header
-  comment.
-
-  This fixture: a work with zero public bookmarks - an empty index list and
-  no pagination controls at all.
+  NOT independently confirmed against a live zero-public-bookmark work's
+  page this session - no such work was located/fetched. The wrapper element
+  (`ol.bookmark.index.group`) itself IS confirmed real (see
+  work-bookmarks-page1.html); what's unverified is whether AO3 renders it
+  as a totally empty `<ol>` with no pagination nav at all for a work with
+  zero public bookmarks, versus some other empty-state markup (e.g. a "no
+  bookmarks yet" message). Low risk either way: parseWorkBookmarksPage's
+  behavior for "no li.user.short.blurb.group items match" is already
+  exercised structurally by this fixture regardless of exactly how AO3
+  renders the empty state, and the worst case if the real empty-state DOM
+  differs is a false-negative "0 bookmarks" read, not a crash or bad data.
+  Flagged in TECH_DEBT.md.
 -->
 <ol class="bookmark index group"></ol>

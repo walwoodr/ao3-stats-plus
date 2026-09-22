@@ -7,14 +7,31 @@
 // the page cap, so parsing/pagination logic stays independently testable
 // with no real network involved.
 //
-// Per-bookmark field selectors (byline, note, tags, datetime, collections)
-// are confirmed 2026-09-17 directly against otwcode/otwarchive's actual
-// app/views/bookmarks/_bookmark_user_module.html.erb source - see
-// TECH_DEBT.md. Pagination detection is likewise confirmed: AO3's
-// bookmarks/index.html.erb calls Pagy's stock `pagy_nav` (Pagy 9.3.3,
-// per otwcode/otwarchive's Gemfile.lock, verified directly against
-// raw.githubusercontent.com/ddnexus/pagy's tagged 9.3.3 source), not
-// Kaminari - see parseHasNextPage below.
+// EVERY selector below (outer item wrapper, byline, note, tags, collections,
+// pagination) is confirmed 2026-09-21 directly against live, real AO3 HTML -
+// https://archiveofourown.org/works/85527071/bookmarks, pages 1-4 (fetched
+// with curl --http1.1 and a real browser User-Agent; Cloudflare 525s were
+// transient and cleared on retry) - NOT against otwcode/otwarchive's GitHub
+// source or the Pagy gem source, both of which were tried by two earlier
+// Maintenance passes (2026-09-17, then again earlier 2026-09-21) and turned
+// out to not reflect what AO3 actually serves for this page. See
+// TECH_DEBT.md's 2026-09-21 entry for the full history and evidence.
+//
+// Two load-bearing details a naive reading would miss:
+// (1) `ol.bookmark.index.group`'s first child <li> is the WORK's own summary
+//     card (`li.work.blurb.group.work-<id>.user-<id>`, also role="article"),
+//     not a bookmark - the item selector below matches on the real
+//     bookmark-item class set (`user short blurb group`) specifically so it
+//     does not pick that card up as a spurious null bookmark row.
+// (2) The last page's disabled "next" control is a `<span>`, not an
+//     `<a>` without an href - `li.next` is always present when pagination
+//     renders at all; what varies is whether it contains a real `<a href>`
+//     (has-next) or a `<span class="disabled">` (last page). See
+//     parseHasNextPage below.
+// (3) The bookmark date's month renders as a 3-letter abbreviation ("Sep",
+//     "Jun", not "September"/"June") - a separate, previously-unnoticed bug
+//     found by this pass's own fixtures (every prior fixture happened to
+//     only use "May", identical either way). See MONTH_NAMES below.
 
 export interface ScrapedBookmark {
   bookmarkerName: string | null;
@@ -35,44 +52,52 @@ export interface FetchWorkBookmarksResult {
   pagesFetched: number;
 }
 
+// Confirmed live 2026-09-21 against ~60 real p.datetime values across
+// https://archiveofourown.org/works/85527071/bookmarks pages 1-4: AO3
+// renders the bookmark date's month as a 3-letter abbreviation ("Jun",
+// "Sep", "Aug", "Jul" - all observed live), not the full month name a
+// previous pass assumed and never caught, since its fixtures only ever
+// used "May" (identical either way as a 3-letter prefix).
 const MONTH_NAMES = [
-  "january",
-  "february",
-  "march",
-  "april",
+  "jan",
+  "feb",
+  "mar",
+  "apr",
   "may",
-  "june",
-  "july",
-  "august",
-  "september",
-  "october",
-  "november",
-  "december",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "oct",
+  "nov",
+  "dec",
 ];
 
 export function parseWorkBookmarksPage(doc: Document): WorkBookmarksPage {
-  const items = Array.from(doc.querySelectorAll("ol.bookmark.index.group > li.bookmark"));
+  const items = Array.from(
+    doc.querySelectorAll('ol.bookmark.index.group > li.user.short.blurb.group[role="article"]'),
+  );
   const bookmarks = items.map(parseBookmarkItem);
 
   return { bookmarks, hasNextPage: parseHasNextPage(doc) };
 }
 
-// Pagy's pagy_nav (confirmed against Pagy 9.3.3's actual source, the
-// version AO3's Gemfile.lock pins) renders <nav class="pagy nav"> as a flat
-// sequence of sibling <a> tags with no <ol>/<li> wrapper and no rel="next"
-// attribute anywhere - unlike the Kaminari-style markup this scraper
-// originally (and wrongly) assumed. The nav's last child <a> is always the
-// "next" control: a real <a href="..."> when a next page exists, or an
-// href-less <a role="link" aria-disabled="true"> on the last page. Presence
-// of href on that last link is therefore a reliable, locale-independent
-// signal - it doesn't depend on AO3's translated "Next →" link text.
+// AO3 actually overrides Pagy's default nav template here (confirmed live,
+// not the stock Pagy `pagy_nav` markup an earlier pass trusted from the gem
+// source): `<ol class="pagination actions pagy" role="navigation"
+// aria-label="Pagination">` with one `<li>` per control, including a
+// `<li class="next">`. That `<li class="next">` is present whenever the
+// pagination bar renders at all, whether or not a next page exists - what
+// distinguishes the two states is its content: a real `<a href="...">` when
+// a next page exists, or a plain `<span class="disabled">` (no <a> at all)
+// on the last page. So "does li.next contain an href-bearing <a>" is the
+// reliable signal, not "does li.next exist" or a rel="next" attribute
+// (real AO3 markup never has one).
 function parseHasNextPage(doc: Document): boolean {
-  const nav = doc.querySelector("nav.pagy.nav");
-  if (!nav) return false;
+  const nextItem = doc.querySelector("ol.pagination.actions.pagy > li.next");
+  if (!nextItem) return false;
 
-  const links = nav.querySelectorAll(":scope > a");
-  const lastLink = links[links.length - 1];
-  return !!lastLink?.hasAttribute("href");
+  return !!nextItem.querySelector("a[href]");
 }
 
 // Sequentially fetches pages starting at 1, stopping either when a page
@@ -107,21 +132,30 @@ function parseBookmarkItem(item: Element): ScrapedBookmark {
   return {
     bookmarkerName: parseBookmarkerName(item),
     noteHtml: parseNoteHtml(item),
-    bookmarkerTags: parseListAfterHeading(item, "Bookmarker's Tags:"),
+    bookmarkerTags: parseListAfterHeading(item, "Bookmark Tags:"),
     bookmarkedOn: parseBookmarkedOn(item.querySelector("p.datetime")?.textContent),
-    collections: parseListAfterHeading(item, "Bookmarker's Collections:"),
+    collections: parseListAfterHeading(item, "Bookmark Collections:"),
   };
 }
 
-// A deleted/orphaned account's byline renders with no <a> at all.
+// A deleted/orphaned account's byline is EXPECTED to render with no <a> at
+// all (general AO3 convention) - not independently confirmed against live
+// markup this session (none of the ~60 real bookmark items fetched across
+// this work's 4 pages happened to include one). See TECH_DEBT.md.
 function parseBookmarkerName(item: Element): string | null {
   const link = item.querySelector("h5.byline.heading a");
   const name = link?.textContent?.trim();
   return name || null;
 }
 
+// The note block only renders in the DOM when a note actually exists (see
+// the header comment's "<!--notes-->" placeholder-comment note). Real
+// class is "blockquote.userstuff.summary" - confirmed live; NOT
+// "userstuff bookmark-notes" (the pre-2026-09-17 code) or "userstuff notes"
+// (an earlier fix this pass supersedes, both unverified guesses that never
+// matched real AO3 markup).
 function parseNoteHtml(item: Element): string | null {
-  const note = item.querySelector("blockquote.userstuff.notes");
+  const note = item.querySelector("blockquote.userstuff.summary");
   const html = note?.innerHTML.trim();
   return html || null;
 }
@@ -130,10 +164,13 @@ function parseNoteHtml(item: Element): string | null {
 // within a bookmark item, sharing the same list markup shape - identified
 // by the heading text immediately preceding the list rather than by class,
 // since both lists use the same classes. Heading text is matched exactly on
-// the confirmed English strings ("Bookmarker's Tags:"/"Bookmarker's
-// Collections:") - reasonable given the rest of this scraper already
-// assumes English AO3 output, even though the real heading text comes from
-// AO3's i18n `ts()` helper and could theoretically vary by locale.
+// the confirmed real English strings ("Bookmark Tags:"/"Bookmark
+// Collections:", confirmed live 2026-09-21 - not the "Bookmarker's Tags:"/
+// "Bookmarker's Collections:" wording an earlier pass assumed without
+// finding a live example) - reasonable given the rest of this scraper
+// already assumes English AO3 output, even though the real heading text
+// comes from AO3's i18n `ts()` helper and could theoretically vary by
+// locale.
 function parseListAfterHeading(item: Element, headingText: string): string[] {
   const headings = Array.from(item.querySelectorAll("h6.meta.heading"));
   const heading = headings.find((h) => h.textContent?.trim() === headingText);
@@ -145,7 +182,8 @@ function parseListAfterHeading(item: Element, headingText: string): string[] {
     .filter((name): name is string => !!name);
 }
 
-// AO3 renders bookmark dates as "01 May 2024" (day, full month name, year).
+// AO3 renders bookmark dates as "15 Sep 2026" (day, 3-letter month
+// abbreviation, year) - confirmed live, see MONTH_NAMES above.
 function parseBookmarkedOn(text: string | null | undefined): string | null {
   if (!text) return null;
   const match = text.trim().match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);

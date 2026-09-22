@@ -369,6 +369,24 @@
   stored (permanently empty) bookmark rows to be corrected - there is no
   backend backfill needed or possible, since the old data wasn't wrong
   data, it was correctly-empty data for wrongly-parsed content.
+
+  **CORRECTION, 2026-09-21 (stage: Maintenance): the above "RESOLVED
+  2026-09-17" entry was ALSO wrong, plainly.** It fixed the note/tags/
+  collections field-level selectors but never touched the outer item
+  selector (`ol.bookmark.index.group > li.bookmark`), which matched real
+  AO3 markup **zero times** - the whole per-bookmark parse loop never ran,
+  so the field-level fixes were real but moot in production. Both this
+  entry's "outer wrapper confirmed correct" claim (from the 2026-07-31
+  history further up) and its Pagy-nav pagination "confirmed against Pagy
+  9.3.3 source" claim are also now shown wrong: real bookmark items use
+  classes `user short blurb group` (never `bookmark`), and AO3 overrides
+  Pagy's stock nav template with its own real markup, which the vanilla
+  gem source never reflected. Root cause both times: verifying against a
+  secondary source (`otwcode/otwarchive`'s GitHub source, the Pagy gem
+  source) instead of an actual live-fetched page. See the new 2026-09-21
+  entry near the end of this file for the full corrected findings, fixed
+  again and this time verified against real HTML fetched directly from
+  `https://archiveofourown.org/works/85527071/bookmarks`.
 - [2026-08-01] (stage: Review) `POST /ingest/work` does not rescue
   `ActiveRecord::RecordInvalid`: a scraped payload that violates a `WorkStat`
   validation (negative count, or `chapters_expected < chapter_count`) makes
@@ -1043,3 +1061,112 @@
   `flattenWorksToRows`/comma-joined-string cases from the sort/drop/paginate/
   glyph cases into sibling spec files. Deferred: no behavior impact, and
   splitting is out of scope for a targeted production bug fix.
+- [2026-09-21] (stage: Maintenance) **`scrapeWorkBookmarks.ts` fixed a third
+  time, this time verified against real live-fetched HTML rather than a
+  secondary source - both the 2026-09-17 entry above and commit `0a012d3`
+  (which superseded it) turned out to ALSO be wrong, discovered only when
+  the user manually confirmed via a browser Network tab that scraping still
+  came back empty on a work with real public bookmark notes.**
+
+  Root cause of "still empty": `0a012d3` was built by reading
+  `otwcode/otwarchive`'s GitHub source for `_bookmark_user_module.html.erb`
+  - either the wrong partial or stale relative to what AO3 actually serves
+  for `/works/:id/bookmarks`. The REAL, load-bearing bug it never touched:
+  `parseWorkBookmarksPage`'s outer item selector
+  (`ol.bookmark.index.group > li.bookmark`) matched **zero elements**, full
+  stop - real bookmark `<li>` items carry classes `user short blurb group`
+  (plus `role="article"`), never a `bookmark` class at all. Every
+  field-level selector was irrelevant because the item loop never started.
+  This is why the 2026-09-17 entry's "outer wrapper confirmed correct
+  against `bookmarks/index.html.erb`" and "per-bookmark field selectors
+  confirmed" claims are now shown to be **wrong**, not just incomplete -
+  neither pass actually fetched a real rendered page.
+
+  This pass fetched real HTML directly (`curl --http1.1` with a real
+  browser User-Agent; Cloudflare 525s were transient, cleared on retry) from
+  `https://archiveofourown.org/works/85527071/bookmarks`, all 4 real pages
+  of a real work with 64 real bookmarks, and read it directly rather than
+  inferring from any secondary source. Confirmed live and fixed:
+  1. **Outer item selector**: real bookmark items are
+     `li.user.short.blurb.group[role="article"]`, direct children of
+     `ol.bookmark.index.group`. That `<ol>`'s FIRST child is actually the
+     WORK's own summary card (`li.work.blurb.group`, also `role="article"`)
+     - a detail neither prior pass caught, and one a naive `li[role="article"]`
+     fix would have re-broken differently (counting that card as a bogus
+     bookmark row with data read from the wrong context).
+  2. **Note markup**: heading is `h6.landmark.heading` with text
+     `"Bookmark Notes:"` (trailing colon) - not `"Bookmarker's Notes"`
+     (`0a012d3`'s guess) or `"Tags"` (pre-2026-09-17 code). Blockquote class
+     is `userstuff summary` - not `userstuff notes` (`0a012d3`'s guess) or
+     `userstuff bookmark-notes` (the original code, before 2026-09-17).
+  3. **Tags/Collections markup** (unconfirmable in the 2026-09-17 pass,
+     since none of its checked sources had a real example) - now confirmed
+     live: `h6.meta.heading` (this part of the pre-existing code was
+     actually already right) with text `"Bookmark Tags:"`/
+     `"Bookmark Collections:"` (not `"Bookmarker's Tags:"`/`"Bookmarker's
+     Collections:"`, both prior passes' guess). Found on live page 2 and
+     page 4 of the same work after checking all 4 real pages - tags use
+     `ul.meta.tags.commas`, collections use `ul.meta.commas` (no `tags`
+     class); both work fine with the existing generic
+     heading-then-nextElementSibling extraction, no selector-shape change
+     needed there.
+  4. **Pagination**: real markup is NOT Pagy's stock `pagy_nav` output (the
+     2026-09-17 entry's other "confirmed against Pagy 9.3.3 source" claim,
+     also now shown wrong the same way - AO3 overrides Pagy's default nav
+     template with its own here, so the vanilla gem source never reflected
+     what's actually served). Real shape:
+     `<ol class="pagination actions pagy" role="navigation"><li class="next">...</li></ol>`.
+     `li.next` is always present when pagination renders at all; the real
+     has-next-page signal is whether it contains an href-bearing `<a>`
+     (confirmed on page 1, real `href` to page 2) versus a plain
+     `<span class="disabled">` with no `<a>` at all (confirmed on page 4,
+     this work's actual last page) - notably a `<span>`, not an href-less
+     `<a>` as even this pass's own initial hypothesis (by analogy to the
+     Pagy gem template) guessed before checking the real last page.
+  5. **Bonus bug found by this pass's own red-test discipline, not
+     mentioned in the handoff**: `parseBookmarkedOn`'s `MONTH_NAMES` array
+     required full month names ("september"), but AO3 actually renders the
+     month as a 3-letter abbreviation ("Sep") - confirmed against ~60 real
+     `p.datetime` values across all 4 fetched pages. Every previous
+     fixture's date happened to use "May" (identical either way as a
+     3-letter prefix), so this silently returned `bookmarkedOn: null` for
+     the ~11/12 months whose abbreviation and full name differ, undetected
+     by any prior pass. Fixed by switching `MONTH_NAMES` to abbreviations.
+  6. **Separately corrects the 2026-09-13 "Deferred exact-bookmark
+     permalink" entry's assumption** (docs/plans/bookmark-notes-feed.md
+     Decision D4, marked EXTERNAL-UNVERIFIED there): real bookmark `<li>`
+     items carry NO `id` attribute at all (confirmed across all ~60 real
+     items fetched this pass) - the assumed `id="bookmark_NNNN"` doesn't
+     exist in real markup. That deferred feature's premise needs
+     re-verification (e.g. checking `<a>` hrefs within the item, or another
+     real attribute) before being picked up, not just implementation.
+
+  All fixtures (`work-bookmarks-page1/2/3-last.html`) rebuilt as trimmed,
+  structurally-faithful excerpts of the real fetched HTML (real bookmarker
+  usernames kept as public data; the leading work-summary card's own
+  title/tags/summary text replaced with placeholder copy since the scraper
+  never reads it, but its structurally-relevant markup - classes, nesting,
+  role attribute - preserved byte-for-byte). `work-bookmarks-empty.html`
+  remains synthetic (no real zero-bookmark work was found/fetched) -
+  flagged, not claimed as confirmed; low risk either way since the parse
+  behavior for "zero matching items" is exercised regardless of the exact
+  real empty-state markup. The deleted/orphaned-account no-byline-link case
+  is also unconfirmed live (none of the ~60 real items happened to be one)
+  - tested via clearly-labeled synthetic markup instead of a "real excerpt"
+  fixture, rather than either fabricating a fake "real" fixture or dropping
+  the coverage.
+
+  Confirmed a real red->green cycle: restored the pre-fix source
+  (`git show HEAD:...`) and ran this pass's new/rebuilt test file against
+  it, reproducing the exact "zero items found" failure mode this entry
+  describes (20/26 tests red); reapplied the fix, all 26/26 green. Full
+  suite: 925/925 vitest, `npx tsc -b` clean, `npx eslint .` clean (one
+  pre-existing unrelated `MultiSeriesTrendChart.tsx` warning), `npx prettier
+  --check .` clean.
+
+  **Process note for whoever picks this file up next**: three passes in a
+  row got this wrong by trusting a secondary source (GitHub repo source,
+  gem source) over live-fetched HTML. If a future change touches this file
+  again, fetch a real live page first and read it directly - don't reason
+  from AO3's public source code, which has now been shown twice not to
+  reflect what's actually served for this page type.

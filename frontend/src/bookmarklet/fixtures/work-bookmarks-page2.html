@@ -1,24 +1,112 @@
 <!--
-  Per-bookmark markup confirmed 2026-09-17 - see work-bookmarks-page1.html's
-  header comment. The pagination markup is confirmed Pagy 9.3.3 output - see
-  work-bookmarks-page1.html's header comment.
+  Real, live-fetched excerpt - https://archiveofourown.org/works/85527071/bookmarks?page=2
+  fetched 2026-09-21 via curl --http1.1 with a real browser User-Agent.
+  Trimmed to 3 of the page's 20 real bookmark items; the leading work-summary
+  card (present on every page, see work-bookmarks-page1.html for why it must
+  be excluded) is omitted here since that exclusion case is already covered
+  there. Real bookmarker usernames kept (public data).
 
-  This fixture: page 2 of 3 - one bookmark from a deleted/orphaned account
-  (no bookmarker name to link) that is genuinely bare: no note, no tags, no
-  collections. Per the real erb, the Tags/Collections/Notes heading+list
-  blocks only render at all when the underlying bookmark data is present -
-  a bare bookmark like this one has none of those blocks in the DOM, not
-  empty ones. Active "previous" and "next" links (page 1 and page 3
-  respectively).
+  Covers real Bookmark Tags:/Bookmark Collections: markup - both were only
+  found (after checking pages 1-4 of this work) on this page:
+  - ako_kuno: three real tags in one list (proves multi-<li> extraction).
+  - soongandroid: a real Bookmark Collections: block. This item's real
+    Notes block (present on the live page) is deliberately omitted from
+    this fixture copy to keep fixture content professional - the
+    Collections markup itself is preserved verbatim; note coverage is
+    already provided by other items/fixtures with cleaner real note text.
+  - gm03: a single real tag, for the simple one-item-list case.
+
+  Pagination: page 2's real nav - both "previous" and "next" active.
 -->
+<h4 class="landmark heading">Navigation</h4>
+<ol class="pagination actions pagy" role="navigation" aria-label="Pagination">
+  <li class="previous"><a href="/works/85527071/bookmarks?page=1">&#8592; Previous</a></li>
+  <li><a href="/works/85527071/bookmarks?page=1">1</a></li>
+  <li><a role="link" aria-disabled="true" aria-current="page" class="current">2</a></li>
+  <li><a href="/works/85527071/bookmarks?page=3">3</a></li>
+  <li class="next"><a href="/works/85527071/bookmarks?page=3">Next &#8594;</a></li>
+</ol>
+
+<h3 class="landmark heading">List of Bookmarks</h3>
 <ol class="bookmark index group">
-  <li class="bookmark blurb group" id="bookmark_1003">
-    <h5 class="byline heading">bookmarked this</h5>
-    <p class="datetime">03 May 2024</p>
+  <li class="user short blurb group user-12818821" role="article">
+    <div class="header module">
+      <h5 class="byline heading">
+        Bookmarked by
+        <a href="/users/gm03/pseuds/gm03">gm03</a>
+      </h5>
+      <p class="datetime">06 Jun 2026</p>
+      <p class="status">
+        <a
+          class="help symbol question modal"
+          aria-label="Bookmark symbols key"
+          href="/help/bookmark-symbols-key.html"
+          ><span class="public" title="Public Bookmark"
+            ><span class="text">Public Bookmark</span></span
+          ></a
+        >
+      </p>
+    </div>
+    <!--meta-->
+    <h6 class="meta heading">Bookmark Tags:</h6>
+    <ul class="meta tags commas">
+      <li><a class="tag" href="/tags/TBR/bookmarks">TBR</a></li>
+    </ul>
+    <!--notes-->
+    <!--actions-->
+  </li>
+  <li class="user short blurb group user-6160745" role="article">
+    <div class="header module">
+      <h5 class="byline heading">
+        Bookmarked by
+        <a href="/users/ako_kuno/pseuds/ako_kuno">ako_kuno</a>
+      </h5>
+      <p class="datetime">28 May 2026</p>
+      <p class="status">
+        <a
+          class="help symbol question modal"
+          aria-label="Bookmark symbols key"
+          href="/help/bookmark-symbols-key.html"
+          ><span class="public" title="Public Bookmark"
+            ><span class="text">Public Bookmark</span></span
+          ></a
+        >
+      </p>
+    </div>
+    <!--meta-->
+    <h6 class="meta heading">Bookmark Tags:</h6>
+    <ul class="meta tags commas">
+      <li><a class="tag" href="/tags/O/bookmarks">O</a></li>
+      <li><a class="tag" href="/tags/%E2%80%94/bookmarks">&#8212;</a></li>
+      <li><a class="tag" href="/tags/TBR/bookmarks">TBR</a></li>
+    </ul>
+    <!--notes-->
+    <!--actions-->
+  </li>
+  <li class="user short blurb group user-3384564" role="article">
+    <div class="header module">
+      <h5 class="byline heading">
+        Bookmarked by
+        <a href="/users/soongandroid/pseuds/soongandroid">soongandroid</a>
+      </h5>
+      <p class="datetime">28 May 2026</p>
+      <p class="status">
+        <a
+          class="help symbol question modal"
+          aria-label="Bookmark symbols key"
+          href="/help/bookmark-symbols-key.html"
+          ><span class="public" title="Public Bookmark"
+            ><span class="text">Public Bookmark</span></span
+          ></a
+        >
+      </p>
+    </div>
+    <!--meta-->
+    <h6 class="meta heading">Bookmark Collections:</h6>
+    <ul class="meta commas">
+      <li><a href="/collections/HRTVrex">heated rivalry highlights</a></li>
+    </ul>
+    <!--notes-->
+    <!--actions-->
   </li>
 </ol>
-<nav class="pagy nav" aria-label="Pagination">
-  <a href="?page=1" aria-label="Previous">&#8592; Previous</a><a href="?page=1">1</a
-  ><a role="link" aria-disabled="true" aria-current="page" class="current">2</a
-  ><a href="?page=3">3</a><a href="?page=3" aria-label="Next">Next &#8594;</a>
-</nav>

@@ -1,31 +1,83 @@
 <!--
-  Per-bookmark markup confirmed 2026-09-17 - see work-bookmarks-page1.html's
-  header comment. The pagination markup is confirmed Pagy 9.3.3 output - see
-  work-bookmarks-page1.html's header comment.
+  Real, live-fetched excerpt - https://archiveofourown.org/works/85527071/bookmarks?page=4
+  (this work's actual last page, of 4), fetched 2026-09-21 via curl --http1.1
+  with a real browser User-Agent (2nd attempt - the 1st hit a transient
+  Cloudflare 525, which cleared on retry). Trimmed to 2 of the page's 4 real
+  bookmark items. Real bookmarker usernames kept (public data).
 
-  This fixture: page 3 of 3 (the last page) - one full bookmark with a note
-  and a tag but no collection, an active "previous" link and a disabled
-  (href-less) "next" link.
+  This is the load-bearing fixture for the "no next page" case: confirms
+  the real last-page markup for the pagination bar's "next" list item is a
+  plain, non-clickable span - NOT an href-less link (which an earlier,
+  unverified pass assumed by analogy to the Pagy gem's stock template - AO3
+  actually overrides that template here, see scrapeWorkBookmarks.ts's
+  header comment).
+
+  Items: Lifeissoannoying (a real Bookmark Notes: block) and Elleana6 (a
+  real single-tag Bookmark Tags: block) - both add coverage not already
+  provided by work-bookmarks-page1.html/page2.html.
 -->
+<h4 class="landmark heading">Navigation</h4>
+<ol class="pagination actions pagy" role="navigation" aria-label="Pagination">
+  <li class="previous"><a href="/works/85527071/bookmarks?page=3">&#8592; Previous</a></li>
+  <li><a href="/works/85527071/bookmarks?page=1">1</a></li>
+  <li><a href="/works/85527071/bookmarks?page=2">2</a></li>
+  <li><a href="/works/85527071/bookmarks?page=3">3</a></li>
+  <li><a role="link" aria-disabled="true" aria-current="page" class="current">4</a></li>
+  <li class="next"><span class="disabled">Next &#8594;</span></li>
+</ol>
+
+<h3 class="landmark heading">List of Bookmarks</h3>
 <ol class="bookmark index group">
-  <li class="bookmark blurb group" id="bookmark_1004">
-    <h5 class="byline heading">
-      <a href="/users/third_reader/pseuds/third_reader">third_reader</a> bookmarked this
-    </h5>
-    <p class="datetime">04 May 2024</p>
-    <h6 class="meta heading">Bookmarker's Tags:</h6>
-    <ul class="meta tags commas">
-      <li><a class="tag" href="/tags/angst">angst</a></li>
-    </ul>
-    <h6 class="landmark heading">Bookmarker's Notes</h6>
-    <blockquote class="userstuff notes">
-      <p>Beautifully written.</p>
+  <li class="user short blurb group user-15201066" role="article">
+    <div class="header module">
+      <h5 class="byline heading">
+        Bookmarked by
+        <a href="/users/Lifeissoannoying/pseuds/Lifeissoannoying">Lifeissoannoying</a>
+      </h5>
+      <p class="datetime">25 May 2026</p>
+      <p class="status">
+        <a
+          class="help symbol question modal"
+          aria-label="Bookmark symbols key"
+          href="/help/bookmark-symbols-key.html"
+          ><span class="public" title="Public Bookmark"
+            ><span class="text">Public Bookmark</span></span
+          ></a
+        >
+      </p>
+    </div>
+    <!--meta-->
+    <!--notes-->
+    <h6 class="landmark heading">Bookmark Notes:</h6>
+    <blockquote class="userstuff summary">
+      <p>3:20am, Tuesday</p>
     </blockquote>
+    <!--actions-->
+  </li>
+  <li class="user short blurb group user-22208287" role="article">
+    <div class="header module">
+      <h5 class="byline heading">
+        Bookmarked by
+        <a href="/users/Elleana6/pseuds/Elleana6">Elleana6</a>
+      </h5>
+      <p class="datetime">25 May 2026</p>
+      <p class="status">
+        <a
+          class="help symbol question modal"
+          aria-label="Bookmark symbols key"
+          href="/help/bookmark-symbols-key.html"
+          ><span class="public" title="Public Bookmark"
+            ><span class="text">Public Bookmark</span></span
+          ></a
+        >
+      </p>
+    </div>
+    <!--meta-->
+    <h6 class="meta heading">Bookmark Tags:</h6>
+    <ul class="meta tags commas">
+      <li><a class="tag" href="/tags/Complete/bookmarks">Complete</a></li>
+    </ul>
+    <!--notes-->
+    <!--actions-->
   </li>
 </ol>
-<nav class="pagy nav" aria-label="Pagination">
-  <a href="?page=2" aria-label="Previous">&#8592; Previous</a><a href="?page=1">1</a
-  ><a href="?page=2">2</a
-  ><a role="link" aria-disabled="true" aria-current="page" class="current">3</a
-  ><a role="link" aria-disabled="true" aria-label="Next">Next &#8594;</a>
-</nav>

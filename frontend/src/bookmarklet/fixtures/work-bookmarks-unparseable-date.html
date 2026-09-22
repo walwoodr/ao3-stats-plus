@@ -1,15 +1,21 @@
 <!--
-  Markup confirmed 2026-09-17 - see work-bookmarks-page1.html's header
-  comment.
-
-  This fixture: a single bookmark whose p.datetime text doesn't parse as a
-  date - bookmarkedOn must come back null rather than failing the parse.
+  Deliberately malformed (AO3 never actually renders an unparseable date) -
+  this fixture exists purely to test parseBookmarkedOn's defensive null
+  fallback, so it's synthetic by nature. The item wrapper/byline structure
+  around it is the confirmed real shape (see work-bookmarks-page1.html) -
+  only the p.datetime text itself is deliberately broken.
 -->
 <ol class="bookmark index group">
-  <li class="bookmark blurb group" id="bookmark_2001">
-    <h5 class="byline heading">
-      <a href="/users/fourth_reader/pseuds/fourth_reader">fourth_reader</a> bookmarked this
-    </h5>
-    <p class="datetime">not-a-real-date</p>
+  <li class="user short blurb group user-9999999" role="article">
+    <div class="header module">
+      <h5 class="byline heading">
+        Bookmarked by
+        <a href="/users/fourth_reader/pseuds/fourth_reader">fourth_reader</a>
+      </h5>
+      <p class="datetime">not-a-real-date</p>
+    </div>
+    <!--meta-->
+    <!--notes-->
+    <!--actions-->
   </li>
 </ol>
