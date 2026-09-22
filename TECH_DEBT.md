@@ -1255,3 +1255,31 @@
      allowlist; if those specific tags still need addressing, that's a
      separate, narrower call to make at implementation time, not bundled
      into this general sanitization-scope fix.
+  5. **Scroll to top on page change**: `BookmarkFeed.tsx`'s Previous/Next/
+     numbered-page `onClick` handlers only call `setPage(...)` today - no
+     scroll happens, so paging forward on a long feed leaves the viewport
+     wherever it was (likely mid-list from the previous page), not at the
+     top of the newly-loaded page. User wants navigating to another page to
+     scroll the user to the top (of the feed/page - confirm exact scope at
+     implementation time, e.g. scroll the `<ul>`/feed container into view
+     vs. the whole window).
+  6. **Visually highlight the current page**: numbered page buttons already
+     set `aria-current="page"` on the active page (a11y-correct) but
+     `PAGE_BUTTON_CLASSES` is applied uniformly to every button regardless
+     of state - there is no visual (non-screen-reader) indication of which
+     page is current. Needs a distinct visual style (e.g. filled/accent
+     background or bolder border) for the `aria-current` button, consistent
+     with existing MASTER.md tokens.
+  7. **Window the page-number buttons** instead of rendering one button per
+     page (`Array.from({ length: paginated.totalPages }, ...)` today, with
+     no cap - confirmed still true as of this entry). User's specified
+     windowing: **first page, last page, and the current page with 2 pages
+     before and after it** (i.e. up to 5 consecutive numbers around current,
+     plus first/last, presumably with an ellipsis/gap indicator between
+     non-adjacent groups - confirm exact ellipsis treatment at
+     implementation time). **This resolves the 2026-09-14 Review finding
+     above** ("Pagination renders every page-number button with no
+     windowing... ~40-80+ buttons... Consider a windowed/ellipsis pattern")
+     - that finding's suggested approach and the user's spec here are the
+     same fix; implement per the user's explicit numbers (first + last +
+     current±2) rather than re-deriving a windowing scheme from scratch.
