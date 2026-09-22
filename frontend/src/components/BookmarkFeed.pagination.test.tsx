@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { PerWorkSeries, WorkBookmark } from "../queries/useStatsForUser";
@@ -224,6 +224,59 @@ describe("BookmarkFeed pagination", () => {
       // pagination reset behavior above already covers the "back to page 1"
       // case; this asserts the app doesn't crash/blank out mid-transition.
       expect(screen.getByRole("list")).toBeInTheDocument();
+    });
+  });
+
+  // Maintenance fix (TECH_DEBT.md 2026-09-22, item 5): every pagination
+  // control's onClick must land the user at the top of the page, not
+  // wherever they were scrolled to before. AppLayout's own route-change
+  // "scroll to top" is focus-based (moves focus to <main>), but reusing
+  // that mechanism here would fight this file's own focus-retention
+  // assertions above (focus must stay on the clicked control, or move to
+  // its still-enabled sibling) - window.scrollTo is used instead,
+  // independent of focus.
+  describe("scroll to top on page change (item 5)", () => {
+    beforeEach(() => {
+      vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("scrolls to the top when navigating via a numbered page button", async () => {
+      const user = userEvent.setup();
+      render(<BookmarkFeed perWorkSeries={[manyBookmarksWork()]} selectedWorkIds={[]} />);
+
+      await user.click(screen.getByRole("button", { name: "2" }));
+
+      expect(window.scrollTo).toHaveBeenCalledWith(expect.objectContaining({ top: 0 }));
+    });
+
+    it("scrolls to the top when navigating via the Next button", async () => {
+      const user = userEvent.setup();
+      render(<BookmarkFeed perWorkSeries={[manyBookmarksWork()]} selectedWorkIds={[]} />);
+
+      await user.click(screen.getByRole("button", { name: /next/i }));
+
+      expect(window.scrollTo).toHaveBeenCalledWith(expect.objectContaining({ top: 0 }));
+    });
+
+    it("scrolls to the top when navigating via the Previous button", async () => {
+      const user = userEvent.setup();
+      render(<BookmarkFeed perWorkSeries={[manyBookmarksWork()]} selectedWorkIds={[]} />);
+      await user.click(screen.getByRole("button", { name: "2" }));
+      vi.mocked(window.scrollTo).mockClear();
+
+      await user.click(screen.getByRole("button", { name: /previous/i }));
+
+      expect(window.scrollTo).toHaveBeenCalledWith(expect.objectContaining({ top: 0 }));
+    });
+
+    it("does not scroll on initial mount (only on an actual pagination click)", () => {
+      render(<BookmarkFeed perWorkSeries={[manyBookmarksWork()]} selectedWorkIds={[]} />);
+
+      expect(window.scrollTo).not.toHaveBeenCalled();
     });
   });
 });

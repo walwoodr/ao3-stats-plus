@@ -29,6 +29,16 @@ if (!window.matchMedia) {
 // than fully implementing environment APIs it doesn't support) rather than
 // per-test, since any future pointer/drag-based component test would hit
 // the same gap.
+// jsdom implements window.scrollTo as a stub that logs a "Not implemented"
+// virtual-console error on every call rather than silently no-op'ing (unlike
+// matchMedia above, which it omits entirely) - noisy once any component
+// calls it unconditionally on an interaction (see BookmarkFeed.tsx's
+// pagination scroll-to-top, item 5). Tests that need to assert scrollTo was
+// actually called replace it with their own vi.spyOn (see
+// BookmarkFeed.pagination.test.tsx) - this default just keeps other,
+// unrelated tests' output quiet.
+window.scrollTo = () => {};
+
 if (!Element.prototype.hasPointerCapture) {
   Element.prototype.hasPointerCapture = () => false;
 }

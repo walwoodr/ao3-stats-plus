@@ -28,6 +28,16 @@ const EMPTY_STATE_MESSAGE =
 const PAGE_BUTTON_CLASSES =
   "rounded-md border border-ink/12 px-3 py-1 text-sm text-ink transition-colors duration-200 hover:border-ink/24 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40";
 
+// Item 5 (TECH_DEBT.md 2026-09-22): land the user at the top of the page
+// after any pagination click. AppLayout's own route-change "scroll to top"
+// is focus-based (moves focus to <main>), but reusing that here would fight
+// this component's own focus-retention rules (focus must stay on the
+// clicked control, or move to its still-enabled sibling) - a plain
+// window.scrollTo is used instead, independent of focus.
+function scrollFeedToTop(): void {
+  window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+}
+
 // Composes bookmarkFeed.ts's pure pipeline (resolve displayed works ->
 // flatten -> drop-empty -> sort -> paginate, plus Decision D5's glyph-
 // visibility rule) into the rendered <ul>/pagination/empty-state
@@ -142,6 +152,7 @@ export function BookmarkFeed({ perWorkSeries, selectedWorkIds }: BookmarkFeedPro
             disabled={paginated.currentPage === 1}
             onClick={() => {
               lastActionRef.current = "prev";
+              scrollFeedToTop();
               setPage(paginated.currentPage - 1);
             }}
           >
@@ -153,7 +164,10 @@ export function BookmarkFeed({ perWorkSeries, selectedWorkIds }: BookmarkFeedPro
               type="button"
               className={PAGE_BUTTON_CLASSES}
               aria-current={pageNumber === paginated.currentPage ? "page" : undefined}
-              onClick={() => setPage(pageNumber)}
+              onClick={() => {
+                scrollFeedToTop();
+                setPage(pageNumber);
+              }}
             >
               {pageNumber}
             </button>
@@ -165,6 +179,7 @@ export function BookmarkFeed({ perWorkSeries, selectedWorkIds }: BookmarkFeedPro
             disabled={paginated.currentPage === paginated.totalPages}
             onClick={() => {
               lastActionRef.current = "next";
+              scrollFeedToTop();
               setPage(paginated.currentPage + 1);
             }}
           >
