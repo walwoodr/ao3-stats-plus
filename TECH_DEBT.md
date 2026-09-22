@@ -1198,3 +1198,60 @@
   details a naive reading would miss:" but then enumerates three points
   (1)(2)(3) - the month-abbreviation point (3) was added this pass without
   updating the count. Cosmetic.
+- [2026-09-22] (stage: main thread) **Added to the planned bookmark-feed
+  loose-ends work chunk** (direct user instruction, given while verifying
+  the scraper-fix deploy) - four `BookmarkFeedItem.tsx`/`sanitizeHtml.ts`
+  refinements to fold into that already-agreed next chunk of work, not
+  needing their own Planning pass (concrete, user-specified):
+  1. **Tags/Collections layout**: `PillList` (`frontend/src/components/
+     BookmarkFeedItem.tsx`) currently stacks the "Tags"/"Collections" label
+     above its pill list (`<div><span>{label}</span><ul class="mt-1 ...">`).
+     User wants label and pills on the SAME line for both.
+  2. **AO3 link relocation**: "View this work's bookmarks on AO3" currently
+     renders as a full text link at the bottom of every card. User wants it
+     replaced with an icon-only link positioned to the right of the work
+     title (top of the card, next to `workTitle`/`MarkerGlyph`), with hover
+     text "View this work's bookmarks on AO3" (`title` attribute, plus an
+     accessible name via `aria-label` - not just a visual tooltip). **Icon
+     choice confirmed by the user: an external-link arrow (↗)**, not a
+     bookmark glyph or an AO3-specific mark. No icon library exists in this
+     app yet (checked: no `Icon` component, no external-link icon anywhere)
+     - this will be the first one, so pick something simple (inline SVG is
+     fine, matches the rest of this app's icon-free-but-inline-SVG-friendly
+     pattern e.g. `MarkerGlyph`) rather than pulling in a new dependency
+     without asking (per `TECH_STACK.md`'s ask-before-adding policy).
+  3. **Blockquote treatment for notes, as an app-wide pattern**: bookmark
+     notes (the `.bookmark-note` div wrapping sanitized `noteHtml`) should
+     be styled as a visually-distinct blockquote - left-hand border +
+     indent - so they read as quoted content, not plain body text. **User
+     is explicit this is not a one-off for this component**: "blockquotes
+     should always have this kind of visual treatment in the app" - meaning
+     any real `<blockquote>` rendered anywhere (not just here) should get
+     this treatment. This should land as a token/pattern in
+     `design-system/ao3-stats-plus/MASTER.md` (left-border + indent
+     treatment for blockquotes generally), not just a one-off class on this
+     component, per this project's own rule that UI-touching Maintenance
+     fixes must check against the design-context snapshot.
+  4. **Sanitization scope correction**: `frontend/src/lib/sanitizeHtml.ts`
+     currently calls `DOMPurify.sanitize(html)` with no explicit config (DOM
+     Purify's built-in default allowlist). User's direction: sanitize only
+     what's actually dangerous (script execution vectors - `<script>`,
+     event-handler attributes, `javascript:`/`data:` URIs, etc.), and do
+     NOT strip semantic/structural tags like `<summary>`/`<details>`, which
+     AO3 bookmark notes commonly use (e.g. spoiler-style collapsible
+     sections). Before touching this, verify DOMPurify's actual default
+     behavior for `summary`/`details` first (it's plausible they already
+     pass through today, since DOMPurify's stock allowlist is broad by
+     design) - if they're already preserved, this item is about *codifying*
+     the intended behavior explicitly (e.g. a documented `FORBID_TAGS`/
+     `FORBID_ATTR` approach rather than relying on an implicit default that
+     could silently change on a DOMPurify version bump) rather than fixing
+     an active defect. This also directly answers/supersedes the open
+     question in the 2026-09-14 Review entry above ("DOMPurify default
+     config permits interactive form elements... consider FORBID_TAGS/an
+     allowlist") - the user's direction here is a blocklist-of-genuine-
+     danger approach, not a narrow allowlist, so that entry's suggested
+     restriction of `form`/`input`/`button` should NOT be built as a broad
+     allowlist; if those specific tags still need addressing, that's a
+     separate, narrower call to make at implementation time, not bundled
+     into this general sanitization-scope fix.
