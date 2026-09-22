@@ -939,7 +939,19 @@
   keyboard/touch equivalent for the hover-sync interaction (accessibility
   parity, per this project's existing axe-scan discipline); and whether the
   table should be virtualized/paginated for long time series or just
-  horizontally scrollable as stated.
+  horizontally scrollable as stated. **Scope note added 2026-09-21** (user
+  decision): this item now also absorbs `ROADMAP.md`'s 2026-08-07 "table
+  view as an alternative to the graph view" v2 candidate, which is
+  superseded/struck there - an always-visible, hover-synced table below
+  each figure covers the same "tabular alternative to the graph" need, so a
+  separate toggle-based table view is redundant once this ships. The
+  Planning pass for this item should treat that ROADMAP entry's open
+  questions (uniform across all chart types vs. multi-series-only; does the
+  existing screen-reader-only accessible-table markup get exposed directly
+  or does a user-facing table need its own presentation) as folded into
+  this one's scope, not as separate follow-up work. **Prioritized next**
+  (user decision 2026-09-21): slated as the first of a small feature batch
+  after the current bookmark-notes-feed loose-ends cleanup.
 - [2026-09-13] (stage: Implementation) **Deferred exact-bookmark permalink**
   (docs/plans/bookmark-notes-feed.md, Decision D4). AO3's bookmark markup
   carries a per-bookmark `id="bookmark_NNNN"` (EXTERNAL-UNVERIFIED - see
@@ -1170,3 +1182,19 @@
   again, fetch a real live page first and read it directly - don't reason
   from AO3's public source code, which has now been shown twice not to
   reflect what's actually served for this page type.
+- [2026-09-21] (stage: Review) Two non-blocking documentation nits found while
+  reviewing commit `51c0f75` (the third, live-verified `scrapeWorkBookmarks.ts`
+  fix). Neither affects shipped code behavior; both independently re-verified
+  against live-fetched AO3 HTML during review, so the fix itself is cleared for
+  Deployment. (1) The 2026-09-13 "Deferred exact-bookmark permalink" entry above
+  still asserts a per-bookmark `id="bookmark_NNNN"` and prescribes
+  `li[id^="bookmark_"]` as the future parse path - now confirmed refuted live
+  (real bookmark `<li>` items carry NO `id` attribute at all; verified across 20
+  live items on page 1 this review). The refutation is logged in the 2026-09-21
+  entry's item #6, but the original 2026-09-13 entry was not cross-marked, so
+  read in isolation it points a future implementer at a dead selector. Should be
+  struck/annotated to reference the correction before that feature is picked up.
+  (2) `scrapeWorkBookmarks.ts`'s header comment (line 20) says "Two load-bearing
+  details a naive reading would miss:" but then enumerates three points
+  (1)(2)(3) - the month-abbreviation point (3) was added this pass without
+  updating the count. Cosmetic.

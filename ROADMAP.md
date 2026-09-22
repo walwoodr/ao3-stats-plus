@@ -193,7 +193,7 @@ baseline feature on purpose)
 
 ## v2 candidates (confirmed 2026-08-07)
 
-- Offer a table view as an alternative to the graph view, for every chart
+- ~~Offer a table view as an alternative to the graph view, for every chart
   (account-level and per-work). Each chart already ships an accessible
   data-table alternative for screen-reader users (per MASTER.md's
   accessibility conventions) - this item is about surfacing that as a
@@ -203,4 +203,9 @@ baseline feature on purpose)
   `MultiSeriesTrendChart`), and does the underlying accessible-table
   markup already used for screen readers just get exposed directly, or
   does a user-facing table need its own presentation (sorting, per-work
-  columns, etc.)?
+  columns, etc.)?~~ **SUPERSEDED 2026-09-21** (user decision): consolidated
+  into the chart-hover-to-synced-table backlog item (`TECH_DEBT.md`,
+  2026-09-12 entry) - that item's always-visible, hover-synced table
+  covers the same "tabular alternative to the graph" ground and makes a
+  separate toggle-based table view redundant. Track this under that entry
+  going forward, not as its own item.
