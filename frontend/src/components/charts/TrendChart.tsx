@@ -1,14 +1,10 @@
-import { useId } from "react";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { useId, useState } from "react";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import type { MouseHandlerDataParam } from "recharts";
 import { useChartColors } from "../../lib/useChartColors";
+import { buildTrendTableModel } from "../../lib/syncedTableModel";
+import { SyncedDataTable } from "./SyncedDataTable";
+import { ActivePointOverlay, type ActivePoint } from "./ActivePointOverlay";
 
 export interface TrendPoint {
   capturedOn: string;
@@ -36,26 +32,18 @@ interface TrendChartRow {
   isLeadIn: boolean;
 }
 
-// leadIn's year-only label ("Before 2014 (estimated baseline)") - never the
-// raw ISO capturedOn - so the synthetic point can't be mistaken for a real
-// snapshot date anywhere it's surfaced (table row, marker aria-label).
-function leadInLabel(leadIn: TrendChartLeadIn): string {
-  const year = leadIn.capturedOn.slice(0, 4);
-  return `Before ${year} (estimated baseline)`;
-}
-
 // Plots one numeric series against real (irregularly spaced) capture dates.
 // The visual Recharts chart is aria-hidden - the actual accessible
-// representation is the data table below it (one row per snapshot, never
-// fabricating rows for the gap between sparse captures) plus a screen-
-// reader-only per-point marker with its own aria-label, so the trend isn't
-// color-only. The markers are sr-only rather than visible dots - as plain
-// same-shaped, same-size circles they didn't convey any real information a
-// sighted user couldn't already get from the chart itself, just visual
-// clutter. The title and optional description are rendered as real, visible
-// text (not just aria attributes) so a sighted user looking at the
-// dashboard can tell what each chart represents without relying on a
-// screen reader.
+// representation is the visible, transposed SyncedDataTable below it
+// (docs/plans/chart-synced-data-table.md), rendered as a SIBLING of the
+// role=img figure (not nested inside it - role=img descendants are
+// generally hidden from assistive tech). Hovering/focusing the chart
+// highlights the matching table column (chart->table sync); hovering/
+// focusing a table column header draws a guide line + ring at the matching
+// chart point (table->chart sync, via ActivePointOverlay). The title and
+// optional description are rendered as real, visible text (not just aria
+// attributes) so a sighted user looking at the dashboard can tell what each
+// chart represents without relying on a screen reader.
 export function TrendChart({ title, description, valueLabel, points, leadIn }: TrendChartProps) {
   const headingId = useId();
   const descriptionId = useId();
@@ -65,6 +53,7 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
   // via the Tailwind classes the surrounding chrome uses - see
   // src/lib/useChartColors.ts and MASTER.md's Chart Guidance section.
   const colors = useChartColors();
+  const [activeDateKey, setActiveDateKey] = useState<string | null>(null);
 
   // The dashed "lead" series only carries a value on the synthetic row and
   // the first real row (so it draws exactly one segment connecting them);
@@ -110,11 +99,26 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
     if (!row) return "";
     return row.isLeadIn ? row.capturedOn.slice(0, 4) : row.capturedOn;
   };
-  const formatTooltipLabel = (xValue: React.ReactNode): string => {
-    const row = chartData.find((r) => r.xValue === xValue);
-    if (!row) return "";
-    return row.isLeadIn && leadIn ? leadInLabel(leadIn) : row.capturedOn;
-  };
+
+  // Chart -> table sync (§2.3): TrendChart's XAxis is the numeric xValue, so
+  // state.activeLabel is the xValue integer, not the capturedOn dateKey
+  // directly - resolve it via chartData.
+  function resolveDateKey(state: MouseHandlerDataParam): string | null {
+    const activeLabel = state.activeLabel;
+    if (activeLabel == null) return null;
+    const row = chartData.find((r) => r.xValue === activeLabel);
+    return row ? row.capturedOn : null;
+  }
+
+  // Table -> chart sync (§2.3): resolve the active date's chart-space point
+  // for the overlay. The leadIn row's own value lives on "lead" (its "value"
+  // is null), so fall back to that.
+  const activeRow = activeDateKey
+    ? chartData.find((r) => r.capturedOn === activeDateKey)
+    : undefined;
+  const activePoints: ActivePoint[] = activeRow
+    ? [{ x: activeRow.xValue, y: (activeRow.isLeadIn ? activeRow.lead : activeRow.value) ?? 0 }]
+    : [];
 
   // No current caller mounts this with empty points and no leadIn - Recharts'
   // numeric XAxis domain reads chartData[0]/chartData[chartData.length - 1],
@@ -140,13 +144,10 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
     );
   }
 
+  const tableModel = buildTrendTableModel({ valueLabel, points, leadIn });
+
   return (
-    <figure
-      role="img"
-      aria-labelledby={headingId}
-      aria-describedby={description ? descriptionId : undefined}
-      className="w-full rounded-lg border border-ink/12 bg-card p-6 transition-colors duration-200 hover:border-ink/24"
-    >
+    <div className="w-full rounded-lg border border-ink/12 bg-card p-6 transition-colors duration-200 hover:border-ink/24">
       <h3 id={headingId} className="font-display text-base font-semibold text-ink">
         {title}
       </h3>
@@ -156,66 +157,39 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
         </p>
       )}
 
-      <div aria-hidden="true">
-        <ResponsiveContainer width="100%" height={240}>
-          <LineChart data={chartData} accessibilityLayer={false}>
-            <CartesianGrid strokeDasharray="3 3" stroke={colors.inkSoft} strokeOpacity={0.2} />
-            <XAxis
-              dataKey="xValue"
-              type="number"
-              domain={[chartData[0].xValue, chartData[chartData.length - 1].xValue]}
-              ticks={chartData.map((row) => row.xValue)}
-              tickFormatter={formatTick}
-              tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
-            />
-            <YAxis tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }} />
-            <Tooltip
-              labelFormatter={formatTooltipLabel}
-              contentStyle={{
-                fontFamily: "var(--font-mono)",
-                backgroundColor: colors.card,
-                border: `1px solid ${colors.inkSoft}`,
-                borderRadius: 6,
-              }}
-              labelStyle={{ color: colors.inkSoft }}
-              itemStyle={{ color: colors.ink }}
-            />
-            <Line
-              type="linear"
-              dataKey="value"
-              name={valueLabel}
-              connectNulls={false}
-              isAnimationActive={false}
-              stroke={colors.ink}
-              strokeWidth={2}
-              dot={(dotProps: {
-                cx?: number;
-                cy?: number;
-                payload?: TrendChartRow;
-                index?: number;
-              }) => {
-                const { cx, cy, payload, index } = dotProps;
-                // Null on the synthetic leadIn row for this series - skip it so
-                // only real points get a dot here (the leadIn's own dot is drawn
-                // by the "lead" line below, in accent, not ink).
-                if (payload?.value == null || cx == null || cy == null) {
-                  return <g key={`value-dot-${index}`} />;
-                }
-                return (
-                  <circle key={`value-dot-${index}`} cx={cx} cy={cy} r={3.5} fill={colors.ink} />
-                );
-              }}
-            />
-            {leadIn && (
+      <figure
+        role="img"
+        aria-labelledby={headingId}
+        aria-describedby={description ? descriptionId : undefined}
+      >
+        <div aria-hidden="true">
+          <ResponsiveContainer width="100%" height={240}>
+            <LineChart
+              data={chartData}
+              accessibilityLayer={false}
+              onMouseMove={(state) => setActiveDateKey(resolveDateKey(state))}
+              onMouseLeave={() => setActiveDateKey(null)}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke={colors.inkSoft} strokeOpacity={0.2} />
+              <XAxis
+                dataKey="xValue"
+                type="number"
+                domain={[chartData[0].xValue, chartData[chartData.length - 1].xValue]}
+                ticks={chartData.map((row) => row.xValue)}
+                tickFormatter={formatTick}
+                tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
+              />
+              <YAxis
+                tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
+              />
               <Line
                 type="linear"
-                dataKey="lead"
-                name={`${valueLabel} (estimated baseline)`}
-                connectNulls
+                dataKey="value"
+                name={valueLabel}
+                connectNulls={false}
                 isAnimationActive={false}
-                strokeDasharray="4 4"
-                stroke={colors.inkSoft}
-                strokeWidth={1.5}
+                stroke={colors.ink}
+                strokeWidth={2}
                 dot={(dotProps: {
                   cx?: number;
                   cy?: number;
@@ -223,58 +197,66 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
                   index?: number;
                 }) => {
                   const { cx, cy, payload, index } = dotProps;
-                  // This series also carries the first real point's value (to
-                  // close the dashed segment) - only draw a dot for the
-                  // synthetic row itself, the "value" line's dot already
-                  // covers the first real point, in ink rather than accent.
-                  if (!payload?.isLeadIn || cx == null || cy == null) {
-                    return <g key={`lead-dot-${index}`} />;
+                  // Null on the synthetic leadIn row for this series - skip it so
+                  // only real points get a dot here (the leadIn's own dot is drawn
+                  // by the "lead" line below, in accent, not ink).
+                  if (payload?.value == null || cx == null || cy == null) {
+                    return <g key={`value-dot-${index}`} />;
                   }
                   return (
-                    <circle key={`lead-dot-${index}`} cx={cx} cy={cy} r={4} fill={colors.accent} />
+                    <circle key={`value-dot-${index}`} cx={cx} cy={cy} r={3.5} fill={colors.ink} />
                   );
                 }}
               />
-            )}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+              {leadIn && (
+                <Line
+                  type="linear"
+                  dataKey="lead"
+                  name={`${valueLabel} (estimated baseline)`}
+                  connectNulls
+                  isAnimationActive={false}
+                  strokeDasharray="4 4"
+                  stroke={colors.inkSoft}
+                  strokeWidth={1.5}
+                  dot={(dotProps: {
+                    cx?: number;
+                    cy?: number;
+                    payload?: TrendChartRow;
+                    index?: number;
+                  }) => {
+                    const { cx, cy, payload, index } = dotProps;
+                    // This series also carries the first real point's value (to
+                    // close the dashed segment) - only draw a dot for the
+                    // synthetic row itself, the "value" line's dot already
+                    // covers the first real point, in ink rather than accent.
+                    if (!payload?.isLeadIn || cx == null || cy == null) {
+                      return <g key={`lead-dot-${index}`} />;
+                    }
+                    return (
+                      <circle
+                        key={`lead-dot-${index}`}
+                        cx={cx}
+                        cy={cy}
+                        r={4}
+                        fill={colors.accent}
+                      />
+                    );
+                  }}
+                />
+              )}
+              <ActivePointOverlay activePoints={activePoints} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </figure>
 
-      <div className="sr-only">
-        {leadIn && (
-          <span data-testid="trend-point-marker-lead">
-            {`${leadInLabel(leadIn)}: ${leadIn.value} ${valueLabel}`}
-          </span>
-        )}
-        {points.map((point, index) => (
-          <span key={point.capturedOn} data-testid={`trend-point-marker-${index}`}>
-            {`${point.capturedOn}: ${point.value} ${valueLabel}`}
-          </span>
-        ))}
-      </div>
-
-      <table aria-label={title} className="sr-only">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>{valueLabel}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {leadIn && (
-            <tr>
-              <td>{leadInLabel(leadIn)}</td>
-              <td>{leadIn.value}</td>
-            </tr>
-          )}
-          {points.map((point) => (
-            <tr key={point.capturedOn}>
-              <td>{point.capturedOn}</td>
-              <td>{point.value}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </figure>
+      <SyncedDataTable
+        title={title}
+        rowHeaderLabel="Metric"
+        model={tableModel}
+        activeDateKey={activeDateKey}
+        onActiveDateKeyChange={setActiveDateKey}
+      />
+    </div>
   );
 }
