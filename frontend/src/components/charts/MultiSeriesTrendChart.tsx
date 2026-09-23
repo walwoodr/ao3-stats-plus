@@ -18,6 +18,13 @@ import type { TrendPoint } from "./TrendChart";
 export interface SeriesLeadIn {
   capturedOn: string;
   label: string;
+  // Maintenance item 3 (post-ship bug batch, 2026-09-23): true only for a
+  // work's own accurate publish-date lead-in. Optional/chart-side-unused -
+  // it only changes syncedTableModel.ts's buildMultiSeriesTableModel table
+  // rendering (column header wording, "Published (N)" cell placeholder);
+  // this chart component's own buildChartData/tick-label rendering is
+  // unaffected and keeps reading `label` as before.
+  isPublishDate?: boolean;
 }
 
 export interface SeriesDatum {

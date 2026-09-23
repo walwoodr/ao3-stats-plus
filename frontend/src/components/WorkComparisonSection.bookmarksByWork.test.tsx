@@ -190,8 +190,10 @@ describe("WorkComparisonSection: Bookmarks By Work", () => {
       .map((header) => header.textContent);
     // Corner cell (sr-only "Work") + Total's zero-basis leadIn column + one
     // per captured date (see the leadIn test below for why only Total's
-    // leadIn contributes a column here).
-    expect(columnHeaders).toEqual(["Work", "Published 2020-01-01", "2026-01-01", "2026-01-08"]);
+    // leadIn contributes a column here). Maintenance item 3 (post-ship bug
+    // batch, 2026-09-23): the leadIn column header shows just the raw date
+    // now, not the "Published ..." wording (that moved to the cell).
+    expect(columnHeaders).toEqual(["Work", "2020-01-01", "2026-01-01", "2026-01-08"]);
 
     // Row headers also carry the worded (shape, color) description now (see
     // the "fixed slot 0/1/2" test above) - asserted loosely here via
@@ -241,17 +243,18 @@ describe("WorkComparisonSection: Bookmarks By Work", () => {
     await goToBookmarksByWork(user);
 
     const table = screen.getByRole("table", { name: "Work One" });
-    expect(
-      within(table).getByRole("columnheader", { name: "Published 2020-01-01" }),
-    ).toBeInTheDocument();
+    // Maintenance item 3 (post-ship bug batch, 2026-09-23): the leadIn
+    // column header shows just the raw date now, and the owning row's cell
+    // carries the "Published (N)" wording instead of a bare "0".
+    expect(within(table).getByRole("columnheader", { name: "2020-01-01" })).toBeInTheDocument();
     const rowHeaders = within(table).getAllByRole("rowheader");
 
-    // Total's row has a real (leadIn) 0 value at that column.
+    // Total's row has the "Published (0)" placeholder at that column.
     const totalRow = rowHeaders
       .find((header) => /^total/i.test(header.textContent ?? ""))
       ?.closest("tr");
     expect(totalRow).not.toBeNull();
-    expect(within(totalRow as HTMLElement).getByText("0")).toBeInTheDocument();
+    expect(within(totalRow as HTMLElement).getByText("Published (0)")).toBeInTheDocument();
 
     // Public/Private never carry a leadIn - their rows show "—" at that
     // same zero-basis column instead of a fabricated 0.

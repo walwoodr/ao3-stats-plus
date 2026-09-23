@@ -27,6 +27,7 @@ const USERNAME = "testauthor";
 interface CapturedLeadIn {
   capturedOn: string;
   label: string;
+  isPublishDate?: boolean;
 }
 
 function capturedLeadIns(title = "Hits"): Record<number, CapturedLeadIn | null> {
@@ -107,7 +108,11 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
     await selectWorkViaCombobox(user, "Work Two");
 
     const leadIns = capturedLeadIns();
-    expect(leadIns[1]).toEqual({ capturedOn: "2020-06-01", label: "Published 2020-06-01" });
+    expect(leadIns[1]).toEqual({
+      capturedOn: "2020-06-01",
+      label: "Published 2020-06-01",
+      isPublishDate: true,
+    });
   });
 
   it("falls back to `${earliestPostYear}-01-01`, labeled 'Before <year> (estimated baseline)', when publishedOn is null", async () => {
@@ -152,6 +157,7 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
     expect(leadIns[2]).toEqual({
       capturedOn: "2019-01-01",
       label: "Before 2019 (estimated baseline)",
+      isPublishDate: false,
     });
   });
 
@@ -197,6 +203,7 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
     expect(leadIns[1]).toEqual({
       capturedOn: "2018-01-01",
       label: "Before 2018 (estimated baseline)",
+      isPublishDate: false,
     });
     expect(leadIns[2]).toEqual(leadIns[1]);
   });
@@ -242,7 +249,11 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
     const leadIns = capturedLeadIns();
     // Work One still gets its own accurate leadIn even though the shared
     // earliestPostYear prop is null - only the *fallback* path needs it.
-    expect(leadIns[1]).toEqual({ capturedOn: "2020-06-01", label: "Published 2020-06-01" });
+    expect(leadIns[1]).toEqual({
+      capturedOn: "2020-06-01",
+      label: "Published 2020-06-01",
+      isPublishDate: true,
+    });
     expect(leadIns[2]).toBeNull();
   });
 

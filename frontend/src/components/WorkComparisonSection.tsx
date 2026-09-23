@@ -50,12 +50,24 @@ function zeroBasisDateFor(work: PerWorkSeries, earliestPostYear: number | null):
   return null;
 }
 
+// Shared by zeroBasisLabelFor and computeLeadIn (Maintenance item 3,
+// 2026-09-23) so both agree on exactly which leadIn shape a work has: its
+// own accurate publish date, vs. the earliestPostYear estimated-baseline
+// fallback.
+function isAccuratePublishDate(work: PerWorkSeries, zeroBasisDate: string): boolean {
+  return (
+    work.publishedOn != null &&
+    isValidIsoDate(work.publishedOn) &&
+    work.publishedOn === zeroBasisDate
+  );
+}
+
 function zeroBasisLabelFor(
   work: PerWorkSeries,
   zeroBasisDate: string,
   earliestPostYear: number | null,
 ): string {
-  if (work.publishedOn && isValidIsoDate(work.publishedOn) && work.publishedOn === zeroBasisDate) {
+  if (isAccuratePublishDate(work, zeroBasisDate)) {
     return `Published ${work.publishedOn}`;
   }
   return `Before ${earliestPostYear} (estimated baseline)`;
@@ -85,6 +97,7 @@ function computeLeadIn(
   return {
     capturedOn: zeroBasisDate,
     label: zeroBasisLabelFor(work, zeroBasisDate, earliestPostYear),
+    isPublishDate: isAccuratePublishDate(work, zeroBasisDate),
   };
 }
 

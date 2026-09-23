@@ -219,13 +219,19 @@ describe("WorkComparisonSection: Bookmarks By Type", () => {
     renderSection({ perWorkSeries: ENRICHED_AND_UNENRICHED_WORKS, earliestPostYear: null });
     await goToBookmarksByType(user);
 
+    // Maintenance item 3 (post-ship bug batch, 2026-09-23): the column
+    // header now shows just the raw date; the "Published (N)" wording moved
+    // to the cell.
     const totalTable = screen.getByRole("table", { name: /^total bookmarks$/i });
-    expect(within(totalTable).getAllByText(/published 2020-01-01/i).length).toBeGreaterThan(0);
+    expect(
+      within(totalTable).getByRole("columnheader", { name: "2020-01-01" }),
+    ).toBeInTheDocument();
+    expect(within(totalTable).getAllByText(/^published \(\d+\)$/i).length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole("checkbox", { name: "Public" }));
 
     const publicTable = screen.getByRole("table", { name: /^public bookmarks$/i });
-    expect(within(publicTable).queryByText(/published 2020-01-01/i)).not.toBeInTheDocument();
+    expect(within(publicTable).queryByText(/^published \(\d+\)$/i)).not.toBeInTheDocument();
     expect(within(publicTable).queryByText(/estimated baseline/i)).not.toBeInTheDocument();
   });
 

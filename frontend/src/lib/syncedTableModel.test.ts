@@ -240,13 +240,22 @@ describe("buildMultiSeriesTableModel (MultiSeriesTrendChart shape)", () => {
     });
   });
 
-  it("gives each work its own distinctly labeled leadIn column when its leadIn is an accurate publish date", () => {
+  // Maintenance item 3 (chart-synced-data-table.md, post-ship bug batch,
+  // 2026-09-23): a work's own accurate publish-date leadIn (isPublishDate:
+  // true) gets a column header showing just the date - formatted like every
+  // other date column, never the word-label wording - and a "Published (N)"
+  // placeholder cell (N = 0 when no real value was ever captured on that
+  // exact date). This is distinct from the account-level "estimated
+  // baseline" fallback leadIn (isPublishDate: false/omitted), which keeps
+  // its existing word-label header and plain-0 cell (see the "collapses...
+  // shared zero-basis fallback" test above).
+  it("labels a publish-date leadIn column with just the raw date (not word-label text)", () => {
     const withOwnLeadIn = {
       workId: 5,
       title: "Work E",
       styleIndex: 4,
       points: [{ capturedOn: "2026-01-01", value: 1 }],
-      leadIn: { capturedOn: "2020-01-01", label: "Published 2020-01-01" },
+      leadIn: { capturedOn: "2020-01-01", label: "Published 2020-01-01", isPublishDate: true },
     };
 
     const model = buildMultiSeriesTableModel({
@@ -255,9 +264,75 @@ describe("buildMultiSeriesTableModel (MultiSeriesTrendChart shape)", () => {
       seriesColors: LIGHT_COLOR_TOKENS.series,
     });
 
-    expect(model.columns[0]).toMatchObject({
+    expect(model.columns[0]).toEqual({
       dateKey: "2020-01-01",
-      label: "Published 2020-01-01",
+      label: "2020-01-01",
+      isLeadIn: false,
+    });
+  });
+
+  it("renders a publish-date leadIn cell as 'Published (0)' when no real value was captured on that date", () => {
+    const withOwnLeadIn = {
+      workId: 5,
+      title: "Work E",
+      styleIndex: 4,
+      points: [{ capturedOn: "2026-01-01", value: 1 }],
+      leadIn: { capturedOn: "2020-01-01", label: "Published 2020-01-01", isPublishDate: true },
+    };
+
+    const model = buildMultiSeriesTableModel({
+      valueLabel: "Hits",
+      series: [withOwnLeadIn],
+      seriesColors: LIGHT_COLOR_TOKENS.series,
+    });
+
+    expect(model.rows[0].cells[0]).toBe("Published (0)");
+  });
+
+  it("renders a publish-date leadIn cell as 'Published (N)' when a real snapshot landed on that exact date", () => {
+    const withRealCaptureOnPublishDate = {
+      workId: 9,
+      title: "Work I",
+      styleIndex: 0,
+      points: [
+        { capturedOn: "2020-01-01", value: 42 },
+        { capturedOn: "2026-01-01", value: 100 },
+      ],
+      leadIn: { capturedOn: "2020-01-01", label: "Published 2020-01-01", isPublishDate: true },
+    };
+
+    const model = buildMultiSeriesTableModel({
+      valueLabel: "Hits",
+      series: [withRealCaptureOnPublishDate],
+      seriesColors: LIGHT_COLOR_TOKENS.series,
+    });
+
+    const publishColumnIndex = model.columns.findIndex((c) => c.dateKey === "2020-01-01");
+    expect(model.rows[0].cells[publishColumnIndex]).toBe("Published (42)");
+  });
+
+  it("keeps the estimated-baseline leadIn's plain word-label header and 0 cell unchanged (not the Published wording)", () => {
+    const baselineOnly = {
+      workId: 10,
+      title: "Work J",
+      styleIndex: 0,
+      points: [{ capturedOn: "2026-01-01", value: 1 }],
+      leadIn: {
+        capturedOn: "2018-01-01",
+        label: "Before 2018 (estimated baseline)",
+        isPublishDate: false,
+      },
+    };
+
+    const model = buildMultiSeriesTableModel({
+      valueLabel: "Hits",
+      series: [baselineOnly],
+      seriesColors: LIGHT_COLOR_TOKENS.series,
+    });
+
+    expect(model.columns[0]).toEqual({
+      dateKey: "2018-01-01",
+      label: "Before 2018 (estimated baseline)",
       isLeadIn: true,
     });
     expect(model.rows[0].cells[0]).toBe(0);

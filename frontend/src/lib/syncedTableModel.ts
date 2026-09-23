@@ -148,6 +148,17 @@ export function buildRatioTableModel({
 export interface MultiSeriesModelLeadIn {
   capturedOn: string;
   label: string;
+  // Maintenance item 3 (post-ship bug batch, 2026-09-23): true only for a
+  // work's own accurate publish-date lead-in (WorkComparisonSection's
+  // zeroBasisDateFor picked the real publishedOn, not the earliestPostYear
+  // fallback). Distinguishes it from the account-level "estimated baseline"
+  // lead-in, which keeps the prior word-label column header + plain-0 cell
+  // behavior - see multiSeriesCellValue and the column-label loop below.
+  // Optional (defaults to the baseline/false treatment) so callers that
+  // never build a publish-date lead-in (TrendChart/RatioChart's leadIn
+  // shapes are separate types entirely; MultiSeriesTrendChart's own
+  // baseline-only fixtures) don't need to know this field exists.
+  isPublishDate?: boolean;
 }
 
 export interface MultiSeriesModelPoint {
@@ -179,9 +190,17 @@ function identityDescription(styleIndex: number): string {
 
 // A series' value at a given union date: its own real point if present,
 // else its own leadIn's fixed 0 if the date IS that series' own leadIn slot,
-// else "—" (sparse/missing - this series has no data at this date).
+// else "—" (sparse/missing - this series has no data at this date). A
+// PUBLISH-DATE leadIn (Maintenance item 3) instead renders the worded
+// "Published (N)" placeholder - N is any real value actually captured on
+// that exact date (0 otherwise) - taking priority over the plain-real-point
+// branch so the wording always applies on the work's own publish-date
+// column, even on the rare day a real snapshot lands there too.
 function multiSeriesCellValue(series: MultiSeriesModelSeries, dateKey: string): number | string {
   const point = series.points.find((p) => p.capturedOn === dateKey);
+  if (series.leadIn && series.leadIn.capturedOn === dateKey && series.leadIn.isPublishDate) {
+    return `Published (${point ? point.value : 0})`;
+  }
   if (point) return point.value;
   if (series.leadIn && series.leadIn.capturedOn === dateKey) return 0;
   return "—";
@@ -208,10 +227,15 @@ export function buildMultiSeriesTableModel({
   const sortedDates = [...unionDates].sort();
 
   // Only a slot that's exclusively a zero-basis anchor (never a real
-  // capture date for ANY selected series) gets the word-label treatment.
+  // capture date for ANY selected series) gets the word-label treatment -
+  // and, per Maintenance item 3, never a PUBLISH-DATE leadIn (isPublishDate)
+  // at all: that column header always shows just the raw date, formatted
+  // like every other date column, regardless of whether it coincides with a
+  // real capture. Only the account-level "estimated baseline" leadIn keeps
+  // the word-label collapsing behavior.
   const zeroBasisLabels = new Map<string, string>();
   series.forEach((s) => {
-    if (s.leadIn && !realDates.has(s.leadIn.capturedOn)) {
+    if (s.leadIn && !s.leadIn.isPublishDate && !realDates.has(s.leadIn.capturedOn)) {
       zeroBasisLabels.set(s.leadIn.capturedOn, s.leadIn.label);
     }
   });

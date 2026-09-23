@@ -258,8 +258,12 @@ describe("WorkComparisonSection: per-work metric toggle", () => {
 
     await user.click(screen.getByRole("tab", { name: "Comments" }));
 
+    // Maintenance item 3 (post-ship bug batch, 2026-09-23): the column
+    // header shows just the raw date, and the "Published (N)" wording moved
+    // to the cell instead of the header.
     const table = screen.getByRole("table", { name: /^comments$/i });
-    expect(within(table).getAllByText(/published 2020-01-01/i).length).toBeGreaterThan(0);
+    expect(within(table).getByRole("columnheader", { name: "2020-01-01" })).toBeInTheDocument();
+    expect(within(table).getByText("Published (0)")).toBeInTheDocument();
   });
 
   it("switching metric tabs does not reset the selected works or the active range window", async () => {
