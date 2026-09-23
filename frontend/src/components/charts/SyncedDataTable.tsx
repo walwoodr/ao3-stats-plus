@@ -1,7 +1,13 @@
-import { useState, type KeyboardEvent, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import type { SyncedTableModel } from "../../lib/syncedTableModel";
 import { MarkerGlyph } from "../../lib/markerShapes";
 import { formatNumber } from "../../lib/formatNumber";
+import {
+  animateScrollLeft,
+  computeTargetScrollLeft,
+  prefersReducedMotion,
+  type ColumnLayout,
+} from "../../lib/scrollColumnIntoView";
 
 export interface SyncedDataTableProps {
   title: string;
@@ -58,6 +64,52 @@ export function SyncedDataTable({
   defaultOpen = true,
 }: SyncedDataTableProps) {
   const [open, setOpen] = useState(defaultOpen);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const stickyCornerRef = useRef<HTMLTableCellElement>(null);
+  // Maintenance item 5 (post-ship bug batch, 2026-09-23): distinguishes a
+  // TABLE-originated activeDateKey change (this component's own column
+  // hover/focus handlers, wrapped below to set this flag first) from an
+  // EXTERNAL one (a chart hover, driving the same prop from the parent) -
+  // only the latter should auto-scroll. Scrolling the table out from under
+  // a user who is already hovering a column header inside it would be a
+  // jarring self-scroll loop, so table-originated changes are suppressed.
+  const selfTriggeredRef = useRef(false);
+
+  function notifyActiveDateKeyChange(dateKey: string | null) {
+    selfTriggeredRef.current = true;
+    onActiveDateKeyChange(dateKey);
+  }
+
+  useEffect(() => {
+    const wasSelfTriggered = selfTriggeredRef.current;
+    selfTriggeredRef.current = false;
+    if (wasSelfTriggered || activeDateKey === null) return;
+
+    const container = scrollContainerRef.current;
+    const stickyCorner = stickyCornerRef.current;
+    if (!container || !stickyCorner) return;
+
+    const columnElements = container.querySelectorAll<HTMLTableCellElement>("th[data-date-key]");
+    const columns: ColumnLayout[] = Array.from(columnElements).map((element) => ({
+      dateKey: element.dataset.dateKey ?? "",
+      offsetLeft: element.offsetLeft,
+      width: element.offsetWidth,
+    }));
+
+    const targetScrollLeft = computeTargetScrollLeft({
+      columns,
+      targetDateKey: activeDateKey,
+      stickyColumnWidth: stickyCorner.offsetWidth,
+      maxScrollLeft: Math.max(container.scrollWidth - container.clientWidth, 0),
+    });
+    if (targetScrollLeft === null) return;
+
+    animateScrollLeft({
+      container,
+      targetScrollLeft,
+      prefersReducedMotion: prefersReducedMotion(),
+    });
+  }, [activeDateKey]);
 
   function toggleOpen(event: MouseEvent | KeyboardEvent) {
     event.preventDefault();
@@ -87,6 +139,7 @@ export function SyncedDataTable({
           inputs here) must itself be a keyboard-operable tab stop, or
           keyboard-only users have no way to scroll it. */}
       <div
+        ref={scrollContainerRef}
         className="overflow-x-auto bg-card px-4 pb-4 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         tabIndex={0}
         role="region"
@@ -96,6 +149,7 @@ export function SyncedDataTable({
           <thead>
             <tr>
               <th
+                ref={stickyCornerRef}
                 scope="col"
                 className={`${HEADER_CELL_BASE} sticky left-0 z-10 bg-card text-ink-soft ${STICKY_COLUMN_SHADOW}`}
               >
@@ -106,11 +160,12 @@ export function SyncedDataTable({
                 return (
                   <th
                     key={column.dateKey}
+                    data-date-key={column.dateKey}
                     scope="col"
-                    onMouseEnter={() => onActiveDateKeyChange(column.dateKey)}
-                    onMouseLeave={() => onActiveDateKeyChange(null)}
-                    onFocus={() => onActiveDateKeyChange(column.dateKey)}
-                    onBlur={() => onActiveDateKeyChange(null)}
+                    onMouseEnter={() => notifyActiveDateKeyChange(column.dateKey)}
+                    onMouseLeave={() => notifyActiveDateKeyChange(null)}
+                    onFocus={() => notifyActiveDateKeyChange(column.dateKey)}
+                    onBlur={() => notifyActiveDateKeyChange(null)}
                     className={
                       isActive
                         ? `${HEADER_CELL_BASE} bg-accent/10 font-semibold text-ink`
