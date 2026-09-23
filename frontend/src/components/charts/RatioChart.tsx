@@ -5,6 +5,7 @@ import { useChartColors } from "../../lib/useChartColors";
 import { formatNumber } from "../../lib/formatNumber";
 import { buildRatioTableModel } from "../../lib/syncedTableModel";
 import { SyncedDataTable } from "./SyncedDataTable";
+import { ChartDisclosure } from "./ChartDisclosure";
 import { ActivePointOverlay, type ActivePoint } from "./ActivePointOverlay";
 
 export interface RatioPoint {
@@ -147,70 +148,42 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
         </p>
       )}
 
-      <figure
-        role="img"
-        aria-labelledby={headingId}
-        aria-describedby={description ? descriptionId : undefined}
-      >
-        <div aria-hidden="true">
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart
-              data={chartData}
-              accessibilityLayer={false}
-              onMouseMove={(state) => setActiveDateKey(resolveDateKey(state))}
-              onMouseLeave={() => setActiveDateKey(null)}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke={colors.inkSoft} strokeOpacity={0.2} />
-              <XAxis
-                dataKey="xValue"
-                type="number"
-                domain={[chartData[0].xValue, chartData[chartData.length - 1].xValue]}
-                ticks={chartData.map((row) => row.xValue)}
-                tickFormatter={formatTick}
-                tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
-              />
-              <YAxis
-                tickFormatter={formatNumber}
-                tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
-              />
-              <Line
-                type="linear"
-                dataKey="ratio"
-                name="Kudos-to-hits ratio"
-                connectNulls={false}
-                isAnimationActive={false}
-                activeDot={false}
-                stroke={colors.ink}
-                strokeWidth={2}
-                dot={(dotProps: {
-                  cx?: number;
-                  cy?: number;
-                  payload?: RatioChartRow;
-                  index?: number;
-                }) => {
-                  const { cx, cy, payload, index } = dotProps;
-                  // Null on the synthetic leadIn row for this series - skip it so
-                  // only real points get a dot here (the leadIn's own dot is drawn
-                  // by the "lead" line below, in accent, not ink).
-                  if (payload?.ratio == null || cx == null || cy == null) {
-                    return <g key={`ratio-dot-${index}`} />;
-                  }
-                  return (
-                    <circle key={`ratio-dot-${index}`} cx={cx} cy={cy} r={3.5} fill={colors.ink} />
-                  );
-                }}
-              />
-              {leadIn && (
+      <ChartDisclosure>
+        <figure
+          role="img"
+          aria-labelledby={headingId}
+          aria-describedby={description ? descriptionId : undefined}
+        >
+          <div aria-hidden="true">
+            <ResponsiveContainer width="100%" height={240}>
+              <LineChart
+                data={chartData}
+                accessibilityLayer={false}
+                onMouseMove={(state) => setActiveDateKey(resolveDateKey(state))}
+                onMouseLeave={() => setActiveDateKey(null)}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke={colors.inkSoft} strokeOpacity={0.2} />
+                <XAxis
+                  dataKey="xValue"
+                  type="number"
+                  domain={[chartData[0].xValue, chartData[chartData.length - 1].xValue]}
+                  ticks={chartData.map((row) => row.xValue)}
+                  tickFormatter={formatTick}
+                  tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
+                />
+                <YAxis
+                  tickFormatter={formatNumber}
+                  tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
+                />
                 <Line
                   type="linear"
-                  dataKey="lead"
-                  name="Kudos-to-hits ratio (estimated baseline)"
-                  connectNulls
+                  dataKey="ratio"
+                  name="Kudos-to-hits ratio"
+                  connectNulls={false}
                   isAnimationActive={false}
                   activeDot={false}
-                  strokeDasharray="4 4"
-                  stroke={colors.inkSoft}
-                  strokeWidth={1.5}
+                  stroke={colors.ink}
+                  strokeWidth={2}
                   dot={(dotProps: {
                     cx?: number;
                     cy?: number;
@@ -218,30 +191,66 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
                     index?: number;
                   }) => {
                     const { cx, cy, payload, index } = dotProps;
-                    // This series also carries the first real point's value (to
-                    // close the dashed segment) - only draw a dot for the
-                    // synthetic row itself, the "ratio" line's dot already
-                    // covers the first real point, in ink rather than accent.
-                    if (!payload?.isLeadIn || cx == null || cy == null) {
-                      return <g key={`lead-dot-${index}`} />;
+                    // Null on the synthetic leadIn row for this series - skip it so
+                    // only real points get a dot here (the leadIn's own dot is drawn
+                    // by the "lead" line below, in accent, not ink).
+                    if (payload?.ratio == null || cx == null || cy == null) {
+                      return <g key={`ratio-dot-${index}`} />;
                     }
                     return (
                       <circle
-                        key={`lead-dot-${index}`}
+                        key={`ratio-dot-${index}`}
                         cx={cx}
                         cy={cy}
-                        r={4}
-                        fill={colors.accent}
+                        r={3.5}
+                        fill={colors.ink}
                       />
                     );
                   }}
                 />
-              )}
-              <ActivePointOverlay activePoints={activePoints} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </figure>
+                {leadIn && (
+                  <Line
+                    type="linear"
+                    dataKey="lead"
+                    name="Kudos-to-hits ratio (estimated baseline)"
+                    connectNulls
+                    isAnimationActive={false}
+                    activeDot={false}
+                    strokeDasharray="4 4"
+                    stroke={colors.inkSoft}
+                    strokeWidth={1.5}
+                    dot={(dotProps: {
+                      cx?: number;
+                      cy?: number;
+                      payload?: RatioChartRow;
+                      index?: number;
+                    }) => {
+                      const { cx, cy, payload, index } = dotProps;
+                      // This series also carries the first real point's value (to
+                      // close the dashed segment) - only draw a dot for the
+                      // synthetic row itself, the "ratio" line's dot already
+                      // covers the first real point, in ink rather than accent.
+                      if (!payload?.isLeadIn || cx == null || cy == null) {
+                        return <g key={`lead-dot-${index}`} />;
+                      }
+                      return (
+                        <circle
+                          key={`lead-dot-${index}`}
+                          cx={cx}
+                          cy={cy}
+                          r={4}
+                          fill={colors.accent}
+                        />
+                      );
+                    }}
+                  />
+                )}
+                <ActivePointOverlay activePoints={activePoints} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </figure>
+      </ChartDisclosure>
 
       <SyncedDataTable
         title={title}

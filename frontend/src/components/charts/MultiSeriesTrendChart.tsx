@@ -8,6 +8,7 @@ import { SERIES_STYLE_SLOTS } from "../../lib/seriesStyles";
 import { buildMultiSeriesTableModel } from "../../lib/syncedTableModel";
 import { ComparisonLegend } from "./ComparisonLegend";
 import { SyncedDataTable } from "./SyncedDataTable";
+import { ChartDisclosure } from "./ChartDisclosure";
 import { ActivePointOverlay, type ActivePoint } from "./ActivePointOverlay";
 import type { TrendPoint } from "./TrendChart";
 
@@ -212,109 +213,111 @@ export function MultiSeriesTrendChart({
         {title}
       </h3>
 
-      <figure role="img" aria-labelledby={headingId}>
-        <div aria-hidden="true">
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart
-              data={chartData}
-              accessibilityLayer={false}
-              onMouseMove={(state) => setActiveDateKey(resolveDateKey(state))}
-              onMouseLeave={() => setActiveDateKey(null)}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke={colors.inkSoft} strokeOpacity={0.2} />
-              <XAxis
-                dataKey="capturedOn"
-                type="category"
-                tickFormatter={tickFormatter}
-                tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
-              />
-              <YAxis
-                tickFormatter={formatNumber}
-                tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
-              />
-              {series.map((s) => {
-                const slot = SERIES_STYLE_SLOTS[s.styleIndex];
-                const color = colors.series[s.styleIndex];
-                const key = workKey(s.workId);
-                return (
-                  <Line
-                    key={s.workId}
-                    type="linear"
-                    dataKey={key}
-                    name={s.title}
-                    connectNulls={false}
-                    isAnimationActive={false}
-                    activeDot={false}
-                    stroke={color}
-                    strokeWidth={2}
-                    dot={(dotProps: {
-                      cx?: number;
-                      cy?: number;
-                      payload?: ChartRow;
-                      index?: number;
-                    }) => {
-                      const { cx, cy, payload, index } = dotProps;
-                      const value = payload ? payload[key] : null;
-                      if (value == null || cx == null || cy == null) {
-                        return <g key={`${key}-dot-${index}`} />;
-                      }
-                      return (
-                        <g key={`${key}-dot-${index}`}>
-                          {renderMarkerShape(slot.shape, { cx, cy, size: 4, color })}
-                        </g>
-                      );
-                    }}
-                  />
-                );
-              })}
-              {series.map((s) => {
-                if (!s.leadIn) return null;
-                const leadIn = s.leadIn;
-                const key = leadKey(s.workId);
-                return (
-                  <Line
-                    key={key}
-                    type="linear"
-                    dataKey={key}
-                    name={`${s.title} (before first capture)`}
-                    connectNulls
-                    isAnimationActive={false}
-                    activeDot={false}
-                    strokeDasharray="4 4"
-                    stroke={colors.inkSoft}
-                    strokeWidth={1.5}
-                    dot={(dotProps: {
-                      cx?: number;
-                      cy?: number;
-                      payload?: ChartRow;
-                      index?: number;
-                    }) => {
-                      const { cx, cy, payload, index } = dotProps;
-                      // Only the zero-basis slot itself gets a dot - the
-                      // first-real slot this line also carries (to close the
-                      // dashed segment) already has its own dot from the
-                      // main "work-*" line above, in the work's own color.
-                      if (payload?.capturedOn !== leadIn.capturedOn || cx == null || cy == null) {
-                        return <g key={`${key}-dot-${index}`} />;
-                      }
-                      return (
-                        <circle
-                          key={`${key}-dot-${index}`}
-                          cx={cx}
-                          cy={cy}
-                          r={4}
-                          fill={colors.inkSoft}
-                        />
-                      );
-                    }}
-                  />
-                );
-              })}
-              <ActivePointOverlay activePoints={activePoints} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </figure>
+      <ChartDisclosure>
+        <figure role="img" aria-labelledby={headingId}>
+          <div aria-hidden="true">
+            <ResponsiveContainer width="100%" height={240}>
+              <LineChart
+                data={chartData}
+                accessibilityLayer={false}
+                onMouseMove={(state) => setActiveDateKey(resolveDateKey(state))}
+                onMouseLeave={() => setActiveDateKey(null)}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke={colors.inkSoft} strokeOpacity={0.2} />
+                <XAxis
+                  dataKey="capturedOn"
+                  type="category"
+                  tickFormatter={tickFormatter}
+                  tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
+                />
+                <YAxis
+                  tickFormatter={formatNumber}
+                  tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
+                />
+                {series.map((s) => {
+                  const slot = SERIES_STYLE_SLOTS[s.styleIndex];
+                  const color = colors.series[s.styleIndex];
+                  const key = workKey(s.workId);
+                  return (
+                    <Line
+                      key={s.workId}
+                      type="linear"
+                      dataKey={key}
+                      name={s.title}
+                      connectNulls={false}
+                      isAnimationActive={false}
+                      activeDot={false}
+                      stroke={color}
+                      strokeWidth={2}
+                      dot={(dotProps: {
+                        cx?: number;
+                        cy?: number;
+                        payload?: ChartRow;
+                        index?: number;
+                      }) => {
+                        const { cx, cy, payload, index } = dotProps;
+                        const value = payload ? payload[key] : null;
+                        if (value == null || cx == null || cy == null) {
+                          return <g key={`${key}-dot-${index}`} />;
+                        }
+                        return (
+                          <g key={`${key}-dot-${index}`}>
+                            {renderMarkerShape(slot.shape, { cx, cy, size: 4, color })}
+                          </g>
+                        );
+                      }}
+                    />
+                  );
+                })}
+                {series.map((s) => {
+                  if (!s.leadIn) return null;
+                  const leadIn = s.leadIn;
+                  const key = leadKey(s.workId);
+                  return (
+                    <Line
+                      key={key}
+                      type="linear"
+                      dataKey={key}
+                      name={`${s.title} (before first capture)`}
+                      connectNulls
+                      isAnimationActive={false}
+                      activeDot={false}
+                      strokeDasharray="4 4"
+                      stroke={colors.inkSoft}
+                      strokeWidth={1.5}
+                      dot={(dotProps: {
+                        cx?: number;
+                        cy?: number;
+                        payload?: ChartRow;
+                        index?: number;
+                      }) => {
+                        const { cx, cy, payload, index } = dotProps;
+                        // Only the zero-basis slot itself gets a dot - the
+                        // first-real slot this line also carries (to close the
+                        // dashed segment) already has its own dot from the
+                        // main "work-*" line above, in the work's own color.
+                        if (payload?.capturedOn !== leadIn.capturedOn || cx == null || cy == null) {
+                          return <g key={`${key}-dot-${index}`} />;
+                        }
+                        return (
+                          <circle
+                            key={`${key}-dot-${index}`}
+                            cx={cx}
+                            cy={cy}
+                            r={4}
+                            fill={colors.inkSoft}
+                          />
+                        );
+                      }}
+                    />
+                  );
+                })}
+                <ActivePointOverlay activePoints={activePoints} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </figure>
+      </ChartDisclosure>
 
       <ComparisonLegend entries={series} seriesColors={colors.series} />
 
