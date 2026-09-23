@@ -116,8 +116,14 @@ describe("MultiSeriesTrendChart", () => {
     it("renders one legend entry per selected work, showing its title", () => {
       render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />);
 
-      expect(screen.getByText("Work A")).toBeInTheDocument();
-      expect(screen.getByText("Work B")).toBeInTheDocument();
+      // Scoped to the legend's own <ul> - the same work title is now also
+      // rendered in the visible synced table's row headers (D5), so an
+      // unscoped query would be ambiguous (multiple exact "Work A"/"Work B"
+      // matches on the page). Matches the same scoping mechanism the
+      // sibling test below already uses for this exact reason.
+      const legend = screen.getByRole("list");
+      expect(within(legend).getByText("Work A")).toBeInTheDocument();
+      expect(within(legend).getByText("Work B")).toBeInTheDocument();
     });
 
     it("does not render the worded style description in the visible legend", () => {
