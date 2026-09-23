@@ -71,7 +71,7 @@ baseline feature on purpose)
   `bannerStyles.ts`, `successBannerTokenField.ts`) are functional and follow
   MASTER.md's palette/typography tokens via inline styles, but haven't had
   a dedicated design pass - they're plainer than the rest of the app's UI.
-- A "don't close this page" block/warning while Phase 2 fan-out capture is
+- ~~A "don't close this page" block/warning while Phase 2 fan-out capture is
   in progress. The fan-out (`fanOut.ts`) walks every scraped work
   sequentially and throttled, which can take a real amount of time for a
   prolific author (up to `maxWorksPerRun` works, each with up to
@@ -79,7 +79,13 @@ baseline feature on purpose)
   closes the AO3 tab mid-run, only whatever was already incrementally
   POSTed survives; the rest is silently abandoned rather than resumed or
   retried. A `beforeunload` prompt (or similar) while a run is active would
-  prevent that data loss from being accidental/unnoticed.
+  prevent that data loss from being accidental/unnoticed.~~ **SHIPPED
+  2026-09-23** (Maintenance): `unloadGuard.ts`'s `startUnloadGuard`/
+  `stopUnloadGuard` wire a native `beforeunload` prompt to exactly the same
+  points `fanOut.ts` creates/removes its live progress banner, inside a
+  `try`/`finally` so the guard can never be left dangling after a run ends
+  in any terminal state (success, partial-success, circuit-broken, or an
+  unexpected throw).
 
 ## v2 candidates (confirmed 2026-08-03)
 

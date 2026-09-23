@@ -27,6 +27,7 @@ import {
   type SummaryBannerData,
 } from "./banners";
 import { WORK_DETAIL_SCHEMA_VERSION } from "./constants";
+import { startUnloadGuard, stopUnloadGuard } from "./unloadGuard";
 
 export interface FanOutWork {
   ao3WorkId: number;
@@ -82,38 +83,49 @@ export async function runFanOut(
   let circuitBroken = false;
 
   const progressBanner = renderProgressBanner(options.container, { current: 0, total });
+  // ROADMAP.md (2026-08-02 v2 candidate): a run in progress can represent a
+  // real amount of unsaved-elsewhere work (up to maxWorksPerRun works, each
+  // with up to maxBookmarkPagesPerWork bookmark pages) - the beforeunload
+  // guard is started/stopped at exactly these two points (progress banner
+  // created/removed), inside a try/finally, so it can never disagree with
+  // the banner about whether a run is active, and is never left dangling
+  // (stuck warning on future navigation) if the loop below throws.
+  startUnloadGuard();
 
-  for (let index = 0; index < works.length; index++) {
-    const { ao3WorkId } = works[index];
+  try {
+    for (let index = 0; index < works.length; index++) {
+      const { ao3WorkId } = works[index];
 
-    const enrichedThisWork = await processWork(
-      ao3WorkId,
-      options,
-      deps,
-      maxBookmarkPagesPerWork,
-      throttleMs,
-      {
-        onTruncatedBookmarkPages: () => truncatedBookmarkPagesCount++,
-        onFetchFailure: () => consecutiveFetchFailures++,
-        onFetchSuccess: () => (consecutiveFetchFailures = 0),
-      },
-    );
+      const enrichedThisWork = await processWork(
+        ao3WorkId,
+        options,
+        deps,
+        maxBookmarkPagesPerWork,
+        throttleMs,
+        {
+          onTruncatedBookmarkPages: () => truncatedBookmarkPagesCount++,
+          onFetchFailure: () => consecutiveFetchFailures++,
+          onFetchSuccess: () => (consecutiveFetchFailures = 0),
+        },
+      );
 
-    if (enrichedThisWork) enriched++;
-    else skipped++;
+      if (enrichedThisWork) enriched++;
+      else skipped++;
 
-    updateProgressBanner(progressBanner, { current: index + 1, total });
+      updateProgressBanner(progressBanner, { current: index + 1, total });
 
-    if (consecutiveFetchFailures >= circuitBreakerThreshold) {
-      circuitBroken = true;
-      break;
+      if (consecutiveFetchFailures >= circuitBreakerThreshold) {
+        circuitBroken = true;
+        break;
+      }
+
+      const isLastWork = index === works.length - 1;
+      if (!isLastWork) await deps.sleep(throttleMs);
     }
-
-    const isLastWork = index === works.length - 1;
-    if (!isLastWork) await deps.sleep(throttleMs);
+  } finally {
+    stopUnloadGuard();
+    progressBanner.remove();
   }
-
-  progressBanner.remove();
 
   const summary: FanOutSummary = {
     enriched,
