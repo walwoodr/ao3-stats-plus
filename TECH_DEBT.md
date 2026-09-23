@@ -2,6 +2,26 @@
 
 ## Backlog
 
+- [2026-09-22] (stage: Testing) **EXTERNAL-UNVERIFIED**: the chart->table
+  direction of `TrendChart.sync.test.tsx`/`MultiSeriesTrendChart.sync.test.tsx`
+  (docs/plans/chart-synced-data-table.md T9) fires `fireEvent.mouseMove` at a
+  fixed `clientX`/`clientY` against a `getBoundingClientRect`/`offsetWidth`
+  polyfill (600x240) to exercise Recharts' `onMouseMove` -> `activeLabel`
+  resolution without a `<Tooltip>` present. This is verified only against
+  the installed `recharts@3.10.0` SOURCE (`getRelativeCoordinate.js`'s
+  rect/offsetWidth-based scaling, `RechartsWrapper.js`'s `.recharts-wrapper`
+  mouse binding, `TooltipBoundingBox.js`'s always-rendered-but-hidden
+  wrapper div) — not against a real browser, and not against a working
+  implementation of this feature (which doesn't exist yet at Testing time).
+  jsdom has no real layout engine, and Recharts' redux-toolkit listener-
+  middleware may schedule the mouse-move effect asynchronously
+  (`requestAnimationFrame`/throttling) in ways not independently confirmed
+  here beyond wrapping assertions in `waitFor`. If Implementation finds the
+  mechanism doesn't populate `activeLabel` without a `<Tooltip>` in a real
+  browser, the plan's documented zero-UI `<Tooltip content={() => null}
+  cursor={false} />` fallback (§2.3) applies and these two tests' "no
+  Tooltip" assertions need updating to "no VISIBLE popover" instead — flag
+  back during Implementation/Review if so, rather than silently reinterpreting.
 - [2026-08-28] (stage: Deployment/main thread) **GitHub Actions CI has been
   red on every push to `main` since at least 2026-07-31** (confirmed via
   `gh run list` history) - this predates and is unrelated to the current
