@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import type { MouseHandlerDataParam } from "recharts";
 import { useChartColors } from "../../lib/useChartColors";
+import { formatNumber } from "../../lib/formatNumber";
 import { buildTrendTableModel } from "../../lib/syncedTableModel";
 import { SyncedDataTable } from "./SyncedDataTable";
 import { ActivePointOverlay, type ActivePoint } from "./ActivePointOverlay";
@@ -180,6 +181,7 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
                 tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
               />
               <YAxis
+                tickFormatter={formatNumber}
                 tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
               />
               <Line

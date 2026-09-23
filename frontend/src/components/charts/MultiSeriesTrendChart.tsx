@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import type { MouseHandlerDataParam } from "recharts";
 import { useChartColors } from "../../lib/useChartColors";
+import { formatNumber } from "../../lib/formatNumber";
 import { renderMarkerShape } from "../../lib/markerPaths";
 import { SERIES_STYLE_SLOTS } from "../../lib/seriesStyles";
 import { buildMultiSeriesTableModel } from "../../lib/syncedTableModel";
@@ -228,6 +229,7 @@ export function MultiSeriesTrendChart({
                 tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
               />
               <YAxis
+                tickFormatter={formatNumber}
                 tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
               />
               {series.map((s) => {

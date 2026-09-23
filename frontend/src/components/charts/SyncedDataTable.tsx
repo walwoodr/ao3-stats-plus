@@ -1,6 +1,7 @@
 import { useState, type KeyboardEvent, type MouseEvent } from "react";
 import type { SyncedTableModel } from "../../lib/syncedTableModel";
 import { MarkerGlyph } from "../../lib/markerShapes";
+import { formatNumber } from "../../lib/formatNumber";
 
 export interface SyncedDataTableProps {
   title: string;
@@ -23,6 +24,14 @@ const DATA_CELL_BASE = "whitespace-nowrap px-3 py-1 text-left font-mono text-xs 
 // A plain rgba shadow (not a --color-ink token) reads acceptably subtle in
 // both light and dark without needing its own theme-reactive variant.
 const STICKY_COLUMN_SHADOW = "shadow-[4px_0_6px_-4px_rgba(0,0,0,0.25)]";
+
+// Maintenance item 6 (post-ship bug batch, 2026-09-23): thousands-separate
+// numeric cell values (en-US comma grouping) so large stat counts stay
+// readable at a glance. Non-numeric cells ("—" sparse, "Published (N)"
+// placeholders built by syncedTableModel.ts) pass through unchanged.
+function formatCellValue(cell: number | string): string {
+  return typeof cell === "number" ? formatNumber(cell) : cell;
+}
 
 // The single presentational transposed table shared by TrendChart,
 // RatioChart, and MultiSeriesTrendChart (single-series is the N=1 case of
@@ -142,7 +151,7 @@ export function SyncedDataTable({
                       key={column?.dateKey ?? index}
                       className={isActive ? `${DATA_CELL_BASE} bg-accent/10` : DATA_CELL_BASE}
                     >
-                      {cell}
+                      {formatCellValue(cell)}
                     </td>
                   );
                 })}
