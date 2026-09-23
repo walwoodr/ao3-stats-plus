@@ -121,9 +121,13 @@ describe("WorkComparisonSection: Bookmarks By Type", () => {
 
     await goToBookmarksByType(user);
 
-    const figure = screen.getByRole("img", { name: /^total bookmarks$/i });
-    expect(within(figure).getAllByText(/work one/i).length).toBeGreaterThan(0);
-    expect(within(figure).getAllByText(/work two/i).length).toBeGreaterThan(0);
+    // The work's data now lives in the visible synced table (a sibling of
+    // the aria-hidden figure, not nested inside it, per docs/plans/chart-
+    // synced-data-table.md §2.4) rather than the old sr-only table that
+    // used to sit inside the figure - query the table instead.
+    const table = screen.getByRole("table", { name: /^total bookmarks$/i });
+    expect(within(table).getAllByText(/work one/i).length).toBeGreaterThan(0);
+    expect(within(table).getAllByText(/work two/i).length).toBeGreaterThan(0);
     expect(screen.queryByRole("img", { name: /^public bookmarks$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("img", { name: /^private bookmarks$/i })).not.toBeInTheDocument();
   });
@@ -136,8 +140,10 @@ describe("WorkComparisonSection: Bookmarks By Type", () => {
     await user.click(screen.getByRole("checkbox", { name: "Public" }));
 
     expect(screen.getByRole("img", { name: /^total bookmarks$/i })).toBeInTheDocument();
-    const publicFigure = screen.getByRole("img", { name: /^public bookmarks$/i });
-    expect(within(publicFigure).getAllByText(/work one/i).length).toBeGreaterThan(0);
+    // See the previous test's comment: query the visible table, not the
+    // aria-hidden figure.
+    const publicTable = screen.getByRole("table", { name: /^public bookmarks$/i });
+    expect(within(publicTable).getAllByText(/work one/i).length).toBeGreaterThan(0);
   });
 
   it("unchecking Total removes the Total bookmarks chart", async () => {
@@ -157,8 +163,8 @@ describe("WorkComparisonSection: Bookmarks By Type", () => {
 
     await user.click(screen.getByRole("checkbox", { name: "Private" }));
 
-    const figure = screen.getByRole("img", { name: /^private bookmarks$/i });
-    expect(within(figure).getAllByText(/work one/i).length).toBeGreaterThan(0);
+    const table = screen.getByRole("table", { name: /^private bookmarks$/i });
+    expect(within(table).getAllByText(/work one/i).length).toBeGreaterThan(0);
   });
 
   // Plan §3.3/§4.1: sparse public/private points are filtered out before
@@ -173,11 +179,17 @@ describe("WorkComparisonSection: Bookmarks By Type", () => {
 
     await user.click(screen.getByRole("checkbox", { name: "Public" }));
 
+    // The table is transposed (docs/plans/chart-synced-data-table.md D3):
+    // dates are COLUMNS, works are ROWS - Work Two's own row (never
+    // enriched) must show "—" rather than a fabricated 0 in its cells.
     const table = screen.getByRole("table", { name: /^public bookmarks$/i });
-    const workTwoRow = within(table)
-      .getAllByRole("row")
-      .find((row) => /2026-01-08/.test(row.textContent ?? "") && /—/.test(row.textContent ?? ""));
-    expect(workTwoRow).toBeDefined();
+    const workTwoRowHeader = within(table)
+      .getAllByRole("rowheader")
+      .find((header) => /work two/i.test(header.textContent ?? ""));
+    expect(workTwoRowHeader).toBeDefined();
+    const workTwoRow = workTwoRowHeader?.closest("tr");
+    expect(workTwoRow).not.toBeNull();
+    expect(within(workTwoRow as HTMLElement).getAllByText("—").length).toBeGreaterThan(0);
   });
 
   // Corner case §4.2: a checked type with ZERO data across every currently
@@ -207,14 +219,14 @@ describe("WorkComparisonSection: Bookmarks By Type", () => {
     renderSection({ perWorkSeries: ENRICHED_AND_UNENRICHED_WORKS, earliestPostYear: null });
     await goToBookmarksByType(user);
 
-    const totalFigure = screen.getByRole("img", { name: /^total bookmarks$/i });
-    expect(within(totalFigure).getAllByText(/published 2020-01-01/i).length).toBeGreaterThan(0);
+    const totalTable = screen.getByRole("table", { name: /^total bookmarks$/i });
+    expect(within(totalTable).getAllByText(/published 2020-01-01/i).length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole("checkbox", { name: "Public" }));
 
-    const publicFigure = screen.getByRole("img", { name: /^public bookmarks$/i });
-    expect(within(publicFigure).queryByText(/published 2020-01-01/i)).not.toBeInTheDocument();
-    expect(within(publicFigure).queryByText(/estimated baseline/i)).not.toBeInTheDocument();
+    const publicTable = screen.getByRole("table", { name: /^public bookmarks$/i });
+    expect(within(publicTable).queryByText(/published 2020-01-01/i)).not.toBeInTheDocument();
+    expect(within(publicTable).queryByText(/estimated baseline/i)).not.toBeInTheDocument();
   });
 
   it("each checked type-chart exposes its own accessible sr-only data table (Date x works)", async () => {
