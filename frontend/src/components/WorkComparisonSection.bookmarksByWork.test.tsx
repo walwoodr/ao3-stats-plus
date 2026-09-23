@@ -111,10 +111,19 @@ describe("WorkComparisonSection: Bookmarks By Work", () => {
 
     await goToBookmarksByWork(user);
 
-    const figure = screen.getByRole("img", { name: "Work One" });
-    expect(within(figure).getAllByText(/^total —/i).length).toBeGreaterThan(0);
-    expect(within(figure).getAllByText(/^public —/i).length).toBeGreaterThan(0);
-    expect(within(figure).getAllByText(/^private —/i).length).toBeGreaterThan(0);
+    // The per-line labeling now lives in the visible table's row headers (a
+    // sibling of the aria-hidden figure, not nested inside it, per
+    // docs/plans/chart-synced-data-table.md §2.4) - each row header splits
+    // the visible title and the visually-hidden identity description across
+    // two elements (D5), so check via .textContent rather than a single
+    // getByText node match.
+    const table = screen.getByRole("table", { name: "Work One" });
+    const rowHeaders = within(table)
+      .getAllByRole("rowheader")
+      .map((header) => header.textContent ?? "");
+    expect(rowHeaders.some((text) => /^total/i.test(text))).toBe(true);
+    expect(rowHeaders.some((text) => /^public/i.test(text))).toBe(true);
+    expect(rowHeaders.some((text) => /^private/i.test(text))).toBe(true);
   });
 
   // Plan §3.4: fixed styleIndex 0/1/2 (Total=slot 0 circle/slate-blue,
@@ -129,17 +138,14 @@ describe("WorkComparisonSection: Bookmarks By Work", () => {
 
     // The worded (shape, color) description no longer renders in the
     // visible legend (removed per 2026-08-09 TECH_DEBT.md) - asserted here
-    // via the sr-only table's column headers (<th>) instead.
-    const figure = screen.getByRole("img", { name: "Work One" });
-    expect(
-      within(figure).getByText(/total.*slate-blue circle marker/i, { selector: "th" }),
-    ).toBeInTheDocument();
-    expect(
-      within(figure).getByText(/public.*teal square marker/i, { selector: "th" }),
-    ).toBeInTheDocument();
-    expect(
-      within(figure).getByText(/private.*sage triangle marker/i, { selector: "th" }),
-    ).toBeInTheDocument();
+    // via the visible table's row headers (<th scope="row">) instead (D5).
+    const table = screen.getByRole("table", { name: "Work One" });
+    const rowHeaders = within(table)
+      .getAllByRole("rowheader")
+      .map((header) => header.textContent ?? "");
+    expect(rowHeaders.some((text) => /total.*slate-blue circle marker/i.test(text))).toBe(true);
+    expect(rowHeaders.some((text) => /public.*teal square marker/i.test(text))).toBe(true);
+    expect(rowHeaders.some((text) => /private.*sage triangle marker/i.test(text))).toBe(true);
   });
 
   // Corner case §4.3: a selected work with zero enrichment data is NOT an
@@ -151,30 +157,52 @@ describe("WorkComparisonSection: Bookmarks By Work", () => {
 
     await goToBookmarksByWork(user);
 
-    const figure = screen.getByRole("img", { name: "Work Two" });
-    expect(within(figure).getByText(/total.*2026-01-08.*2/i)).toBeInTheDocument();
-    expect(within(figure).queryByText(/^public —/i)).not.toBeInTheDocument();
-    expect(within(figure).queryByText(/^private —/i)).not.toBeInTheDocument();
+    const table = screen.getByRole("table", { name: "Work Two" });
+    const rowHeaders = within(table).getAllByRole("rowheader");
+    const rowHeaderTexts = rowHeaders.map((header) => header.textContent ?? "");
+    expect(rowHeaderTexts.some((text) => /^total/i.test(text))).toBe(true);
+    // Public/Private are excluded from the series entirely for an
+    // unenriched work (WorkComparisonBookmarksTab's buildWorkTypeSeries
+    // filters out any type with zero points) - no row at all, not merely an
+    // empty/"—" one.
+    expect(rowHeaderTexts.some((text) => /^public/i.test(text))).toBe(false);
+    expect(rowHeaderTexts.some((text) => /^private/i.test(text))).toBe(false);
+
+    const totalRowHeader = rowHeaders.find((header) => /^total/i.test(header.textContent ?? ""));
+    const totalRow = totalRowHeader?.closest("tr");
+    expect(totalRow).not.toBeNull();
+    expect(within(totalRow as HTMLElement).getByText("2")).toBeInTheDocument();
   });
 
-  it("each work's chart exposes its own accessible sr-only table with Date x Total/Public/Private columns", async () => {
+  // Rewritten for the transposed synced data table (docs/plans/chart-
+  // synced-data-table.md D3): dates are now COLUMNS and Total/Public/
+  // Private are ROWS - the inverse of the old sr-only table's Date x
+  // work-type column shape this test used to check.
+  it("each work's chart exposes its own visible table with Total/Public/Private rows across the captured dates", async () => {
     const user = userEvent.setup();
     renderSection({ perWorkSeries: [ENRICHED_WORK], earliestPostYear: null });
 
     await goToBookmarksByWork(user);
 
     const table = screen.getByRole("table", { name: "Work One" });
-    const headers = within(table)
+    const columnHeaders = within(table)
       .getAllByRole("columnheader")
       .map((header) => header.textContent);
-    // Column headers also carry the worded (shape, color) description now
-    // (see the "fixed slot 0/1/2" test below) - asserted loosely here via
+    // Corner cell (sr-only "Work") + Total's zero-basis leadIn column + one
+    // per captured date (see the leadIn test below for why only Total's
+    // leadIn contributes a column here).
+    expect(columnHeaders).toEqual(["Work", "Published 2020-01-01", "2026-01-01", "2026-01-08"]);
+
+    // Row headers also carry the worded (shape, color) description now (see
+    // the "fixed slot 0/1/2" test above) - asserted loosely here via
     // startsWith rather than duplicating the exact wording.
-    expect(headers).toHaveLength(4);
-    expect(headers[0]).toBe("Date");
-    expect(headers[1]).toMatch(/^Total —/);
-    expect(headers[2]).toMatch(/^Public —/);
-    expect(headers[3]).toMatch(/^Private —/);
+    const rowHeaders = within(table)
+      .getAllByRole("rowheader")
+      .map((header) => header.textContent ?? "");
+    expect(rowHeaders).toHaveLength(3);
+    expect(rowHeaders.some((text) => text.startsWith("Total"))).toBe(true);
+    expect(rowHeaders.some((text) => text.startsWith("Public"))).toBe(true);
+    expect(rowHeaders.some((text) => text.startsWith("Private"))).toBe(true);
   });
 
   // Plan §3.4: "By-Work charts stack in that same [selection] order" - the
@@ -212,10 +240,29 @@ describe("WorkComparisonSection: Bookmarks By Work", () => {
 
     await goToBookmarksByWork(user);
 
-    const figure = screen.getByRole("img", { name: "Work One" });
-    expect(within(figure).getByText(/total.*published 2020-01-01/i)).toBeInTheDocument();
-    expect(within(figure).queryByText(/public.*published 2020-01-01/i)).not.toBeInTheDocument();
-    expect(within(figure).queryByText(/private.*published 2020-01-01/i)).not.toBeInTheDocument();
+    const table = screen.getByRole("table", { name: "Work One" });
+    expect(
+      within(table).getByRole("columnheader", { name: "Published 2020-01-01" }),
+    ).toBeInTheDocument();
+    const rowHeaders = within(table).getAllByRole("rowheader");
+
+    // Total's row has a real (leadIn) 0 value at that column.
+    const totalRow = rowHeaders
+      .find((header) => /^total/i.test(header.textContent ?? ""))
+      ?.closest("tr");
+    expect(totalRow).not.toBeNull();
+    expect(within(totalRow as HTMLElement).getByText("0")).toBeInTheDocument();
+
+    // Public/Private never carry a leadIn - their rows show "—" at that
+    // same zero-basis column instead of a fabricated 0.
+    const publicRow = rowHeaders
+      .find((header) => /^public/i.test(header.textContent ?? ""))
+      ?.closest("tr");
+    const privateRow = rowHeaders
+      .find((header) => /^private/i.test(header.textContent ?? ""))
+      ?.closest("tr");
+    expect(within(publicRow as HTMLElement).getAllByText("—").length).toBeGreaterThan(0);
+    expect(within(privateRow as HTMLElement).getAllByText("—").length).toBeGreaterThan(0);
   });
 
   it("renders without a cap on the number of selected works (no artificial limit on By-Work stacking)", async () => {
