@@ -139,11 +139,14 @@ describe("stale range window across a selection swap (regression)", () => {
 
     expect(screen.getAllByRole("slider").length).toBeGreaterThan(0);
 
-    const hitsFigure = screen.getByRole("img", { name: /^hits$/i });
-    // Without a live re-clamp against the current domain, Work Late's
-    // 2023-2025 points are all silently filtered out by the stale
-    // [2018, 2019] window - this should not happen.
-    expect(within(hitsFigure).queryByText(/work late.*2024-01-01/i)).toBeInTheDocument();
+    // The work's dates now live in the visible synced table's column
+    // headers (a sibling of the aria-hidden figure, not the old sr-only
+    // marker spans that used to sit inside it - docs/plans/chart-synced-
+    // data-table.md §2.4). Without a live re-clamp against the current
+    // domain, Work Late's 2023-2025 points are all silently filtered out
+    // by the stale [2018, 2019] window - this should not happen.
+    const hitsTable = screen.getByRole("table", { name: /^hits$/i });
+    expect(within(hitsTable).getByRole("columnheader", { name: "2024-01-01" })).toBeInTheDocument();
   });
 });
 
