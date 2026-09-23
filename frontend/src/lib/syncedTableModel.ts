@@ -206,6 +206,39 @@ function multiSeriesCellValue(series: MultiSeriesModelSeries, dateKey: string): 
   return "—";
 }
 
+// A series' value at its OWN most recent real (non-lead-in) captured date -
+// null if it has no real captured data at all (Maintenance item 8). Reads
+// `points` directly, never a rendered cell string (e.g. a "Published (N)"
+// leadIn placeholder), so the sort below is independent of any column
+// formatting and never re-derives from the table's own display text.
+function latestCapturedValue(series: MultiSeriesModelSeries): number | null {
+  if (series.points.length === 0) return null;
+  const latestPoint = series.points.reduce((latest, point) =>
+    point.capturedOn > latest.capturedOn ? point : latest,
+  );
+  return latestPoint.value;
+}
+
+// Orders rows by latestCapturedValue, descending - a series with no real
+// captured data at all sorts last. A stable sort (guaranteed by the spec
+// since ES2019, and by Array.prototype.sort in every environment this app
+// targets) keeps ties in their original (selection) order rather than
+// reshuffling them arbitrarily. This is a pure, ONE-TIME sort on the
+// constructed rows - it does not depend on activeDateKey, so hovering a
+// different column never re-sorts the table (Maintenance item 8).
+function sortSeriesByLatestValueDescending(
+  series: MultiSeriesModelSeries[],
+): MultiSeriesModelSeries[] {
+  return [...series].sort((a, b) => {
+    const aValue = latestCapturedValue(a);
+    const bValue = latestCapturedValue(b);
+    if (aValue === null && bValue === null) return 0;
+    if (aValue === null) return 1;
+    if (bValue === null) return -1;
+    return bValue - aValue;
+  });
+}
+
 // MultiSeriesTrendChart's N-series shape - mirrors buildChartData's union-
 // date/zero-basis-label logic (MultiSeriesTrendChart.tsx) independently
 // (deliberately not imported, per this file's top-of-file circular-
@@ -249,7 +282,7 @@ export function buildMultiSeriesTableModel({
     };
   });
 
-  const rows: SyncedTableRow[] = series.map((s) => {
+  const rows: SyncedTableRow[] = sortSeriesByLatestValueDescending(series).map((s) => {
     const slot = SERIES_STYLE_SLOTS[s.styleIndex];
     return {
       seriesKey: `work-${s.workId}`,

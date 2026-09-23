@@ -395,4 +395,128 @@ describe("buildMultiSeriesTableModel (MultiSeriesTrendChart shape)", () => {
     expect(model.rows).toEqual([]);
     expect(model.columns).toEqual([]);
   });
+
+  // Maintenance item 8 (chart-synced-data-table.md, post-ship bug batch,
+  // 2026-09-23): rows order by each series' value at its OWN most recent
+  // real (non-lead-in) captured date, descending - not peak/all-time-max,
+  // and not re-sorted per hovered column (a pure, one-time sort on the
+  // constructed rows, independent of any activeDateKey).
+  describe("row sort order: most-recent real captured value, descending (Maintenance item 8)", () => {
+    it("orders rows by their own latest captured date's value, descending", () => {
+      const lowButRecent = {
+        workId: 1,
+        title: "Work Low-Recent",
+        styleIndex: 0,
+        points: [
+          { capturedOn: "2026-01-01", value: 500 },
+          { capturedOn: "2026-02-01", value: 10 },
+        ],
+      };
+      const highButStale = {
+        workId: 2,
+        title: "Work High-Stale",
+        styleIndex: 1,
+        points: [
+          { capturedOn: "2026-01-01", value: 900 },
+          { capturedOn: "2026-01-15", value: 800 },
+        ],
+      };
+      const middleRecent = {
+        workId: 3,
+        title: "Work Middle-Recent",
+        styleIndex: 2,
+        points: [{ capturedOn: "2026-02-01", value: 50 }],
+      };
+
+      const model = buildMultiSeriesTableModel({
+        valueLabel: "Hits",
+        series: [lowButRecent, highButStale, middleRecent],
+        seriesColors: LIGHT_COLOR_TOKENS.series,
+      });
+
+      // Most recent real value per series: Low-Recent=10 (2026-02-01),
+      // High-Stale=800 (2026-01-15, its most recent, NOT its peak 900),
+      // Middle-Recent=50 (2026-02-01). Descending: 800, 50, 10.
+      expect(model.rows.map((r) => r.title)).toEqual([
+        "Work High-Stale",
+        "Work Middle-Recent",
+        "Work Low-Recent",
+      ]);
+    });
+
+    it("sorts a series with no real captured data at all to the bottom", () => {
+      const hasData = {
+        workId: 1,
+        title: "Work Has Data",
+        styleIndex: 0,
+        points: [{ capturedOn: "2026-01-01", value: 1 }],
+      };
+      const noData = {
+        workId: 2,
+        title: "Work No Data",
+        styleIndex: 1,
+        points: [],
+        leadIn: { capturedOn: "2020-01-01", label: "Before 2020 (estimated baseline)" },
+      };
+
+      const model = buildMultiSeriesTableModel({
+        valueLabel: "Hits",
+        series: [noData, hasData],
+        seriesColors: LIGHT_COLOR_TOKENS.series,
+      });
+
+      expect(model.rows.map((r) => r.title)).toEqual(["Work Has Data", "Work No Data"]);
+    });
+
+    it("keeps ties in their original (stable) relative order", () => {
+      const tiedA = {
+        workId: 1,
+        title: "Work Tied A",
+        styleIndex: 0,
+        points: [{ capturedOn: "2026-01-01", value: 100 }],
+      };
+      const tiedB = {
+        workId: 2,
+        title: "Work Tied B",
+        styleIndex: 1,
+        points: [{ capturedOn: "2026-01-01", value: 100 }],
+      };
+
+      const model = buildMultiSeriesTableModel({
+        valueLabel: "Hits",
+        series: [tiedA, tiedB],
+        seriesColors: LIGHT_COLOR_TOKENS.series,
+      });
+
+      expect(model.rows.map((r) => r.title)).toEqual(["Work Tied A", "Work Tied B"]);
+    });
+
+    it("uses the series' own most-recent value, ignoring a Published(N) leadIn cell's value", () => {
+      // Work A's own leadIn lands AFTER its only real point chronologically
+      // is impossible by construction (leadIn is always before the first
+      // real point), so this instead verifies the sort reads points, not
+      // the rendered leadIn placeholder cell text.
+      const withLeadIn = {
+        workId: 1,
+        title: "Work With LeadIn",
+        styleIndex: 0,
+        points: [{ capturedOn: "2026-06-01", value: 5 }],
+        leadIn: { capturedOn: "2020-01-01", label: "Published 2020-01-01", isPublishDate: true },
+      };
+      const higherReal = {
+        workId: 2,
+        title: "Work Higher Real",
+        styleIndex: 1,
+        points: [{ capturedOn: "2026-06-01", value: 500 }],
+      };
+
+      const model = buildMultiSeriesTableModel({
+        valueLabel: "Hits",
+        series: [withLeadIn, higherReal],
+        seriesColors: LIGHT_COLOR_TOKENS.series,
+      });
+
+      expect(model.rows.map((r) => r.title)).toEqual(["Work Higher Real", "Work With LeadIn"]);
+    });
+  });
 });
