@@ -1329,3 +1329,20 @@
   comment's stated rationale about Rails is wrong and would mislead a future
   maintainer weighing whether to swap in Rails' sanitizer. Deferred: comment
   fix only, no runtime/security impact.
+- [2026-09-23] (stage: Review) The chart->table sync direction (mouseMove over
+  the chart -> highlighted table column) has real-*interaction* coverage only
+  in jsdom (`TrendChart.sync.test.tsx`/`MultiSeriesTrendChart.sync.test.tsx`,
+  behind a `getBoundingClientRect`/`offsetWidth` polyfill). The real-browser
+  Storybook play functions (`*.stories.tsx` `HighlightedColumnState`) exercise
+  only the table->chart direction (hover a column header -> guide line + ring),
+  and `accessibility.spec.ts` only renders the charts (no pointer move over
+  them). So the chart->table direction's real-browser behavior is currently
+  vouched for by Recharts-3.10.0 source analysis alone (verified independently
+  at Review: `defaultTooltipEventType: "axis"` is set unconditionally by
+  LineChart, and the mouseMove selectors never read `<Tooltip>` state) - solid
+  today, but not fenced by an executable real-browser regression test. Deferred
+  (out of scope for this cycle; the mechanism is verified). Worth adding a
+  real-browser play/e2e that fires a pointer move over the chart and asserts the
+  matching column tints, especially ahead of any Recharts 4 upgrade (plan R6) -
+  the additive-overlay bet is the feature's riskiest Recharts coupling and
+  deserves a browser-level fence, not just jsdom + source.
