@@ -66,7 +66,7 @@ export function SyncedDataTable({
           inputs here) must itself be a keyboard-operable tab stop, or
           keyboard-only users have no way to scroll it. */}
       <div
-        className="overflow-x-auto px-4 pb-4"
+        className="overflow-x-auto px-4 pb-4 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         tabIndex={0}
         role="region"
         aria-label={`${title} data table, scrollable`}

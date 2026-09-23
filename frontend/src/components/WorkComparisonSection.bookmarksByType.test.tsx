@@ -229,7 +229,7 @@ describe("WorkComparisonSection: Bookmarks By Type", () => {
     expect(within(publicTable).queryByText(/estimated baseline/i)).not.toBeInTheDocument();
   });
 
-  it("each checked type-chart exposes its own accessible sr-only data table (Date x works)", async () => {
+  it("each checked type-chart exposes its own visible data table (Date x works)", async () => {
     const user = userEvent.setup();
     renderSection({ perWorkSeries: ENRICHED_AND_UNENRICHED_WORKS, earliestPostYear: null });
     await goToBookmarksByType(user);
