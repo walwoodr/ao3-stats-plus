@@ -61,7 +61,16 @@ export function SyncedDataTable({
       >
         Data table
       </summary>
-      <div className="overflow-x-auto px-4 pb-4">
+      {/* WCAG 2.1.1/axe scrollable-region-focusable: a horizontally
+          scrollable region with no naturally focusable content (no links/
+          inputs here) must itself be a keyboard-operable tab stop, or
+          keyboard-only users have no way to scroll it. */}
+      <div
+        className="overflow-x-auto px-4 pb-4"
+        tabIndex={0}
+        role="region"
+        aria-label={`${title} data table, scrollable`}
+      >
         <table aria-label={title} className="w-full border-collapse">
           <thead>
             <tr>
