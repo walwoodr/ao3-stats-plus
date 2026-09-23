@@ -192,18 +192,20 @@ describe("WorkComparisonSection: persistence reconciliation (§2.3)", () => {
 
     renderSection({ perWorkSeries: TWO_WORKS, earliestPostYear: null });
 
-    // Scoped to one figure - the same legend text otherwise legitimately
+    // Scoped to one table - the same title text otherwise legitimately
     // renders twice (once per chart, Hits and Kudos). The worded (shape,
     // color) description no longer renders in the visible legend (removed
-    // per 2026-08-09 TECH_DEBT.md) - it's asserted here via the sr-only
-    // accessible table's column headers (<th>) instead.
-    const hitsFigure = screen.getByRole("img", { name: /^hits$/i });
-    expect(
-      within(hitsFigure).getByText(/work two.*slate-blue circle marker/i, { selector: "th" }),
-    ).toBeInTheDocument();
-    expect(
-      within(hitsFigure).getByText(/work one.*teal square marker/i, { selector: "th" }),
-    ).toBeInTheDocument();
+    // per 2026-08-09 TECH_DEBT.md) - it's asserted here via the visible
+    // synced table's row headers (<th scope="row">) instead (D5), which
+    // split the visible title and the sr-only identity description across
+    // two elements, so check via .textContent rather than a single getByText
+    // node match.
+    const hitsTable = screen.getByRole("table", { name: /^hits$/i });
+    const rowHeaders = within(hitsTable)
+      .getAllByRole("rowheader")
+      .map((header) => header.textContent ?? "");
+    expect(rowHeaders.some((text) => /work two.*slate-blue circle marker/i.test(text))).toBe(true);
+    expect(rowHeaders.some((text) => /work one.*teal square marker/i.test(text))).toBe(true);
   });
 
   it("re-clamps a stale restored range to the full domain rather than applying it as-is", () => {
