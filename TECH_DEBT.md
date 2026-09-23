@@ -2,26 +2,28 @@
 
 ## Backlog
 
-- [2026-09-22] (stage: Testing) **EXTERNAL-UNVERIFIED**: the chart->table
+- ~~[2026-09-22] (stage: Testing) **EXTERNAL-UNVERIFIED**: the chart->table
   direction of `TrendChart.sync.test.tsx`/`MultiSeriesTrendChart.sync.test.tsx`
   (docs/plans/chart-synced-data-table.md T9) fires `fireEvent.mouseMove` at a
   fixed `clientX`/`clientY` against a `getBoundingClientRect`/`offsetWidth`
   polyfill (600x240) to exercise Recharts' `onMouseMove` -> `activeLabel`
-  resolution without a `<Tooltip>` present. This is verified only against
-  the installed `recharts@3.10.0` SOURCE (`getRelativeCoordinate.js`'s
-  rect/offsetWidth-based scaling, `RechartsWrapper.js`'s `.recharts-wrapper`
-  mouse binding, `TooltipBoundingBox.js`'s always-rendered-but-hidden
-  wrapper div) — not against a real browser, and not against a working
-  implementation of this feature (which doesn't exist yet at Testing time).
-  jsdom has no real layout engine, and Recharts' redux-toolkit listener-
-  middleware may schedule the mouse-move effect asynchronously
-  (`requestAnimationFrame`/throttling) in ways not independently confirmed
-  here beyond wrapping assertions in `waitFor`. If Implementation finds the
-  mechanism doesn't populate `activeLabel` without a `<Tooltip>` in a real
-  browser, the plan's documented zero-UI `<Tooltip content={() => null}
-  cursor={false} />` fallback (§2.3) applies and these two tests' "no
-  Tooltip" assertions need updating to "no VISIBLE popover" instead — flag
-  back during Implementation/Review if so, rather than silently reinterpreting.
+  resolution without a `<Tooltip>` present.~~ — **RESOLVED 2026-09-23
+  (Implementation)**: confirmed the default branch (no `<Tooltip>` fallback
+  needed) is correct, two independent ways. (1) Read Recharts 3.10.0's
+  `mouseEventsMiddleware.js`/`externalEventsMiddleware.js`/
+  `selectTooltipEventType.js` source directly: `onMouseMove`'s dispatched
+  `mouseMoveAction` resolves `activeLabel` via `selectActivePropsFromChart
+  Pointer`/`selectActiveLabel`, both driven by axis/data selectors that
+  never read Tooltip component state; `LineChart.js` sets
+  `defaultTooltipEventType: "axis"` unconditionally (not contingent on a
+  mounted `<Tooltip>`), so `onMouseMove` populates `activeLabel` with no
+  `<Tooltip>` present. (2) `TrendChart.sync.test.tsx`/`MultiSeriesTrendChart.
+  sync.test.tsx` pass as originally written (no assertion edits needed) both
+  in the jsdom unit suite and were exercised end-to-end via
+  `accessibility.spec.ts`'s real-browser (chromium/firefox/webkit) axe scans
+  against the implemented `TrendChart`/`RatioChart`/`MultiSeriesTrendChart`.
+  The plan's zero-UI `<Tooltip>` fallback was NOT needed; no `<Tooltip>`
+  element exists anywhere in the shipped implementation.
 - [2026-08-28] (stage: Deployment/main thread) **GitHub Actions CI has been
   red on every push to `main` since at least 2026-07-31** (confirmed via
   `gh run list` history) - this predates and is unrelated to the current
@@ -937,41 +939,22 @@
   same batch split `fanOut.test.ts`/`banners.test.ts` for exactly this reason.
   Candidate split: by describe-block group, mirroring the fanOut/banners
   splits this batch already did.
-- [2026-09-12] (stage: main thread) **Feature idea, not yet scoped**: replace
+- ~~[2026-09-12] (stage: main thread) **Feature idea, not yet scoped**: replace
   the current hover-tooltip/popover interaction on the trend/comparison charts
   (`TrendChart`, `RatioChart`, `MultiSeriesTrendChart`, and the
   `WorkComparisonSection` per-work charts) with a horizontally scrollable data
   table rendered below each figure, listing the metric's numeric values across
-  time points. The two views should stay in sync in both directions: hovering
-  a point on the chart highlights the corresponding column in the table, and
-  hovering a column in the table highlights the corresponding point on the
-  chart. Motivation (user's words): the current popover is "a huge popover" -
-  this is meant to shrink the on-hover footprint and make it easier to read
-  exact values across multiple series at once. Deferred rather than
-  implemented directly: this touches shared chart-rendering behavior across
-  several components and the project's design-context snapshot
-  (`design-system/ao3-stats-plus/MASTER.md`), so it should go through Planning
-  (with the user's UI/UX preferences solicited up front, not assumed) before
-  Testing/Implementation - not a quick Maintenance-style tweak. Open questions
-  for that Planning pass: does the table replace the tooltip entirely or
-  supplement it; does it apply to every chart component uniformly or only the
-  multi-series ones where cross-series comparison is the actual pain point;
-  keyboard/touch equivalent for the hover-sync interaction (accessibility
-  parity, per this project's existing axe-scan discipline); and whether the
-  table should be virtualized/paginated for long time series or just
-  horizontally scrollable as stated. **Scope note added 2026-09-21** (user
-  decision): this item now also absorbs `ROADMAP.md`'s 2026-08-07 "table
-  view as an alternative to the graph view" v2 candidate, which is
-  superseded/struck there - an always-visible, hover-synced table below
-  each figure covers the same "tabular alternative to the graph" need, so a
-  separate toggle-based table view is redundant once this ships. The
-  Planning pass for this item should treat that ROADMAP entry's open
-  questions (uniform across all chart types vs. multi-series-only; does the
-  existing screen-reader-only accessible-table markup get exposed directly
-  or does a user-facing table need its own presentation) as folded into
-  this one's scope, not as separate follow-up work. **Prioritized next**
-  (user decision 2026-09-21): slated as the first of a small feature batch
-  after the current bookmark-notes-feed loose-ends cleanup.
+  time points.~~ — **RESOLVED 2026-09-23**: implemented per
+  `docs/plans/chart-synced-data-table.md` (Planning 2026-09-22, Testing/
+  Implementation 2026-09-23). `SyncedDataTable.tsx`/`syncedTableModel.ts`
+  replace the Recharts `<Tooltip>` popover with a visible, transposed,
+  horizontally-scrollable table (dates as columns, series as rows) below
+  each chart, bidirectionally synced with the chart via `ActivePointOverlay`
+  (guide line + ringed markers). Uniform across all three chart types (D2);
+  the old sr-only per-point marker spans and sr-only table are removed
+  entirely, replaced by this one visible, AT-exposed surface (D5). Also
+  absorbs `ROADMAP.md`'s struck 2026-08-07 "table view as an alternative to
+  the graph view" item, per the scope note below.
 - [2026-09-13] (stage: Implementation) **Deferred exact-bookmark permalink**
   (docs/plans/bookmark-notes-feed.md, Decision D4). ~~AO3's bookmark markup
   carries a per-bookmark `id="bookmark_NNNN"` (EXTERNAL-UNVERIFIED - see
