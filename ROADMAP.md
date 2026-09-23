@@ -83,7 +83,7 @@ baseline feature on purpose)
 
 ## v2 candidates (confirmed 2026-08-03)
 
-- Per-work graphs (`WorkComparisonSection`/`MultiSeriesTrendChart`, and the
+- ~~Per-work graphs (`WorkComparisonSection`/`MultiSeriesTrendChart`, and the
   older single-work `PerWorkTrends` if still applicable) should include the
   work's own publish date as a de-facto zero-basis data point, rather than
   starting each line from its first captured stats snapshot. This is the
@@ -91,7 +91,12 @@ baseline feature on purpose)
   zero-point already used for the aggregate hits/kudos charts, and depends
   on the per-work creation-date scraping/data-model work already listed
   above under "Per-work creation-date scraping and per-work zero-basis
-  baselines."
+  baselines."~~ **SHIPPED, confirmed 2026-09-23 (housekeeping pass, never
+  marked at the time it landed)**: `MultiSeriesTrendChart.tsx`'s `leadIn` prop
+  injects each series' own zero-basis point into the actual rendered line
+  (union-of-dates + per-series slot logic, not just a data-model field) -
+  verified genuinely wired in, not dormant. `PerWorkTrends` no longer exists
+  in the codebase, fully superseded by `WorkComparisonSection`.
 - ~~In the multi-work comparison graph, differentiate series using ONLY the
   marker-shape and color-role (`seriesStyles.ts`'s 6-slot table) - stop
   using dash pattern as a per-series differentiator. Instead, reserve

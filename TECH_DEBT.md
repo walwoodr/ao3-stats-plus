@@ -1026,7 +1026,7 @@
   the plan's actual concern (fabricating a false description). Flagged here
   for Review to confirm this reading of the plan's intent is acceptable
   rather than a scope overreach.
-- [2026-09-14] (stage: Review) **DOMPurify default config permits interactive
+- ~~[2026-09-14] (stage: Review) **DOMPurify default config permits interactive
   form elements in bookmark notes** (docs/plans/bookmark-notes-feed.md §6,
   `frontend/src/lib/sanitizeHtml.ts`). Independent re-verification of the seam
   against 14 XSS vectors confirmed all scripting is neutralized (script tags,
@@ -1039,7 +1039,13 @@
   author's own feed. No JS execution, single bounded victim (the author viewing
   their own works' bookmarks), so low severity - but consider tightening with
   `FORBID_TAGS: ['form','input','button','textarea','select']` (or an explicit
-  `ALLOWED_TAGS` prose allowlist) since AO3 bookmark notes are prose, not forms.
+  `ALLOWED_TAGS` prose allowlist) since AO3 bookmark notes are prose, not forms.~~
+  — **RESOLVED 2026-09-22** (housekeeping pass 2026-09-23, never struck at the
+  time): `FORBID_TAGS: ["form","input","button","textarea","select","option"]`
+  added to `sanitizeHtml.ts` (commit `2a7e215`), plus an independent backend
+  at-rest sanitizer applying the same blocklist on ingest (`cf046cd`, see the
+  2026-09-22 entries below for full detail). Both re-verified against real
+  payloads by Review before shipping.
 - [2026-09-14] (stage: Review) **Rendered bookmark-note `<img>` tags load
   remote resources on view** (`frontend/src/lib/sanitizeHtml.ts`,
   `BookmarkFeedItem.tsx`). DOMPurify keeps `<img src="https://...">` (correct
@@ -1050,14 +1056,16 @@
   (tracking-pixel pattern). Inherent to the approved rich-HTML rendering; low
   concern at personal-tool scale. Candidate hardening if it ever matters: a
   referrer-policy/`loading=lazy` pass, or proxying/stripping remote image src.
-- [2026-09-14] (stage: Review) **Pagination renders every page-number button
+- ~~[2026-09-14] (stage: Review) **Pagination renders every page-number button
   with no windowing** (`frontend/src/components/BookmarkFeed.tsx`, ~line 140:
   `Array.from({ length: totalPages })`). At the plan's own stated worst case
   (§2: "low thousands of rows") this produces ~40-80+ numbered buttons in a
   single `<nav>` - visually noisy and verbose for screen-reader users tabbing
   the nav. Fine at typical scale (hundreds of bookmarks -> <20 pages). Consider
   a windowed/ellipsis pattern (first/last + neighbors of current) if real
-  accounts approach that size.
+  accounts approach that size.~~ — **RESOLVED 2026-09-22** (housekeeping pass
+  2026-09-23, never struck at the time): windowed to first + last + current±2
+  with an ellipsis gap indicator, per direct user spec (commit `4ad9dba`).
 - [2026-09-14] (stage: Deployment) **Process gap, now fixed for this batch, not
   yet fixed structurally.** The bookmark-notes-feed Testing/Implementation
   cycle committed 9 new/edited frontend files that were never run through
