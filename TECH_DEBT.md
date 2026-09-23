@@ -1395,3 +1395,15 @@
   guarantee holds), but the O(series x dates) set/sort/map work reruns each
   hover frame. Deferred: minor perf only; a `useMemo` keyed on `series` +
   `seriesColors` would remove it.
+
+- [2026-09-23] (stage: Review) `unloadGuard.test.ts`'s "sets preventDefault
+  and returnValue" test asserts `event.returnValue).not.toBe("")`, but jsdom
+  dispatches a plain `Event` (not a real `BeforeUnloadEvent`), so
+  `event.returnValue` reads through the legacy `Event.returnValue` accessor
+  and is boolean `false` after `preventDefault()` - the assertion passes by
+  observing `false !== ""`, not by verifying the handler's `returnValue = ""`
+  assignment. The same test's `defaultPrevented === true` assertion is the
+  meaningful, correct one (that is what actually triggers the browser prompt),
+  so this is cosmetic. Deferred: production handler follows the canonical
+  MDN pattern and is correct; only the returnValue sub-assertion is
+  misleading. Could drop it or comment why it reads boolean under jsdom.
