@@ -185,7 +185,7 @@ export function MultiSeriesTrendChart({
     : undefined;
   const activePoints: ActivePoint[] = activeRow
     ? series
-        .map((s) => {
+        .map((s): ActivePoint | null => {
           const value = seriesValueAt(activeRow, s.workId);
           return value == null ? null : { x: activeRow.capturedOn, y: value };
         })
