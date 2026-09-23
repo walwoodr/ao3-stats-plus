@@ -299,8 +299,6 @@ describe("MultiSeriesTrendChart: the visible synced table gains zero-basis colum
 
     const table = screen.getByRole("table", { name: /hits/i });
     expect(within(table).getByRole("columnheader", { name: "2018-01-01" })).toBeInTheDocument();
-    expect(
-      within(table).queryByText("Before 2018 (estimated baseline)"),
-    ).not.toBeInTheDocument();
+    expect(within(table).queryByText("Before 2018 (estimated baseline)")).not.toBeInTheDocument();
   });
 });

@@ -121,9 +121,11 @@ describe("TrendChart: chart -> table sync (T9)", () => {
     }
 
     await waitFor(() => {
-      expect(within(table).getAllByRole("cell", {}).some((cell) => /bg-accent\/10/.test(cell.className))).toBe(
-        true,
-      );
+      expect(
+        within(table)
+          .getAllByRole("cell", {})
+          .some((cell) => /bg-accent\/10/.test(cell.className)),
+      ).toBe(true);
     });
   });
 
@@ -163,9 +165,7 @@ describe("TrendChart: table -> chart sync (T10, D-B guide line + ringed markers)
     fireEvent.mouseEnter(columnHeader);
 
     await waitFor(() => {
-      expect(container.querySelectorAll('[data-testid="active-point-guide-line"]')).toHaveLength(
-        1,
-      );
+      expect(container.querySelectorAll('[data-testid="active-point-guide-line"]')).toHaveLength(1);
       expect(container.querySelectorAll('[data-testid="active-point-ring"]')).toHaveLength(1);
     });
   });
@@ -183,9 +183,7 @@ describe("TrendChart: table -> chart sync (T10, D-B guide line + ringed markers)
 
     fireEvent.mouseLeave(columnHeader);
     await waitFor(() => {
-      expect(container.querySelectorAll('[data-testid="active-point-guide-line"]')).toHaveLength(
-        0,
-      );
+      expect(container.querySelectorAll('[data-testid="active-point-guide-line"]')).toHaveLength(0);
       expect(container.querySelectorAll('[data-testid="active-point-ring"]')).toHaveLength(0);
     });
   });

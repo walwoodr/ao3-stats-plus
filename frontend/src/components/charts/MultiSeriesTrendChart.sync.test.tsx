@@ -153,9 +153,7 @@ describe("MultiSeriesTrendChart: table -> chart sync (T10, D-B guide line + ring
 
     // Both Work A and Work B have a value at 2026-01-08.
     await waitFor(() => {
-      expect(container.querySelectorAll('[data-testid="active-point-guide-line"]')).toHaveLength(
-        1,
-      );
+      expect(container.querySelectorAll('[data-testid="active-point-guide-line"]')).toHaveLength(1);
       expect(container.querySelectorAll('[data-testid="active-point-ring"]')).toHaveLength(2);
     });
   });
@@ -189,9 +187,7 @@ describe("MultiSeriesTrendChart: table -> chart sync (T10, D-B guide line + ring
 
     fireEvent.mouseLeave(columnHeader);
     await waitFor(() => {
-      expect(container.querySelectorAll('[data-testid="active-point-guide-line"]')).toHaveLength(
-        0,
-      );
+      expect(container.querySelectorAll('[data-testid="active-point-guide-line"]')).toHaveLength(0);
       expect(container.querySelectorAll('[data-testid="active-point-ring"]')).toHaveLength(0);
     });
   });

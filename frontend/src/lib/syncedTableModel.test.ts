@@ -109,11 +109,7 @@ describe("buildRatioTableModel (single-series, RatioChart shape)", () => {
   it("emits one column per point, keyed and labeled by capturedOn", () => {
     const model = buildRatioTableModel({ points: SPARSE_RATIO_POINTS });
 
-    expect(model.columns.map((c) => c.dateKey)).toEqual([
-      "2026-01-03",
-      "2026-01-04",
-      "2026-02-20",
-    ]);
+    expect(model.columns.map((c) => c.dateKey)).toEqual(["2026-01-03", "2026-01-04", "2026-02-20"]);
   });
 
   it("renders an explicit ratio of 0 rather than a blank/omitted cell", () => {

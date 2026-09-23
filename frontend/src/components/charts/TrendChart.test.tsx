@@ -122,9 +122,7 @@ describe("TrendChart", () => {
 
       const table = screen.getByRole("table", { name: /total hits/i });
       // one date column-header per point + the corner cell.
-      expect(within(table).getAllByRole("columnheader")).toHaveLength(
-        SPARSE_POINTS.length + 1,
-      );
+      expect(within(table).getAllByRole("columnheader")).toHaveLength(SPARSE_POINTS.length + 1);
       // exactly one series row (single-series is the degenerate N=1 case).
       expect(within(table).getAllByRole("rowheader")).toHaveLength(1);
     });
@@ -210,9 +208,7 @@ describe("TrendChart", () => {
 
       const table = screen.getByRole("table", { name: /total hits/i });
       // corner + one synthetic + one per real point.
-      expect(within(table).getAllByRole("columnheader")).toHaveLength(
-        SPARSE_POINTS.length + 2,
-      );
+      expect(within(table).getAllByRole("columnheader")).toHaveLength(SPARSE_POINTS.length + 2);
     });
 
     // Risk #3 (plan §5.2): the lead-in/zero-basis label that used to live in
