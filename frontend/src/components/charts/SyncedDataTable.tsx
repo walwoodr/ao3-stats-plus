@@ -14,9 +14,14 @@ export interface SyncedDataTableProps {
   defaultOpen?: boolean;
 }
 
+// Maintenance item 7 (post-ship bug batch, 2026-09-23): text-sm, not
+// text-xs - ~1.2x the prior size, and the nearest existing step on
+// MASTER.md's documented type scale, which starts at text-sm/14px for
+// captions/labels (design-system/ao3-stats-plus/MASTER.md's Typography
+// section never names text-xs at all).
 const HEADER_CELL_BASE =
-  "whitespace-nowrap px-3 py-1 text-left font-mono text-xs border-b border-ink/12";
-const DATA_CELL_BASE = "whitespace-nowrap px-3 py-1 text-left font-mono text-xs text-ink";
+  "whitespace-nowrap px-3 py-1 text-left font-mono text-sm border-b border-ink/12";
+const DATA_CELL_BASE = "whitespace-nowrap px-3 py-1 text-left font-mono text-sm text-ink";
 // Maintenance item 4 (post-ship bug batch, 2026-09-23): every sticky (left-0)
 // cell gets this same light right-edge shadow - both a "more content this
 // way" scroll affordance and a defensive fix for the seam/gap that
@@ -123,7 +128,7 @@ export function SyncedDataTable({
               <tr key={row.seriesKey}>
                 <th
                   scope="row"
-                  className={`sticky left-0 z-10 max-w-[150px] bg-card px-2 py-1 text-left text-xs font-semibold text-ink ${STICKY_COLUMN_SHADOW}`}
+                  className={`sticky left-0 z-10 max-w-[150px] bg-card px-2 py-1 text-left text-sm font-semibold text-ink ${STICKY_COLUMN_SHADOW}`}
                 >
                   {/* max-w-[150px] caps the column so a long work title can't
                       push the table wide before horizontal scroll kicks in;
