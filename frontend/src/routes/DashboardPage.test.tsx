@@ -284,24 +284,24 @@ describe("DashboardPage", () => {
 
       renderDashboard();
 
-      const hitsFigure = screen.getByRole("img", { name: /total hits/i });
-      // real points + one synthetic leadIn marker on the currently-shown chart
-      expect(within(hitsFigure).getAllByTestId(/trend-point-marker-/)).toHaveLength(
-        TWO_POINT_SERIES.length + 1,
-      );
-      const hitsLabel = within(hitsFigure).getAllByTestId(/trend-point-marker-/)[0].textContent;
-      expect(hitsLabel).toMatch(/before/i);
-      expect(hitsLabel).toMatch(/\b0\b/);
+      // The point values now live in the visible synced table (a sibling of
+      // the aria-hidden figure, not the old sr-only per-point marker spans
+      // that used to sit inside it - docs/plans/chart-synced-data-table.md
+      // §2.4).
+      const hitsTable = screen.getByRole("table", { name: /total hits/i });
+      const hitsColumnHeaders = within(hitsTable).getAllByRole("columnheader");
+      // corner + one synthetic leadIn column + real points.
+      expect(hitsColumnHeaders).toHaveLength(TWO_POINT_SERIES.length + 2);
+      expect(hitsColumnHeaders[1].textContent).toMatch(/before/i);
+      expect(within(hitsTable).getAllByRole("cell")[0].textContent).toBe("0");
 
       await user.click(screen.getByRole("tab", { name: "Kudos" }));
 
-      const kudosFigure = screen.getByRole("img", { name: /total kudos/i });
-      expect(within(kudosFigure).getAllByTestId(/trend-point-marker-/)).toHaveLength(
-        TWO_POINT_SERIES.length + 1,
-      );
-      const kudosLabel = within(kudosFigure).getAllByTestId(/trend-point-marker-/)[0].textContent;
-      expect(kudosLabel).toMatch(/before/i);
-      expect(kudosLabel).toMatch(/\b0\b/);
+      const kudosTable = screen.getByRole("table", { name: /total kudos/i });
+      const kudosColumnHeaders = within(kudosTable).getAllByRole("columnheader");
+      expect(kudosColumnHeaders).toHaveLength(TWO_POINT_SERIES.length + 2);
+      expect(kudosColumnHeaders[1].textContent).toMatch(/before/i);
+      expect(within(kudosTable).getAllByRole("cell")[0].textContent).toBe("0");
     });
 
     // Superseded by docs/plans/per-work-zero-basis-dates.md: the parent
@@ -354,15 +354,13 @@ describe("DashboardPage", () => {
       // "Work A hits" - see WorkComparisonSection.test.tsx) now receive a
       // leadIn for Work A (no publishedOn -> falls back to the
       // earliestPostYear baseline) alongside its 2 real points.
-      const comparisonHitsFigure = screen.getByRole("img", { name: /^hits$/i });
-      const markers = within(comparisonHitsFigure).getAllByTestId(/multi-series-point-marker-/);
-      expect(markers).toHaveLength(3);
-      // Both the sr-only marker and the sr-only table row echo the same
-      // "estimated baseline" wording - checking the marker text directly
-      // (rather than a bare getByText) avoids ambiguity between the two.
-      expect(markers.some((marker) => /estimated baseline/i.test(marker.textContent ?? ""))).toBe(
-        true,
-      );
+      const comparisonHitsTable = screen.getByRole("table", { name: /^hits$/i });
+      const columnHeaders = within(comparisonHitsTable).getAllByRole("columnheader");
+      // corner + one synthetic leadIn column + Work A's 2 real points.
+      expect(columnHeaders).toHaveLength(4);
+      expect(
+        columnHeaders.some((header) => /estimated baseline/i.test(header.textContent ?? "")),
+      ).toBe(true);
     });
 
     it("renders the charts (not the 'not enough history' message) for a single real snapshot with a valid leadIn", () => {
@@ -374,9 +372,9 @@ describe("DashboardPage", () => {
       renderDashboard();
 
       expect(screen.queryByText(/only have one|not enough history yet/i)).not.toBeInTheDocument();
-      const hitsFigure = screen.getByRole("img", { name: /total hits/i });
-      // one synthetic + one real point is a drawable two-point trend
-      expect(within(hitsFigure).getAllByTestId(/trend-point-marker-/)).toHaveLength(2);
+      const hitsTable = screen.getByRole("table", { name: /total hits/i });
+      // corner + one synthetic + one real point is a drawable two-point trend.
+      expect(within(hitsTable).getAllByRole("columnheader")).toHaveLength(3);
     });
   });
 
@@ -433,9 +431,10 @@ describe("DashboardPage", () => {
       renderDashboard();
 
       expect(screen.getByText(/only have one|not enough history yet/i)).toBeInTheDocument();
-      const hitsFigure = screen.getByRole("img", { name: /total hits/i });
-      expect(within(hitsFigure).getAllByTestId(/trend-point-marker-/)).toHaveLength(1);
-      expect(within(hitsFigure).queryByText(/estimated baseline/i)).not.toBeInTheDocument();
+      const hitsTable = screen.getByRole("table", { name: /total hits/i });
+      // corner + one real point only - no leadIn column.
+      expect(within(hitsTable).getAllByRole("columnheader")).toHaveLength(2);
+      expect(within(hitsTable).queryByText(/estimated baseline/i)).not.toBeInTheDocument();
     });
   });
 
