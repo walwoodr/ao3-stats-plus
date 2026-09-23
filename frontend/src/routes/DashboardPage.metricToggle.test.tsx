@@ -120,11 +120,15 @@ describe("DashboardPage: account-level metric toggle", () => {
 
     await user.click(screen.getByRole("tab", { name: "Subscribers" }));
 
-    const figure = screen.getByRole("img", { name: /subscribers/i });
-    const markers = within(figure).getAllByTestId(/trend-point-marker-/);
-    expect(markers).toHaveLength(TWO_POINT_SERIES.length);
-    expect(markers[0].textContent).toMatch(/3/);
-    expect(markers[1].textContent).toMatch(/5/);
+    // The point values now live in the visible synced table's cells (a
+    // sibling of the aria-hidden figure, not the old sr-only per-point
+    // marker spans that used to sit inside it - docs/plans/chart-synced-
+    // data-table.md §2.4).
+    const table = screen.getByRole("table", { name: /subscribers/i });
+    const cells = within(table).getAllByRole("cell");
+    expect(cells).toHaveLength(TWO_POINT_SERIES.length);
+    expect(cells[0].textContent).toMatch(/3/);
+    expect(cells[1].textContent).toMatch(/5/);
   });
 
   it("the Subscribers chart carries the same account-level zero-basis leadIn as Hits/Kudos", async () => {
@@ -134,11 +138,13 @@ describe("DashboardPage: account-level metric toggle", () => {
 
     await user.click(screen.getByRole("tab", { name: "Subscribers" }));
 
-    const figure = screen.getByRole("img", { name: /subscribers/i });
-    const markers = within(figure).getAllByTestId(/trend-point-marker-/);
-    expect(markers).toHaveLength(TWO_POINT_SERIES.length + 1);
-    expect(markers[0].textContent).toMatch(/before/i);
-    expect(markers[0].textContent).toMatch(/\b0\b/);
+    const table = screen.getByRole("table", { name: /subscribers/i });
+    const columnHeaders = within(table).getAllByRole("columnheader");
+    // corner cell + the synthetic leadIn column + one per real point.
+    expect(columnHeaders).toHaveLength(TWO_POINT_SERIES.length + 2);
+    expect(columnHeaders[1].textContent).toMatch(/before/i);
+    const cells = within(table).getAllByRole("cell");
+    expect(cells[0].textContent).toBe("0");
   });
 
   it("the Subscribers chart exposes an accessible sr-only data table", async () => {
@@ -160,10 +166,8 @@ describe("DashboardPage: account-level metric toggle", () => {
     await user.click(screen.getByRole("tab", { name: "Hits" }));
 
     expect(screen.getByRole("img", { name: /total hits/i })).toBeInTheDocument();
-    const figure = screen.getByRole("img", { name: /total hits/i });
-    expect(within(figure).getAllByTestId(/trend-point-marker-/)).toHaveLength(
-      TWO_POINT_SERIES.length,
-    );
+    const table = screen.getByRole("table", { name: /total hits/i });
+    expect(within(table).getAllByRole("cell")).toHaveLength(TWO_POINT_SERIES.length);
   });
 
   describe("keyboard nav / ARIA", () => {
