@@ -1366,3 +1366,32 @@
   work's own publish-date lead-in. Deferred: out of scope for this fix (not
   requested), and low-severity (cosmetic wording mismatch, not a correctness
   bug) - worth revisiting if it reads as confusing in practice.
+- [2026-09-23] (stage: Review) `scrollColumnIntoView.ts`'s `animateScrollLeft`
+  returns no cancel handle, and `SyncedDataTable`'s auto-scroll effect
+  (Maintenance item 5) neither stores the rAF id nor cancels a prior animation
+  on a new `activeDateKey` or on unmount cleanup. A chart-hover sweep fires
+  many distinct external `activeDateKey` changes, each starting a fresh ~1.5s
+  rAF loop, so up to several zombie loops run concurrently (each <=1.5s,
+  bounded - not an unbounded leak). Visible corruption is largely masked
+  because rAF preserves scheduling order so the newest loop writes
+  `container.scrollLeft` last each frame and dominates, but the older loops
+  waste CPU writing overwritten values, and on unmount a loop keeps writing to
+  a detached node until it self-terminates. Deferred: not a correctness/data
+  bug and no test regression; fix is a standard `cancelAnimationFrame` in the
+  effect cleanup + a returned cancel handle from `animateScrollLeft`.
+- [2026-09-23] (stage: Review) `SyncedDataTable`'s `selfTriggeredRef` can get
+  stuck `true`: `notifyActiveDateKeyChange` sets the flag then calls
+  `onActiveDateKeyChange` with a value the parent may already hold (e.g. a
+  chart hover set `activeDateKey=X`, then the user mouses onto the table's own
+  column-X header, firing `notify(X)`). React bails out of the no-op setState,
+  so the `[activeDateKey]` effect never runs to clear the flag, and the NEXT
+  genuine external chart-hover auto-scroll is silently suppressed once (then
+  self-heals). Niche and non-correctness, but a real latent flaw in the
+  ref-flag design. Deferred: low-severity, self-healing.
+- [2026-09-23] (stage: Review) `MultiSeriesTrendChart` rebuilds and re-sorts
+  the full `buildMultiSeriesTableModel` on every render, including every
+  chart-hover `activeDateKey` change (not memoized). Output order is
+  deterministic/stable so rows never visibly reorder on hover (the stated
+  guarantee holds), but the O(series x dates) set/sort/map work reruns each
+  hover frame. Deferred: minor perf only; a `useMemo` keyed on `series` +
+  `seriesColors` would remove it.
