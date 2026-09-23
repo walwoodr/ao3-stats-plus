@@ -16,6 +16,13 @@ export interface SyncedDataTableProps {
 const HEADER_CELL_BASE =
   "whitespace-nowrap px-3 py-1 text-left font-mono text-xs border-b border-ink/12";
 const DATA_CELL_BASE = "whitespace-nowrap px-3 py-1 text-left font-mono text-xs text-ink";
+// Maintenance item 4 (post-ship bug batch, 2026-09-23): every sticky (left-0)
+// cell gets this same light right-edge shadow - both a "more content this
+// way" scroll affordance and a defensive fix for the seam/gap that
+// `position: sticky` cells can otherwise show in a `border-collapse` table.
+// A plain rgba shadow (not a --color-ink token) reads acceptably subtle in
+// both light and dark without needing its own theme-reactive variant.
+const STICKY_COLUMN_SHADOW = "shadow-[4px_0_6px_-4px_rgba(0,0,0,0.25)]";
 
 // The single presentational transposed table shared by TrendChart,
 // RatioChart, and MultiSeriesTrendChart (single-series is the N=1 case of
@@ -66,7 +73,7 @@ export function SyncedDataTable({
           inputs here) must itself be a keyboard-operable tab stop, or
           keyboard-only users have no way to scroll it. */}
       <div
-        className="overflow-x-auto px-4 pb-4 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="overflow-x-auto bg-card px-4 pb-4 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         tabIndex={0}
         role="region"
         aria-label={`${title} data table, scrollable`}
@@ -76,7 +83,7 @@ export function SyncedDataTable({
             <tr>
               <th
                 scope="col"
-                className={`${HEADER_CELL_BASE} sticky left-0 z-10 bg-card text-ink-soft`}
+                className={`${HEADER_CELL_BASE} sticky left-0 z-10 bg-card text-ink-soft ${STICKY_COLUMN_SHADOW}`}
               >
                 <span className="sr-only">{rowHeaderLabel}</span>
               </th>
@@ -107,7 +114,7 @@ export function SyncedDataTable({
               <tr key={row.seriesKey}>
                 <th
                   scope="row"
-                  className="sticky left-0 z-10 max-w-[150px] bg-card px-2 py-1 text-left text-xs font-semibold text-ink"
+                  className={`sticky left-0 z-10 max-w-[150px] bg-card px-2 py-1 text-left text-xs font-semibold text-ink ${STICKY_COLUMN_SHADOW}`}
                 >
                   {/* max-w-[150px] caps the column so a long work title can't
                       push the table wide before horizontal scroll kicks in;
