@@ -134,9 +134,13 @@ describe("WorkComparisonSection", () => {
   it("shows only the default work's data in both charts' legends", () => {
     renderSection({ perWorkSeries: TWO_WORKS, earliestPostYear: null });
 
-    const hitsFigure = screen.getByRole("img", { name: /^hits$/i });
-    expect(within(hitsFigure).getAllByText(/work one/i).length).toBeGreaterThan(0);
-    expect(within(hitsFigure).queryByText(/work two/i)).not.toBeInTheDocument();
+    // The work's data now lives in the visible synced table (a sibling of
+    // the aria-hidden figure, not nested inside it, per docs/plans/chart-
+    // synced-data-table.md §2.4) rather than the old sr-only legend/table
+    // content that used to sit inside the figure.
+    const hitsTable = screen.getByRole("table", { name: /^hits$/i });
+    expect(within(hitsTable).getAllByText(/work one/i).length).toBeGreaterThan(0);
+    expect(within(hitsTable).queryByText(/work two/i)).not.toBeInTheDocument();
   });
 
   describe("the controls island layout (§8, refined by refinements-plan §3)", () => {
@@ -342,12 +346,12 @@ describe("WorkComparisonSection", () => {
 
       await bulkSelectFandom(user, "big fandom");
 
-      const hitsFigure = screen.getByRole("img", { name: /^hits$/i });
+      const hitsTable = screen.getByRole("table", { name: /^hits$/i });
       const checkedTitles = ELEVEN_WORKS.filter((w) => isSelected(w.title)).map((w) => w.title);
 
       expect(checkedTitles).toHaveLength(10);
       checkedTitles.forEach((title) => {
-        expect(within(hitsFigure).getAllByText(new RegExp(title, "i")).length).toBeGreaterThan(0);
+        expect(within(hitsTable).getAllByText(new RegExp(title, "i")).length).toBeGreaterThan(0);
       });
     });
   });
@@ -564,18 +568,16 @@ describe("WorkComparisonSection", () => {
         expect(isSelected(w.title)).toBe(true);
       });
 
-      const hitsFigure = screen.getByRole("img", { name: /^hits$/i });
+      const hitsTable = screen.getByRole("table", { name: /^hits$/i });
       TEN_WORKS.forEach((w) => {
-        expect(within(hitsFigure).getAllByText(new RegExp(w.title, "i")).length).toBeGreaterThan(0);
+        expect(within(hitsTable).getAllByText(new RegExp(w.title, "i")).length).toBeGreaterThan(0);
       });
 
       await user.click(screen.getByRole("tab", { name: "Kudos" }));
 
-      const kudosFigure = screen.getByRole("img", { name: /^kudos$/i });
+      const kudosTable = screen.getByRole("table", { name: /^kudos$/i });
       TEN_WORKS.forEach((w) => {
-        expect(within(kudosFigure).getAllByText(new RegExp(w.title, "i")).length).toBeGreaterThan(
-          0,
-        );
+        expect(within(kudosTable).getAllByText(new RegExp(w.title, "i")).length).toBeGreaterThan(0);
       });
     });
 
