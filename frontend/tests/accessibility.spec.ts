@@ -191,6 +191,41 @@ test.describe("accessibility - automated axe scans", () => {
     expect(results.violations).toEqual([]);
   });
 
+  // Testing task T11 (docs/plans/chart-synced-data-table.md §10, §2.4):
+  // the promoted visible data table must be a genuine sibling of the
+  // role="img" figure, not a descendant of it - Planning's own
+  // investigation found the PRE-existing sr-only table was likely never
+  // reaching screen readers because role="img" descendants are generally
+  // hidden from assistive tech (a leaf role). This is the real-DOM/ARIA
+  // check that finding was meant to prompt - distinct from (and stronger
+  // than) the axe scan above, which only catches WCAG-rule violations, not
+  // this specific "AT-unreachable content" structural shape (axe generally
+  // cannot detect "content exists but is unreachable due to being nested
+  // under a leaf role" - it flags rule violations, and role="img" with
+  // interactive/table descendants isn't reliably one of axe's default
+  // rules). Also verifies the visible table exposes proper
+  // table/columnheader/rowheader roles per §5.3.
+  test("the populated dashboard's synced data table exposes table semantics and sits OUTSIDE the role=img figure", async ({
+    page,
+  }) => {
+    await mockStatsForUser(page, POPULATED_STATS_RESPONSE);
+    await page.goto("/u/testauthor?token=tok_valid123");
+
+    const figure = page.getByRole("img", { name: /total hits/i });
+    await expect(figure).toBeVisible();
+
+    const table = page.getByRole("table", { name: /total hits/i });
+    await expect(table).toBeVisible();
+
+    // A descendant locator scoped to the figure must find nothing - if the
+    // table were still nested inside role="img" (the pre-existing latent
+    // bug), this count would be 1 instead of 0.
+    await expect(figure.getByRole("table", { name: /total hits/i })).toHaveCount(0);
+
+    await expect(table.getByRole("columnheader").first()).toBeVisible();
+    await expect(table.getByRole("rowheader").first()).toBeVisible();
+  });
+
   test("the token-mismatch error state has no detectable a11y violations", async ({ page }) => {
     await mockStatsForUser(page, TOKEN_MISMATCH_RESPONSE);
     await page.goto("/u/testauthor?token=tok_wrong");
@@ -268,6 +303,29 @@ test.describe("accessibility - automated axe scans (dark mode)", () => {
   // on this media feature, so contrast/focus-ring violations can differ by
   // theme and aren't guaranteed by the light-mode scans alone.
   test.use({ colorScheme: "dark" });
+
+  // Testing task T11: the populated dashboard's new visible synced table
+  // (and its bg-accent/10 active-column tint, once hovered) is a new
+  // surface whose contrast/focus-ring treatment can differ by theme (§8) -
+  // not covered by the light-mode scan above. Regression fence, not a
+  // red-today assertion: today's pre-feature dashboard already has no
+  // dark-mode axe violations, so this passes before Implementation too -
+  // its job is to catch a dark-mode contrast regression the new table/tint
+  // could introduce, not to prove the feature exists (T11's structural
+  // "table sits outside role=img" test above is the genuinely red-today
+  // check for that).
+  test("the populated dashboard has no detectable a11y violations in dark mode", async ({
+    page,
+  }) => {
+    await mockStatsForUser(page, POPULATED_STATS_RESPONSE);
+    await page.goto("/u/testauthor?token=tok_valid123");
+    await expect(page.getByRole("img", { name: /total hits/i })).toBeVisible();
+    await expect(page.getByRole("table", { name: /total hits/i })).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).analyze();
+
+    expect(results.violations).toEqual([]);
+  });
 
   test("the comparison view with multiple works selected (chips + slider visible) has no detectable a11y violations in dark mode", async ({
     page,
