@@ -107,13 +107,21 @@ export function SyncedDataTable({
               <tr key={row.seriesKey}>
                 <th
                   scope="row"
-                  className="sticky left-0 z-10 bg-card px-2 py-1 text-left text-xs font-semibold whitespace-nowrap text-ink"
+                  className="sticky left-0 z-10 max-w-[150px] bg-card px-2 py-1 text-left text-xs font-semibold text-ink"
                 >
-                  <span className="inline-flex items-center gap-1.5">
+                  {/* max-w-[150px] caps the column so a long work title can't
+                      push the table wide before horizontal scroll kicks in;
+                      `title` carries the FULL text for a hover tooltip, and
+                      `truncate` (overflow-hidden + ellipsis) is CSS-only - it
+                      never removes the underlying DOM text, so non-hover/AT
+                      users still get the whole title via the row's own
+                      textContent (verified by SyncedDataTable.
+                      rowHeaderTruncation.test.tsx). */}
+                  <span className="flex items-center gap-1.5" title={row.title}>
                     {row.shape && row.colorHex && (
                       <MarkerGlyph shape={row.shape} color={row.colorHex} size={4} />
                     )}
-                    {row.title}
+                    <span className="min-w-0 flex-1 truncate">{row.title}</span>
                   </span>
                   {row.identityDescription && (
                     <span className="sr-only">{` — ${row.identityDescription}`}</span>
