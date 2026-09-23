@@ -116,6 +116,11 @@ function ByWork({
           title={work.title}
           valueLabel="Bookmarks"
           series={buildWorkTypeSeries(work)}
+          // D-A: the By-Work sub-view can stack up to 10 charts (one per
+          // selected work), so its synced data tables default closed to
+          // keep the worst-case page length in check - the one exception
+          // to SyncedDataTable's open-by-default elsewhere.
+          defaultOpen={false}
         />
       ))}
     </div>
