@@ -235,6 +235,7 @@ export function MultiSeriesTrendChart({
                     name={s.title}
                     connectNulls={false}
                     isAnimationActive={false}
+                    activeDot={false}
                     stroke={color}
                     strokeWidth={2}
                     dot={(dotProps: {
@@ -269,6 +270,7 @@ export function MultiSeriesTrendChart({
                     name={`${s.title} (before first capture)`}
                     connectNulls
                     isAnimationActive={false}
+                    activeDot={false}
                     strokeDasharray="4 4"
                     stroke={colors.inkSoft}
                     strokeWidth={1.5}

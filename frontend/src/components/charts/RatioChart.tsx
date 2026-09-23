@@ -177,6 +177,7 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
                 name="Kudos-to-hits ratio"
                 connectNulls={false}
                 isAnimationActive={false}
+                activeDot={false}
                 stroke={colors.ink}
                 strokeWidth={2}
                 dot={(dotProps: {
@@ -204,6 +205,7 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
                   name="Kudos-to-hits ratio (estimated baseline)"
                   connectNulls
                   isAnimationActive={false}
+                  activeDot={false}
                   strokeDasharray="4 4"
                   stroke={colors.inkSoft}
                   strokeWidth={1.5}

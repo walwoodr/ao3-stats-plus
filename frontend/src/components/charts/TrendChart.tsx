@@ -188,6 +188,7 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
                 name={valueLabel}
                 connectNulls={false}
                 isAnimationActive={false}
+                activeDot={false}
                 stroke={colors.ink}
                 strokeWidth={2}
                 dot={(dotProps: {
@@ -215,6 +216,7 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
                   name={`${valueLabel} (estimated baseline)`}
                   connectNulls
                   isAnimationActive={false}
+                  activeDot={false}
                   strokeDasharray="4 4"
                   stroke={colors.inkSoft}
                   strokeWidth={1.5}
