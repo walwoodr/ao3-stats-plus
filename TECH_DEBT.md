@@ -1346,3 +1346,15 @@
   matching column tints, especially ahead of any Recharts 4 upgrade (plan R6) -
   the additive-overlay bet is the feature's riskiest Recharts coupling and
   deserves a browser-level fence, not just jsdom + source.
+- [2026-09-23] (stage: Maintenance) Maintenance item 3 (chart-synced-data-table
+  post-ship bug batch) reformatted `SyncedDataTable`'s per-work publish-date
+  lead-in column header (now just the raw date) and cell ("Published (N)")
+  in `syncedTableModel.ts`'s `buildMultiSeriesTableModel`, per direct user
+  scoping to the table's column header only. `MultiSeriesTrendChart.tsx`'s own
+  `buildChartData`/`tickFormatter` (the chart's X-axis tick label, a separate
+  code path) was deliberately left untouched and still renders the full
+  "Published <date>" wording on the axis tick for that same column - a minor
+  visible inconsistency between the chart axis and the table header for a
+  work's own publish-date lead-in. Deferred: out of scope for this fix (not
+  requested), and low-severity (cosmetic wording mismatch, not a correctness
+  bug) - worth revisiting if it reads as confusing in practice.
