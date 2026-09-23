@@ -126,13 +126,18 @@ describe("WorkComparisonSection: per-work metric toggle", () => {
 
       await user.click(screen.getByRole("tab", { name: tabName }));
 
-      const figure = screen.getByRole("img", { name: chartName });
-      const markers = within(figure).getAllByTestId(/multi-series-point-marker-/);
-      const values = markers.map((m) => m.textContent ?? "");
-      expect(values.some((v) => v.includes(`Work One`))).toBe(true);
-      expect(values.some((v) => v.includes(`Work Two`))).toBe(true);
+      // The work's data now lives in the visible synced table (a sibling of
+      // the aria-hidden figure, not the old sr-only per-point marker spans
+      // that used to live inside it - docs/plans/chart-synced-data-table.md
+      // §2.4) - query the table's row headers/cells instead.
+      const table = screen.getByRole("table", { name: chartName });
+      const rowHeaders = within(table)
+        .getAllByRole("rowheader")
+        .map((header) => header.textContent ?? "");
+      expect(rowHeaders.some((text) => text.includes("Work One"))).toBe(true);
+      expect(rowHeaders.some((text) => text.includes("Work Two"))).toBe(true);
       const workOnePoint = TWO_WORKS_ALL_METRICS[0].points[1];
-      expect(values.some((v) => v.includes(String(workOnePoint[field])))).toBe(true);
+      expect(within(table).getByText(String(workOnePoint[field]))).toBeInTheDocument();
     });
   });
 
@@ -143,11 +148,15 @@ describe("WorkComparisonSection: per-work metric toggle", () => {
 
     await user.click(screen.getByRole("tab", { name: "Bookmarks" }));
 
-    const figure = screen.getByRole("img", { name: /^total bookmarks$/i });
-    const markers = within(figure).getAllByTestId(/multi-series-point-marker-/);
+    const table = screen.getByRole("table", { name: /^total bookmarks$/i });
+    const workTwoRowHeader = within(table)
+      .getAllByRole("rowheader")
+      .find((header) => /work two/i.test(header.textContent ?? ""));
+    expect(workTwoRowHeader).toBeDefined();
     // Work Two's only point has bookmarks: 2 (its publicBookmarks/
     // privateBookmarks are null - By Type's Total series must still show it).
-    expect(markers.some((m) => /work two.*\b2\b/i.test(m.textContent ?? ""))).toBe(true);
+    const workTwoRow = workTwoRowHeader?.closest("tr");
+    expect(within(workTwoRow as HTMLElement).getByText("2")).toBeInTheDocument();
   });
 
   it("respects the active date-range window for a non-sparse metric, same as Hits/Kudos", async () => {
@@ -208,11 +217,20 @@ describe("WorkComparisonSection: per-work metric toggle", () => {
       await user.keyboard("{ArrowRight}");
     }
 
-    const figure = screen.getByRole("img", { name: /^comments$/i });
+    const table = screen.getByRole("table", { name: /^comments$/i });
     // 2020's comments:1 point for Work One should be filtered out of the
-    // window; its 2021 comments:9 point should remain.
-    expect(screen.queryByText(/work one.*2020-01-01.*1 comments/i)).not.toBeInTheDocument();
-    expect(within(figure).getByText(/work one.*2021-01-01.*9 comments/i)).toBeInTheDocument();
+    // window entirely (no column at all); its 2021 comments:9 point remains
+    // in Work One's row.
+    expect(
+      within(table).queryByRole("columnheader", { name: "2020-01-01" }),
+    ).not.toBeInTheDocument();
+    expect(within(table).getByRole("columnheader", { name: "2021-01-01" })).toBeInTheDocument();
+    const workOneRow = within(table)
+      .getAllByRole("rowheader")
+      .find((header) => /work one/i.test(header.textContent ?? ""))
+      ?.closest("tr");
+    expect(workOneRow).not.toBeNull();
+    expect(within(workOneRow as HTMLElement).getByText("9")).toBeInTheDocument();
   });
 
   it("carries a zero-basis leadIn on a non-sparse metric chart, same as Hits", async () => {
@@ -240,8 +258,8 @@ describe("WorkComparisonSection: per-work metric toggle", () => {
 
     await user.click(screen.getByRole("tab", { name: "Comments" }));
 
-    const figure = screen.getByRole("img", { name: /^comments$/i });
-    expect(within(figure).getAllByText(/published 2020-01-01/i).length).toBeGreaterThan(0);
+    const table = screen.getByRole("table", { name: /^comments$/i });
+    expect(within(table).getAllByText(/published 2020-01-01/i).length).toBeGreaterThan(0);
   });
 
   it("switching metric tabs does not reset the selected works or the active range window", async () => {
@@ -253,8 +271,8 @@ describe("WorkComparisonSection: per-work metric toggle", () => {
     await user.click(screen.getByRole("tab", { name: "Hits" }));
 
     expect(useWorkComparisonStore.getState().getSelection(USERNAME)).toEqual([1, 2]);
-    const figure = screen.getByRole("img", { name: /^hits$/i });
-    expect(within(figure).getAllByText(/work two/i).length).toBeGreaterThan(0);
+    const table = screen.getByRole("table", { name: /^hits$/i });
+    expect(within(table).getAllByText(/work two/i).length).toBeGreaterThan(0);
   });
 
   it("persists the selected per-work metric per-username across a remount", async () => {
