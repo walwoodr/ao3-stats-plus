@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, userEvent, within } from "storybook/test";
 import { MultiSeriesTrendChart } from "./MultiSeriesTrendChart";
 
 // Storybook coverage feeds the addon-a11y automated axe scan across
@@ -148,6 +149,52 @@ export const SingleWork: Story = {
         ],
       },
     ],
+  },
+};
+
+// Testing task T12 (docs/plans/chart-synced-data-table.md §10): feeds the
+// addon-a11y automated axe scan against the table->chart sync's
+// highlighted-column state (D-B: guide line + rings for EVERY series with a
+// value at the active date) on the richest case - two works sharing a
+// date. Red today: MultiSeriesTrendChart has no column headers or
+// ActivePointOverlay yet.
+export const HighlightedColumnState: Story = {
+  args: {
+    title: "Hits",
+    valueLabel: "Hits",
+    series: [
+      {
+        workId: 1,
+        title: "The Long Way Home",
+        styleIndex: 0,
+        points: [
+          { capturedOn: "2026-01-01", value: 100 },
+          { capturedOn: "2026-01-08", value: 220 },
+          { capturedOn: "2026-01-15", value: 340 },
+        ],
+      },
+      {
+        workId: 2,
+        title: "Sideways",
+        styleIndex: 1,
+        points: [
+          { capturedOn: "2026-01-01", value: 40 },
+          { capturedOn: "2026-01-08", value: 90 },
+          { capturedOn: "2026-01-15", value: 150 },
+        ],
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const columnHeader = await canvas.findByRole("columnheader", { name: "2026-01-08" });
+    await userEvent.hover(columnHeader);
+
+    const rings = canvasElement.querySelectorAll('[data-testid="active-point-ring"]');
+    await expect(rings.length).toBe(2);
+    await expect(
+      canvasElement.querySelector('[data-testid="active-point-guide-line"]'),
+    ).not.toBeNull();
   },
 };
 

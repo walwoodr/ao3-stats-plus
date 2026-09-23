@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, userEvent, within } from "storybook/test";
 import { RatioChart } from "./RatioChart";
 
 const meta = {
@@ -60,5 +61,30 @@ export const RegularHistoryWithLeadIn: Story = {
       { capturedOn: "2026-01-15", ratio: 0.12 },
     ],
     leadIn: { capturedOn: "2019-01-01", ratio: 0 },
+  },
+};
+
+// Testing task T12 (docs/plans/chart-synced-data-table.md §10) - mirrors
+// TrendChart.stories.tsx's HighlightedColumnState: feeds the addon-a11y
+// scan against the table->chart sync's highlighted-column state (D-B).
+// Red today: RatioChart has no column headers or ActivePointOverlay yet.
+export const HighlightedColumnState: Story = {
+  args: {
+    title: "Kudos-to-hits ratio",
+    points: [
+      { capturedOn: "2026-01-01", ratio: 0.08 },
+      { capturedOn: "2026-01-08", ratio: 0.1 },
+      { capturedOn: "2026-01-15", ratio: 0.12 },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const columnHeader = await canvas.findByRole("columnheader", { name: "2026-01-08" });
+    await userEvent.hover(columnHeader);
+
+    await expect(canvasElement.querySelector('[data-testid="active-point-ring"]')).not.toBeNull();
+    await expect(
+      canvasElement.querySelector('[data-testid="active-point-guide-line"]'),
+    ).not.toBeNull();
   },
 };
