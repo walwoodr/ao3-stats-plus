@@ -201,50 +201,27 @@ describe("MultiSeriesTrendChart: visible dashed lead-in line + zero dot", () => 
   });
 });
 
-describe("MultiSeriesTrendChart: sr-only accessible layer gains the zero-basis points", () => {
-  it("adds one sr-only marker per work with a leadIn, labeled '<title> — <label>: 0 <metric>'", () => {
-    render(
-      <MultiSeriesTrendChart
-        title="Hits"
-        valueLabel="Hits"
-        series={[WORK_WITH_LEAD, WORK_NO_LEAD]}
-      />,
-    );
-
-    const markers = screen.getAllByTestId(/multi-series-point-marker-/);
-    const texts = markers.map((m) => m.textContent);
-
-    expect(texts).toContain("Work A — Published 2020-01-01: 0 Hits");
-    // Work B has no leadIn - no synthetic marker for it.
-    expect(texts.some((t) => t?.startsWith("Work B — Published"))).toBe(false);
-  });
-
-  it("keeps the marker-counter data-testid scheme stable (contiguous, one per marker)", () => {
-    render(
-      <MultiSeriesTrendChart
-        title="Hits"
-        valueLabel="Hits"
-        series={[WORK_WITH_LEAD, WORK_NO_LEAD]}
-      />,
-    );
-
-    // 1 real point for A + 1 leadIn marker for A + 1 real point for B.
-    const markers = screen.getAllByTestId(/multi-series-point-marker-/);
-    expect(markers).toHaveLength(3);
-    markers.forEach((marker, index) => {
-      expect(marker).toHaveAttribute("data-testid", `multi-series-point-marker-${index}`);
-    });
-  });
-
-  it("adds a zero-basis row to the sr-only table whose date cell shows the leadIn label, not a raw ISO date", () => {
+// Testing task T8 update (docs/plans/chart-synced-data-table.md §10): this
+// describe block used to cover the sr-only per-work marker spans and the
+// old sr-only one-row-per-date table - both are removed entirely per §2.4
+// (see MultiSeriesTrendChart.test.tsx's "does not render the old sr-only
+// per-work marker spans" test for that removal, not duplicated here). What
+// remains genuinely specific to zero-basis injection is how each work's
+// leadIn surfaces as a COLUMN (not a row - the table is transposed, D3) in
+// the now-visible synced table, so these tests are rewritten to that shape
+// rather than dropped outright.
+describe("MultiSeriesTrendChart: the visible synced table gains zero-basis columns", () => {
+  it("adds a zero-basis column whose header shows the leadIn label, not a raw ISO date", () => {
     render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_WITH_LEAD]} />);
 
     const table = screen.getByRole("table", { name: /hits/i });
-    expect(within(table).getByText("Published 2020-01-01")).toBeInTheDocument();
+    expect(
+      within(table).getByRole("columnheader", { name: "Published 2020-01-01" }),
+    ).toBeInTheDocument();
     expect(within(table).queryByText("2020-01-01")).not.toBeInTheDocument();
   });
 
-  it("shows 0 in the zero-basis row's cell for the work it belongs to, and '—' for a work with no point/leadIn there", () => {
+  it("shows 0 in the zero-basis column's cell for the work it belongs to, and '—' for a work with no point/leadIn there", () => {
     render(
       <MultiSeriesTrendChart
         title="Hits"
@@ -254,15 +231,19 @@ describe("MultiSeriesTrendChart: sr-only accessible layer gains the zero-basis p
     );
 
     const table = screen.getByRole("table", { name: /hits/i });
-    const zeroRow = within(table).getByText("Published 2020-01-01").closest("tr");
-    expect(zeroRow).not.toBeNull();
-    if (zeroRow) {
-      expect(within(zeroRow).getByText("0")).toBeInTheDocument();
-      expect(within(zeroRow).getByText("—")).toBeInTheDocument();
-    }
+    const rows = within(table).getAllByRole("row");
+    // header row, Work A's row, Work B's row (column order: zero-basis
+    // column first, per §5.2's "never surface a raw ISO date" ordering).
+    const workARow = rows[1];
+    const workBRow = rows[2];
+    const workACells = within(workARow).getAllByRole("cell");
+    const workBCells = within(workBRow).getAllByRole("cell");
+
+    expect(workACells[0].textContent).toBe("0");
+    expect(workBCells[0].textContent).toBe("—");
   });
 
-  it("labels a shared fallback zero-basis row with a Before-<year> wording, not the fabricated Jan-1 date", () => {
+  it("labels a shared fallback zero-basis column with a Before-<year> wording, not the fabricated Jan-1 date", () => {
     const fallbackA: SeriesDatum = {
       workId: 5,
       title: "Work E",
@@ -283,16 +264,16 @@ describe("MultiSeriesTrendChart: sr-only accessible layer gains the zero-basis p
     );
 
     const table = screen.getByRole("table", { name: /hits/i });
-    expect(within(table).getByText("Before 2018 (estimated baseline)")).toBeInTheDocument();
+    expect(
+      within(table).getByRole("columnheader", { name: "Before 2018 (estimated baseline)" }),
+    ).toBeInTheDocument();
     expect(within(table).queryByText("2018-01-01")).not.toBeInTheDocument();
   });
 
   // Corner case (plan section 4): when a fallback slot happens to equal
-  // another work's real capture date, the shared row is NOT "zero-basis-
-  // only" - its date cell must show the raw ISO date (a real capture
-  // exists there), not mislabel a real capture as a baseline.
-  // Regression fence, not a red-today assertion (already holds
-  // pre-implementation - see the file-top note on negative corner cases).
+  // another work's real capture date, the shared column is NOT "zero-basis-
+  // only" - its header must show the raw ISO date (a real capture exists
+  // there), not mislabel a real capture as a baseline.
   it("prefers the raw ISO date over a baseline label when a fallback slot coincides with another work's real capture date", () => {
     const fallbackWork: SeriesDatum = {
       workId: 7,
@@ -317,7 +298,9 @@ describe("MultiSeriesTrendChart: sr-only accessible layer gains the zero-basis p
     );
 
     const table = screen.getByRole("table", { name: /hits/i });
-    expect(within(table).getByText("2018-01-01")).toBeInTheDocument();
-    expect(within(table).queryByText("Before 2018 (estimated baseline)")).not.toBeInTheDocument();
+    expect(within(table).getByRole("columnheader", { name: "2018-01-01" })).toBeInTheDocument();
+    expect(
+      within(table).queryByText("Before 2018 (estimated baseline)"),
+    ).not.toBeInTheDocument();
   });
 });
