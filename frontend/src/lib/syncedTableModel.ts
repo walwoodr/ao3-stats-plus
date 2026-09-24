@@ -15,6 +15,19 @@ export interface SyncedTableColumn {
   isLeadIn: boolean;
 }
 
+// Item 3 data-model addition (chart-axis-comparison-and-table-orientation-
+// batch.md §2.2, C3a): a row's OWN ordered (ascending) real captured points,
+// independent of the shared union column axis (`cells`) - the flat cells
+// array can't support the per-row backward-walk (pointComparison.ts's
+// rowValueAsOf), since it holds "—"/"Published (N)" strings aligned to the
+// union columns, not the row's own real series. The lead-in, when present,
+// is the earliest entry (value 0) - an ordinary comparablePoints entry, not
+// a special case (C3b).
+export interface RowComparablePoint {
+  dateKey: string;
+  value: number;
+}
+
 export interface SyncedTableRow {
   seriesKey: string;
   title: string;
@@ -22,6 +35,17 @@ export interface SyncedTableRow {
   colorHex?: string;
   shape?: MarkerShapeName;
   cells: (number | string)[];
+  // Required by contract (syncedTableModel.test.ts indexes into it directly,
+  // with no null-guard) and always populated by the three builders below.
+  // A handful of PRE-EXISTING test fixtures (predating item 3, e.g.
+  // SyncedDataTable.test.tsx/.stickyColumn.test.tsx) construct a
+  // SyncedTableRow literal without this field - per this Testing stage's own
+  // precedent (ActivePointOverlay.test.tsx's "transpiled by esbuild without
+  // type-checking" note), that's a benign type-level gap in those untouched
+  // fixtures, not a runtime one (vitest doesn't type-check test files, and
+  // every consumer of this field reads it defensively with `?? []`). Noted
+  // in TECH_DEBT.md as an optional follow-up to backfill those fixtures.
+  comparablePoints: RowComparablePoint[];
 }
 
 export interface SyncedTableModel {
@@ -84,9 +108,16 @@ export function buildTrendTableModel({
     ? [0, ...points.map((point) => point.value)]
     : points.map((point) => point.value);
 
+  const comparablePoints: RowComparablePoint[] = leadIn
+    ? [
+        { dateKey: leadIn.capturedOn, value: 0 },
+        ...points.map((point) => ({ dateKey: point.capturedOn, value: point.value })),
+      ]
+    : points.map((point) => ({ dateKey: point.capturedOn, value: point.value }));
+
   return {
     columns,
-    rows: [{ seriesKey: "value", title: valueLabel, cells }],
+    rows: [{ seriesKey: "value", title: valueLabel, cells, comparablePoints }],
     unitLabel: valueLabel,
   };
 }
@@ -138,9 +169,16 @@ export function buildRatioTableModel({
     ? [0, ...points.map((point) => point.ratio)]
     : points.map((point) => point.ratio);
 
+  const comparablePoints: RowComparablePoint[] = leadIn
+    ? [
+        { dateKey: leadIn.capturedOn, value: 0 },
+        ...points.map((point) => ({ dateKey: point.capturedOn, value: point.ratio })),
+      ]
+    : points.map((point) => ({ dateKey: point.capturedOn, value: point.ratio }));
+
   return {
     columns,
-    rows: [{ seriesKey: "ratio", title: RATIO_UNIT_LABEL, cells }],
+    rows: [{ seriesKey: "ratio", title: RATIO_UNIT_LABEL, cells, comparablePoints }],
     unitLabel: RATIO_UNIT_LABEL,
   };
 }
@@ -284,6 +322,14 @@ export function buildMultiSeriesTableModel({
 
   const rows: SyncedTableRow[] = sortSeriesByLatestValueDescending(series).map((s) => {
     const slot = SERIES_STYLE_SLOTS[s.styleIndex];
+    const comparablePoints: RowComparablePoint[] = (
+      s.leadIn
+        ? [
+            { dateKey: s.leadIn.capturedOn, value: 0 },
+            ...s.points.map((point) => ({ dateKey: point.capturedOn, value: point.value })),
+          ]
+        : s.points.map((point) => ({ dateKey: point.capturedOn, value: point.value }))
+    ).sort((a, b) => (a.dateKey < b.dateKey ? -1 : a.dateKey > b.dateKey ? 1 : 0));
     return {
       seriesKey: `work-${s.workId}`,
       title: s.title,
@@ -291,6 +337,7 @@ export function buildMultiSeriesTableModel({
       colorHex: seriesColors[s.styleIndex],
       shape: slot.shape,
       cells: sortedDates.map((dateKey) => multiSeriesCellValue(s, dateKey)),
+      comparablePoints,
     };
   });
 

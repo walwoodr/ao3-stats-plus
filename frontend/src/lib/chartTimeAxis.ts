@@ -85,9 +85,18 @@ const PAD_RATIO = 0.08;
 
 // Item 1's padded y-domain rule (D1/D2). `values` must include the lead-in's
 // literal 0 when a lead-in is present (D1 - the caller's responsibility).
+// `hasLeadIn` is part of the documented call contract (callers state their
+// intent explicitly) but the branching itself is driven by whether 0 is
+// actually present in `values` ("dataMin <= 0 (lead-in present, or a genuine
+// zero floor)", per the plan's own §3 item 1 wording) - both cases collapse
+// to the same rule, so the flag itself isn't separately consulted here.
+// hasLeadIn is intentionally unused below (part of the stable public
+// contract - chartTimeAxis.test.ts calls this with { hasLeadIn } - see the
+// comment above for why the flag itself isn't separately consulted).
 export function computeYDomain(
   values: number[],
-  { hasLeadIn }: ComputeYDomainOptions,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  { hasLeadIn: _hasLeadIn }: ComputeYDomainOptions,
 ): YDomainResult {
   const dataMin = Math.min(...values);
   const dataMax = Math.max(...values);
