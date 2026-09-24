@@ -225,7 +225,35 @@ export function renderRetryBanner(container: HTMLElement, data: RetryBannerData)
   retryButton.type = "button";
   retryButton.textContent = "Retry";
   retryButton.style.cssText = primaryButtonStyle(colors.destructive, colors.card);
-  retryButton.addEventListener("click", () => data.onRetry());
+
+  // Guards against a rapid double-click (or a click immediately followed by
+  // an Enter keydown) invoking onRetry more than once for the same banner.
+  // entrypoint.ts's submit() has no in-flight guard of its own - two
+  // concurrent retries could each resolve as a server-side dedup "success"
+  // and each start their own Phase-2 fan-out, which is exactly the
+  // double-submit path an adversarial review traced the fan-out
+  // beforeunload-guard overlap bug back to (see entrypoint.ts's own
+  // fanOutActive guard and unloadGuard.ts's reference counting for the rest
+  // of that fix - this closes the double-submit off at its actual source
+  // rather than only downstream of it).
+  let alreadyRetried = false;
+  function triggerRetry(): void {
+    if (alreadyRetried) return;
+    alreadyRetried = true;
+    retryButton.disabled = true;
+    // banners.ts only ever uses inline styles (see this file's header
+    // comment) - reusing this product's ~40% disabled convention
+    // (aria-disabled:opacity-40, see DateRangeSlider.tsx) as an explicit
+    // inline opacity here, rather than relying on the `disabled` attribute
+    // alone: the button's background/color are already explicit inline
+    // styles, which some browsers' default disabled-control dimming doesn't
+    // reliably override on top of.
+    retryButton.style.opacity = "0.4";
+    retryButton.style.cursor = "not-allowed";
+    data.onRetry();
+  }
+
+  retryButton.addEventListener("click", triggerRetry);
   // Belt-and-suspenders: real browsers already turn an Enter keydown on a
   // focused <button> into a click, but this banner is injected into an
   // arbitrary AO3 page outside our own event-handling stack, so handle it
@@ -233,7 +261,7 @@ export function renderRetryBanner(container: HTMLElement, data: RetryBannerData)
   retryButton.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
-    data.onRetry();
+    triggerRetry();
   });
   banner.appendChild(retryButton);
 

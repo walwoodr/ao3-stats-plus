@@ -28,7 +28,7 @@ import { createAo3FanOutDependencies } from "./ao3Fetch";
 
 declare global {
   interface Window {
-    __ao3StatsPlus?: { banner: HTMLElement | null };
+    __ao3StatsPlus?: { banner: HTMLElement | null; fanOutActive: boolean };
   }
 }
 
@@ -154,12 +154,30 @@ function routeResult(
 // has already succeeded and shown its own banner by this point, so a bug in
 // Phase 2's long-running background enrichment must never surface as an
 // unhandled rejection or otherwise disturb that already-complete outcome.
+//
+// Guarded by window.__ao3StatsPlus.fanOutActive (the same window-level-state
+// idiom used just below for the re-injection guard, rather than module-level
+// state) so a second call can never start a second, overlapping runFanOut
+// while one is already active on this page. This is primarily
+// defense-in-depth - the known way to reach a second call, a rapid
+// double-click on the networkError retry banner's Retry button, is now
+// debounced at the source in banners.ts's renderRetryBanner - but nothing
+// stops some future call site from invoking startFanOut a second time, and
+// unloadGuard.ts's own listener is now safe under overlap too (reference-
+// counted) only because *some* run is still considered active throughout;
+// this flag is what stops a second run from starting in the first place
+// (see 2026-09-23 adversarial review of commit 008771c for the original bug
+// this closes).
 function startFanOut(
   apiOrigin: string,
   username: string,
   readToken: string,
   works: IngestPayload["works"],
 ): void {
+  const state = window.__ao3StatsPlus;
+  if (!state || state.fanOutActive) return;
+
+  state.fanOutActive = true;
   Promise.resolve(
     runFanOut(
       {
@@ -171,9 +189,13 @@ function startFanOut(
       },
       createAo3FanOutDependencies(),
     ),
-  ).catch((error: unknown) => {
-    console.error("[ao3-stats-plus] work-page enrichment fan-out failed", error);
-  });
+  )
+    .catch((error: unknown) => {
+      console.error("[ao3-stats-plus] work-page enrichment fan-out failed", error);
+    })
+    .finally(() => {
+      state.fanOutActive = false;
+    });
 }
 
 // Re-POSTs the same already-built payload without re-scraping, so a
@@ -233,6 +255,6 @@ if (existing) {
   existing.banner?.remove();
   removeBannerStack(document.body);
 } else {
-  window.__ao3StatsPlus = { banner: null };
+  window.__ao3StatsPlus = { banner: null, fanOutActive: false };
   void main();
 }

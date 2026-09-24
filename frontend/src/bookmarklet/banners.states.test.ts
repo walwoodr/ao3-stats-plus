@@ -122,6 +122,65 @@ describe("bookmarklet banners (failure/info/retry/unauthorized states)", () => {
 
       expect(onRetry).toHaveBeenCalledOnce();
     });
+
+    // Regression test: entrypoint.ts's submit() has no in-flight guard of
+    // its own, so an un-debounced Retry button could fire onRetry twice from
+    // a rapid double-click, starting two concurrent submit() calls that
+    // could each resolve as a server-side dedup "success" and each try to
+    // start their own Phase-2 fan-out - the actual root cause traced by an
+    // adversarial review of commit 008771c's beforeunload-guard overlap bug
+    // (2026-09-23). See entrypoint.ts's fanOutActive guard and
+    // unloadGuard.ts's reference counting for the rest of that fix.
+    it("only calls onRetry once even if the Retry button is clicked twice in a row", () => {
+      const onRetry = vi.fn();
+      renderRetryBanner(container, { message: "Couldn't reach the server", onRetry });
+
+      const retryButton = container.querySelector("button") as HTMLButtonElement;
+      retryButton.click();
+      retryButton.click();
+
+      expect(onRetry).toHaveBeenCalledOnce();
+    });
+
+    it("disables the Retry button once clicked, as a visible signal it won't fire again", () => {
+      const onRetry = vi.fn();
+      renderRetryBanner(container, { message: "Couldn't reach the server", onRetry });
+
+      const retryButton = container.querySelector("button") as HTMLButtonElement;
+      retryButton.click();
+
+      expect(retryButton.disabled).toBe(true);
+      // Reuses this product's ~40% disabled convention (aria-disabled:
+      // opacity-40, see DateRangeSlider.tsx) as an explicit inline style,
+      // since the `disabled` attribute alone isn't guaranteed to visibly
+      // dim a button whose background/color are already explicit inline
+      // styles (banners.ts is inline-styles-only - see its header comment).
+      expect(retryButton.style.opacity).toBe("0.4");
+    });
+
+    it("only calls onRetry once even if Enter is pressed twice in a row", () => {
+      const onRetry = vi.fn();
+      renderRetryBanner(container, { message: "Couldn't reach the server", onRetry });
+
+      const retryButton = container.querySelector("button") as HTMLButtonElement;
+      const pressEnter = () =>
+        retryButton.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      pressEnter();
+      pressEnter();
+
+      expect(onRetry).toHaveBeenCalledOnce();
+    });
+
+    it("only calls onRetry once for a click immediately followed by Enter", () => {
+      const onRetry = vi.fn();
+      renderRetryBanner(container, { message: "Couldn't reach the server", onRetry });
+
+      const retryButton = container.querySelector("button") as HTMLButtonElement;
+      retryButton.click();
+      retryButton.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+      expect(onRetry).toHaveBeenCalledOnce();
+    });
   });
 
   describe("renderRetryBanner visual treatment", () => {

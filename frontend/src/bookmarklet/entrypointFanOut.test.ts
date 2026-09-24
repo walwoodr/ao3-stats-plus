@@ -4,7 +4,7 @@ import type { IngestResult } from "./ingestClient";
 
 declare global {
   interface Window {
-    __ao3StatsPlus?: { banner: HTMLElement | null };
+    __ao3StatsPlus?: { banner: HTMLElement | null; fanOutActive: boolean };
   }
 }
 
@@ -165,6 +165,72 @@ describe("bookmarklet entrypoint - Phase 1 -> Phase 2 handoff", () => {
 
     await import("./entrypoint");
     await vi.waitFor(() => expect(runFanOut).toHaveBeenCalled());
+  });
+
+  // Regression test for the beforeunload-guard overlap bug an adversarial
+  // review caught in commit 008771c (2026-09-23): entrypoint.ts's submit()
+  // has no in-flight guard, so a networkError retry banner's Retry button -
+  // itself now debounced at the source in banners.ts (see
+  // banners.states.test.ts) - was previously able to fire onRetry twice,
+  // starting two concurrent submit() calls that could each resolve as a
+  // server-side dedup "success" and each try to start their own Phase-2
+  // fan-out. This test bypasses the button-level debounce entirely (banners
+  // is fully mocked in this file, so it calls the captured onRetry callback
+  // directly) to prove entrypoint.ts's own window.__ao3StatsPlus.fanOutActive
+  // guard is real, independent defense-in-depth - not just relying on the
+  // button never being double-clicked.
+  it("does not start a second overlapping fan-out if the retry callback fires twice before the first fan-out settles", async () => {
+    const { scrapeStats } = await import("./scrapeStats");
+    const { postIngest } = await import("./ingestClient");
+    const { runFanOut } = await import("./fanOut");
+    const banners = await import("./banners");
+    vi.mocked(scrapeStats).mockReturnValue({ ok: true, data: scrapedData } as ScrapeResult);
+    vi.mocked(postIngest)
+      .mockResolvedValueOnce({ status: "networkError" } as IngestResult)
+      .mockResolvedValue({
+        status: "success",
+        readToken: "tok_new",
+        capturedOn: "2026-07-23",
+        deduped: true,
+      } as IngestResult);
+
+    let resolveFanOut: (value: Awaited<ReturnType<typeof runFanOut>>) => void = () => {};
+    vi.mocked(runFanOut).mockImplementation(
+      () => new Promise((resolve) => (resolveFanOut = resolve)),
+    );
+
+    let capturedRetry: (() => void) | undefined;
+    vi.mocked(banners.renderRetryBanner).mockImplementation((container, data) => {
+      capturedRetry = data.onRetry;
+      const el = document.createElement("div");
+      container.appendChild(el);
+      return el;
+    });
+
+    await import("./entrypoint");
+    await vi.waitFor(() => expect(capturedRetry).toBeDefined());
+
+    // Simulate a rapid double-click on Retry: two calls to the same onRetry
+    // callback before the first retry's own fan-out has settled.
+    capturedRetry!();
+    capturedRetry!();
+
+    await vi.waitFor(() => expect(runFanOut).toHaveBeenCalled());
+    // Give a wrongly-started second fan-out a chance to also register
+    // before asserting it never did.
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(runFanOut).toHaveBeenCalledTimes(1);
+
+    resolveFanOut({
+      enriched: 0,
+      skipped: 0,
+      total: 0,
+      truncatedWorks: false,
+      truncatedBookmarkPagesCount: 0,
+      circuitBroken: false,
+    });
   });
 
   // tokenMismatch is deliberately absent here: per

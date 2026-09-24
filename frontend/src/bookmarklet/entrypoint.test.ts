@@ -1,13 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ScrapedData, ScrapeResult } from "./scrapeStats";
+import type { ScrapeResult } from "./scrapeStats";
 import type { IngestResult } from "./ingestClient";
+import {
+  API_ORIGIN,
+  AO3_PATHNAME,
+  FRONTEND_ORIGIN,
+  scrapedData,
+  stubBannerImplementation,
+  stubCurrentScript,
+} from "./entrypointTestSupport";
 
 // entrypoint.ts stores its re-injection guard state directly on `window`
 // (see the top-level comment below for why) - this augmentation just gives
 // the spec a typed handle onto that, matching the shape assumed throughout.
 declare global {
   interface Window {
-    __ao3StatsPlus?: { banner: HTMLElement | null };
+    __ao3StatsPlus?: { banner: HTMLElement | null; fanOutActive: boolean };
   }
 }
 
@@ -23,20 +31,18 @@ declare global {
 // stored on `window`, since a classic <script> re-execution has no module
 // cache to rely on) is exercised the same way it would be for real.
 //
+// This file covers Phase 1's core outcome routing (happy path, scrape
+// failures, HTTP error responses, network/5xx retry) - see
+// entrypointSaveToken.test.ts (the success banner's Save-token callback
+// adapter), entrypointReinjection.test.ts (the re-injection guard), and
+// entrypointFanOut.test.ts (Phase 1 -> Phase 2 handoff) for the other
+// scenario groups split out of this same suite (CODE_STANDARDS.md's
+// 400-line .ts budget).
+//
 // scrapeStats, ingestClient, tokenStorage, tokenSuggestion,
 // tokenUpdateClient, and banners are all mocked so this spec is a pure test
 // of entrypoint's orchestration/wiring, not of their individual
 // implementations (each already has, or will have, its own unit spec).
-//
-// Per docs/plans/memorable-token-and-recovery.md section 1/10 (task 13):
-// on a first-ever capture (no stored token), entrypoint picks the token to
-// send by generating a fresh word-pair via generateTokenSuggestion() -
-// replacing the old "send null and let the server mint one" behavior. The
-// success banner's onSaveToken callback (banners.ts's new editable-token
-// Save action) is entrypoint's adapter from tokenUpdateClient's four-state
-// TokenUpdateResult (success/invalid/schemaMismatch/networkError) down to
-// banners.ts's simpler two-state SaveTokenResult ({ok:true,readToken} |
-// {ok:false,message}) - see "onSaveToken wiring" below.
 vi.mock("./scrapeStats", () => ({ scrapeStats: vi.fn() }));
 vi.mock("./ingestClient", () => ({ postIngest: vi.fn() }));
 vi.mock("./tokenStorage", () => ({
@@ -53,57 +59,6 @@ vi.mock("./banners", () => ({
   renderUnauthorizedBanner: vi.fn(),
   removeBannerStack: vi.fn(),
 }));
-
-const FRONTEND_ORIGIN = "https://app.example.com";
-const API_ORIGIN = "https://api.example.com";
-const AO3_PATHNAME = "/users/someauthor/stats";
-
-const scrapedData: ScrapedData = {
-  username: "someauthor",
-  earliestPostYear: null,
-  aggregate: {
-    hits: 1234,
-    kudos: 100,
-    comments: 20,
-    bookmarks: 15,
-    subscriptions: 10,
-    userSubscriptions: 5,
-    wordCount: 75_000,
-    worksCount: 1,
-  },
-  works: [
-    {
-      ao3WorkId: 111,
-      title: "Work A",
-      fandoms: ["Fandom One"],
-      hits: 400,
-      kudos: 40,
-      comments: 8,
-      bookmarks: 6,
-      subscriptions: 4,
-      wordCount: 30_000,
-    },
-  ],
-};
-
-function stubCurrentScript(src: string) {
-  Object.defineProperty(document, "currentScript", {
-    configurable: true,
-    value: { src } as unknown as HTMLScriptElement,
-  });
-}
-
-// Every mocked banner renderer creates+appends a real element (mirroring
-// banners.ts's real behavior closely enough to assert on DOM
-// presence/removal for the re-injection guard), rather than being an inert
-// vi.fn() with no implementation.
-function stubBannerImplementation(fn: ReturnType<typeof vi.fn>) {
-  fn.mockImplementation((container: HTMLElement) => {
-    const el = document.createElement("div");
-    container.appendChild(el);
-    return el;
-  });
-}
 
 describe("bookmarklet entrypoint", () => {
   beforeEach(async () => {
@@ -160,7 +115,7 @@ describe("bookmarklet entrypoint", () => {
       // section 4/10 task 14), renderSuccessBanner takes frontendOrigin +
       // username + an onSaveToken callback rather than a pre-built
       // dashboardUrl, so it can recompute the link after a Save - see
-      // "onSaveToken wiring" below for that callback's own behavior.
+      // entrypointSaveToken.test.ts for that callback's own behavior.
       expect(renderSuccessBanner).toHaveBeenCalledWith(document.body, {
         readToken: "cat-dog",
         frontendOrigin: FRONTEND_ORIGIN,
@@ -287,117 +242,6 @@ describe("bookmarklet entrypoint", () => {
     });
   });
 
-  // The onSaveToken callback passed to renderSuccessBanner (see "happy
-  // path" above) is entrypoint's own adapter from tokenUpdateClient's
-  // TokenUpdateResult (success/invalid/schemaMismatch/networkError) down to
-  // banners.ts's simpler SaveTokenResult ({ok:true,readToken} |
-  // {ok:false,message}) - banners.ts deliberately knows nothing about
-  // apiOrigin/fetch/tokenUpdateClient, per its own "mirrors the existing
-  // onRetry callback pattern" design (memorable-token-and-recovery plan
-  // section 4). These tests capture the real callback entrypoint builds and
-  // invoke it directly, rather than re-asserting banners.ts's own Save-button
-  // behavior (already covered by banners.test.ts).
-  describe("onSaveToken wiring (the success banner's Save action)", () => {
-    async function captureOnSaveToken() {
-      const { scrapeStats } = await import("./scrapeStats");
-      const { postIngest } = await import("./ingestClient");
-      const { getStoredReadToken } = await import("./tokenStorage");
-      const { generateTokenSuggestion } = await import("./tokenSuggestion");
-      const { renderSuccessBanner } = await import("./banners");
-      vi.mocked(scrapeStats).mockReturnValue({ ok: true, data: scrapedData } as ScrapeResult);
-      vi.mocked(getStoredReadToken).mockReturnValue(undefined);
-      vi.mocked(generateTokenSuggestion).mockReturnValue("cat-dog");
-      vi.mocked(postIngest).mockResolvedValue({
-        status: "success",
-        readToken: "cat-dog",
-        capturedOn: "2026-07-23",
-        deduped: false,
-      } as IngestResult);
-
-      await import("./entrypoint");
-      await vi.waitFor(() => expect(renderSuccessBanner).toHaveBeenCalled());
-
-      const onSaveToken = vi.mocked(renderSuccessBanner).mock.calls[0][1].onSaveToken;
-      return onSaveToken;
-    }
-
-    it("POSTs the new token via postTokenUpdate and adapts a success result", async () => {
-      const { postTokenUpdate } = await import("./tokenUpdateClient");
-      vi.mocked(postTokenUpdate).mockResolvedValue({ status: "success", readToken: "fox-owl" });
-      const onSaveToken = await captureOnSaveToken();
-
-      const result = await onSaveToken("fox-owl");
-
-      expect(postTokenUpdate).toHaveBeenCalledWith(
-        API_ORIGIN,
-        expect.objectContaining({ schemaVersion: 1, username: "someauthor", readToken: "fox-owl" }),
-      );
-      expect(result).toEqual({ ok: true, readToken: "fox-owl" });
-    });
-
-    // Without this, a later repeat capture would replay the stale
-    // pre-edit token from AO3-origin localStorage instead of the one the
-    // user just saved server-side, silently undoing the edit on next use.
-    it("updates AO3-origin localStorage with the new token on a successful save", async () => {
-      const { postTokenUpdate } = await import("./tokenUpdateClient");
-      const { setStoredReadToken } = await import("./tokenStorage");
-      vi.mocked(postTokenUpdate).mockResolvedValue({ status: "success", readToken: "fox-owl" });
-      const onSaveToken = await captureOnSaveToken();
-      vi.mocked(setStoredReadToken).mockClear();
-
-      await onSaveToken("fox-owl");
-
-      expect(setStoredReadToken).toHaveBeenCalledWith("someauthor", "fox-owl");
-    });
-
-    it("does not update AO3-origin localStorage when the save fails", async () => {
-      const { postTokenUpdate } = await import("./tokenUpdateClient");
-      const { setStoredReadToken } = await import("./tokenStorage");
-      vi.mocked(postTokenUpdate).mockResolvedValue({ status: "networkError" });
-      const onSaveToken = await captureOnSaveToken();
-      vi.mocked(setStoredReadToken).mockClear();
-
-      await onSaveToken("fox-owl");
-
-      expect(setStoredReadToken).not.toHaveBeenCalled();
-    });
-
-    it("adapts an invalid (422) result to a failure with the server's message", async () => {
-      const { postTokenUpdate } = await import("./tokenUpdateClient");
-      vi.mocked(postTokenUpdate).mockResolvedValue({
-        status: "invalid",
-        message: "username is required",
-      });
-      const onSaveToken = await captureOnSaveToken();
-
-      const result = await onSaveToken("fox-owl");
-
-      expect(result).toEqual({ ok: false, message: "username is required" });
-    });
-
-    it("adapts a schemaMismatch (426) result to a failure with a friendly message", async () => {
-      const { postTokenUpdate } = await import("./tokenUpdateClient");
-      vi.mocked(postTokenUpdate).mockResolvedValue({ status: "schemaMismatch" });
-      const onSaveToken = await captureOnSaveToken();
-
-      const result = await onSaveToken("fox-owl");
-
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.message).toMatch(/out of date|reinstall/i);
-    });
-
-    it("adapts a networkError result to a failure with a friendly message", async () => {
-      const { postTokenUpdate } = await import("./tokenUpdateClient");
-      vi.mocked(postTokenUpdate).mockResolvedValue({ status: "networkError" });
-      const onSaveToken = await captureOnSaveToken();
-
-      const result = await onSaveToken("fox-owl");
-
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.message).toMatch(/network|connection|reach/i);
-    });
-  });
-
   describe("scrape failures", () => {
     it.each([
       ["no-works", /work/i],
@@ -490,64 +334,6 @@ describe("bookmarklet entrypoint", () => {
       await vi.waitFor(() => expect(postIngest).toHaveBeenCalledTimes(2));
 
       expect(scrapeStats).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe("re-injection guard", () => {
-    it("removes the existing banner and does not re-scrape/re-POST on a second injection", async () => {
-      const { scrapeStats } = await import("./scrapeStats");
-      const { postIngest } = await import("./ingestClient");
-      const { renderSuccessBanner } = await import("./banners");
-      vi.mocked(scrapeStats).mockReturnValue({ ok: true, data: scrapedData } as ScrapeResult);
-      vi.mocked(postIngest).mockResolvedValue({
-        status: "success",
-        readToken: "tok_new",
-        capturedOn: "2026-07-23",
-        deduped: false,
-      } as IngestResult);
-
-      await import("./entrypoint");
-      await vi.waitFor(() => expect(renderSuccessBanner).toHaveBeenCalledTimes(1));
-      const firstBanner = vi.mocked(renderSuccessBanner).mock.results[0]?.value as HTMLElement;
-      expect(firstBanner.isConnected).toBe(true);
-      expect(window.__ao3StatsPlus).toBeTruthy();
-
-      vi.resetModules();
-      await import("./entrypoint");
-      await vi.waitFor(() => expect(firstBanner.isConnected).toBe(false));
-
-      expect(scrapeStats).toHaveBeenCalledTimes(1);
-      expect(postIngest).toHaveBeenCalledTimes(1);
-      expect(renderSuccessBanner).toHaveBeenCalledTimes(1);
-    });
-
-    // TECH_DEBT.md, 2026-07-23 "Re-injection cleanup gap": the tracked-
-    // banner reference alone never covered fan-out's untracked progress/
-    // summary banners (or the now-empty stack wrapper itself), so
-    // re-injection must also remove the whole shared banner-stack wrapper -
-    // this pins that the real cleanup helper (banners.ts's
-    // removeBannerStack, not just the single-banner .remove()) is called
-    // against document.body on every re-injection.
-    it("also removes the whole shared banner-stack wrapper on re-injection, not just the single tracked banner", async () => {
-      const { scrapeStats } = await import("./scrapeStats");
-      const { postIngest } = await import("./ingestClient");
-      const { removeBannerStack } = await import("./banners");
-      vi.mocked(scrapeStats).mockReturnValue({ ok: true, data: scrapedData } as ScrapeResult);
-      vi.mocked(postIngest).mockResolvedValue({
-        status: "success",
-        readToken: "tok_new",
-        capturedOn: "2026-07-23",
-        deduped: false,
-      } as IngestResult);
-
-      await import("./entrypoint");
-      await vi.waitFor(() => expect(window.__ao3StatsPlus).toBeTruthy());
-      expect(removeBannerStack).not.toHaveBeenCalled();
-
-      vi.resetModules();
-      await import("./entrypoint");
-
-      expect(removeBannerStack).toHaveBeenCalledExactlyOnceWith(document.body);
     });
   });
 });
