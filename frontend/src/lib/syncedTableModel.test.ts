@@ -89,6 +89,36 @@ describe("buildTrendTableModel (single-series, TrendChart shape)", () => {
     expect(model.columns).toHaveLength(1);
     expect(model.rows[0].cells).toEqual([100]);
   });
+
+  // Item 3 data-model addition (chart-axis-comparison-and-table-
+  // orientation-batch.md §2.2, C3a): each row now also carries its OWN
+  // ascending comparablePoints list (real points, plus the lead-in as the
+  // earliest value-0 entry when present) - independent of the shared
+  // `cells` array, which stays aligned to the union column axis instead.
+  // TrendChart's single row's comparablePoints is just its own points
+  // in order, since there's only ever one row/one series here.
+  describe("comparablePoints (item 3, C3a)", () => {
+    it("carries the row's own points, ascending by date, with no lead-in", () => {
+      const model = buildTrendTableModel({ valueLabel: "Hits", points: SPARSE_POINTS });
+
+      expect(model.rows[0].comparablePoints).toEqual([
+        { dateKey: "2026-01-03", value: 100 },
+        { dateKey: "2026-01-04", value: 140 },
+        { dateKey: "2026-02-20", value: 300 },
+      ]);
+    });
+
+    it("includes the lead-in as the earliest value-0 entry when present", () => {
+      const model = buildTrendTableModel({
+        valueLabel: "Hits",
+        points: SPARSE_POINTS,
+        leadIn: { capturedOn: "2014-01-01", value: 0 },
+      });
+
+      expect(model.rows[0].comparablePoints[0]).toEqual({ dateKey: "2014-01-01", value: 0 });
+      expect(model.rows[0].comparablePoints).toHaveLength(SPARSE_POINTS.length + 1);
+    });
+  });
 });
 
 describe("buildRatioTableModel (single-series, RatioChart shape)", () => {
@@ -131,6 +161,22 @@ describe("buildRatioTableModel (single-series, RatioChart shape)", () => {
     });
     expect(model.rows[0].cells[0]).toBe(0);
     expect(model.columns.some((c) => c.label === "2014-01-01")).toBe(false);
+  });
+
+  // Item 3 data-model addition (C3a) - mirrors buildTrendTableModel's
+  // comparablePoints, keyed on `ratio` instead of `value`.
+  it("carries the row's own comparablePoints, lead-in included as the earliest value-0 entry", () => {
+    const model = buildRatioTableModel({
+      points: SPARSE_RATIO_POINTS,
+      leadIn: { capturedOn: "2014-01-01", ratio: 0 },
+    });
+
+    expect(model.rows[0].comparablePoints).toEqual([
+      { dateKey: "2014-01-01", value: 0 },
+      { dateKey: "2026-01-03", value: 0.1 },
+      { dateKey: "2026-01-04", value: 0.14 },
+      { dateKey: "2026-02-20", value: 0 },
+    ]);
   });
 });
 
@@ -517,6 +563,94 @@ describe("buildMultiSeriesTableModel (MultiSeriesTrendChart shape)", () => {
       });
 
       expect(model.rows.map((r) => r.title)).toEqual(["Work Higher Real", "Work With LeadIn"]);
+    });
+  });
+
+  // Item 3 data-model addition (§2.2, C3a): each row's comparablePoints is
+  // its OWN ordered real captures - independent of the shared union column
+  // axis (`cells`), and excludes a sparse work's missing union slots (no
+  // "—" placeholder entries here - only genuinely real values plus the
+  // row's own lead-in floor).
+  describe("comparablePoints (item 3, C3a)", () => {
+    it("carries each row's own points ascending, independent of the union column axis", () => {
+      const model = buildMultiSeriesTableModel({
+        valueLabel: "Hits",
+        series: [WORK_A, WORK_B],
+        seriesColors: LIGHT_COLOR_TOKENS.series,
+      });
+
+      const rowA = model.rows.find((r) => r.seriesKey === "work-1");
+      const rowB = model.rows.find((r) => r.seriesKey === "work-2");
+
+      expect(rowA?.comparablePoints).toEqual([
+        { dateKey: "2026-01-01", value: 10 },
+        { dateKey: "2026-01-08", value: 20 },
+      ]);
+      // Work B has no point at 2026-01-01 (a union column) - its own
+      // comparablePoints list must NOT contain an entry for a date it was
+      // never actually captured on (no fabricated/"—" entry).
+      expect(rowB?.comparablePoints).toEqual([{ dateKey: "2026-01-08", value: 5 }]);
+    });
+
+    it("includes the row's own lead-in as the earliest value-0 entry, ascending before its real points", () => {
+      const withLeadIn = {
+        workId: 5,
+        title: "Work E",
+        styleIndex: 4,
+        points: [{ capturedOn: "2026-01-01", value: 1 }],
+        leadIn: { capturedOn: "2018-01-01", label: "Before 2018 (estimated baseline)" },
+      };
+
+      const model = buildMultiSeriesTableModel({
+        valueLabel: "Hits",
+        series: [withLeadIn],
+        seriesColors: LIGHT_COLOR_TOKENS.series,
+      });
+
+      expect(model.rows[0].comparablePoints).toEqual([
+        { dateKey: "2018-01-01", value: 0 },
+        { dateKey: "2026-01-01", value: 1 },
+      ]);
+    });
+
+    // C3b: a PUBLISH-DATE lead-in is just as legitimate a comparablePoints
+    // floor entry as an estimated-baseline one - comparison logic treats
+    // every lead-in uniformly, regardless of the table/chart label
+    // treatment that distinguishes them elsewhere (isPublishDate only
+    // affects display wording, never comparison eligibility).
+    it("includes a publish-date lead-in as a value-0 floor entry too (C3b: no synthetic-value special case)", () => {
+      const publishDateLeadIn = {
+        workId: 9,
+        title: "Work I",
+        styleIndex: 0,
+        points: [{ capturedOn: "2026-01-01", value: 42 }],
+        leadIn: { capturedOn: "2020-01-01", label: "Published 2020-01-01", isPublishDate: true },
+      };
+
+      const model = buildMultiSeriesTableModel({
+        valueLabel: "Hits",
+        series: [publishDateLeadIn],
+        seriesColors: LIGHT_COLOR_TOKENS.series,
+      });
+
+      expect(model.rows[0].comparablePoints[0]).toEqual({ dateKey: "2020-01-01", value: 0 });
+    });
+
+    it("carries an empty comparablePoints list for a series with no real points and no lead-in", () => {
+      const noData = {
+        workId: 11,
+        title: "Work K",
+        styleIndex: 0,
+        points: [],
+      };
+
+      const model = buildMultiSeriesTableModel({
+        valueLabel: "Hits",
+        series: [noData],
+        seriesColors: LIGHT_COLOR_TOKENS.series,
+      });
+
+      expect(model.rows[0].comparablePoints).toEqual([]);
     });
   });
 });
