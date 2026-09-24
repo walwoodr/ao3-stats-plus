@@ -295,8 +295,20 @@ extend, not a rewrite.)
   existing per-point `aria-label` markers and sr-only data table already satisfy in both modes.
 - Never rely on `--color-growth` alone to mean "trending up" — pair it with the actual number
   visible in the accessible table.
-- Category axis (not real-time-linear) stays the existing, correct default per this project's
-  Recharts setup — do not introduce a real date-scale axis "to look more like a real chart."
+- **True chronological (real elapsed-time) x-axis — deliberate convention reversal, 2026-09-24
+  (D7, `docs/plans/chart-axis-comparison-and-table-orientation-batch.md`).** This supersedes the
+  prior "category axis stays default, do not introduce a real date-scale axis" guidance that used
+  to sit here: every trend/ratio/multi-series chart now plots points against real elapsed time
+  (`type="number"` + `scale="time"` over epoch-ms x-values — verified directly against the
+  installed `recharts@3.10.0` type declarations, no new dependency), not evenly-spaced ordinal
+  ticks. This is intentional drift, not an accident: the user explicitly chose real-time spacing
+  over the ordinal convention after Discovery/Planning laid out the tradeoff (irregular capture
+  cadence becomes honest uneven spacing rather than a misleading uniform grid). Two lead-in
+  placement paths follow from this: a per-work publish-date lead-in (a real date) sits at its own
+  true epoch; the account-level estimated-baseline lead-in (no real date to place at) sits at a
+  bounded, median-gap-clamped synthetic offset just before the first real point, not its own
+  literal (often many-years-distant) date. See that plan's §3 item 4 for the full mechanics and
+  corner-case treatment.
 - Recharts renders to SVG with explicit fill/stroke colors, not CSS custom properties resolved
   at paint time by default — when implementing, either re-render chart color props on a
   `prefers-color-scheme` media query listener, or resolve the CSS custom property value in JS
