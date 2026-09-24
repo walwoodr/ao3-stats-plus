@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { SyncedDataTable } from "./SyncedDataTable";
 import type { SyncedTableModel } from "../../lib/syncedTableModel";
 
@@ -86,7 +86,13 @@ describe("SyncedDataTable: orientation toggle control (§2.2/§3 item 2)", () =>
       />,
     );
 
-    expect(screen.getByText(/across|down|dates/i)).toBeInTheDocument();
+    // getAllByText (not getByText): the toggle legitimately renders TWO
+    // buttons ("Dates across" AND "Dates down") that both independently
+    // match this broad OR-regex - getByText's strict single-match
+    // semantics would throw on that, even though it's the intended,
+    // required two-button design (locked down by TableOrientationToggle.
+    // test.tsx's own suite and this same file's next test).
+    expect(screen.getAllByText(/across|down|dates/i).length).toBeGreaterThan(0);
   });
 
   it("calls onOrientationChange with the flipped value when the toggle is activated", async () => {
@@ -274,7 +280,12 @@ describe("SyncedDataTable: sync interaction still keys off dateKey under datesAs
       .find((el) => el.textContent?.includes("2026-01-08"));
     expect(dateRowHeader).toBeDefined();
     if (dateRowHeader) {
-      dateRowHeader.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+      // fireEvent.mouseEnter (not a raw element.dispatchEvent) - confirmed
+      // via an isolated repro that a bare dispatched "mouseenter" event
+      // does not trigger React's synthetic onMouseEnter handler in this
+      // React 19 + jsdom + vitest environment, while fireEvent.mouseEnter
+      // (used by every other hover-sync test in this codebase) does.
+      fireEvent.mouseEnter(dateRowHeader);
     }
 
     expect(onActiveDateKeyChange).toHaveBeenCalledWith("2026-01-08");

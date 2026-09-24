@@ -81,7 +81,12 @@ describe("RatioChart: pin via table header (§3 item 3, D5)", () => {
   it("shows a PinnedComparisonBar naming the pinned date once its table header's pin control is activated", () => {
     render(<RatioChart title="Kudos/hits" points={RATIO_POINTS} />);
 
-    screen.getByRole("button", { name: /compare from.*2026-01-04/i }).click();
+    // fireEvent.click (not a raw element.click()) - confirmed via an
+    // isolated repro that a bare .click() does not flush a React state
+    // update before the next synchronous assertion runs in this React 19 +
+    // jsdom + vitest environment, while fireEvent.click (wrapped in act()
+    // by RTL) does.
+    fireEvent.click(screen.getByRole("button", { name: /compare from.*2026-01-04/i }));
 
     expect(screen.getByText(/comparing from 2026-01-04/i)).toBeInTheDocument();
   });
@@ -89,8 +94,8 @@ describe("RatioChart: pin via table header (§3 item 3, D5)", () => {
   it("clears the pin when the PinnedComparisonBar's Clear button is activated", () => {
     render(<RatioChart title="Kudos/hits" points={RATIO_POINTS} />);
 
-    screen.getByRole("button", { name: /compare from.*2026-01-04/i }).click();
-    screen.getByRole("button", { name: /clear comparison/i }).click();
+    fireEvent.click(screen.getByRole("button", { name: /compare from.*2026-01-04/i }));
+    fireEvent.click(screen.getByRole("button", { name: /clear comparison/i }));
 
     expect(screen.queryByText(/comparing from/i)).not.toBeInTheDocument();
   });
@@ -106,6 +111,14 @@ describe("RatioChart: pin via clicking a chart point (§3 item 3)", () => {
     expect(wrapper).not.toBeNull();
     if (!wrapper) return;
 
+    // A preceding mousemove is required first, with its own effect
+    // awaited before the click fires - see TrendChart.pin.test.tsx's
+    // identical comment for the full repro-confirmed rationale.
+    fireEvent.mouseMove(wrapper, { clientX: 300, clientY: 120 });
+    await waitFor(() => {
+      expect(container.querySelectorAll('[class*="bg-accent/10"]').length).toBeGreaterThan(0);
+    });
+
     fireEvent.click(wrapper, { clientX: 300, clientY: 120 });
 
     await waitFor(() => {
@@ -118,7 +131,7 @@ describe("RatioChart: D6 uniform delta coloring, including the ratio itself", ()
   it("shows a fractional +delta for a ratio increase, formatted the same way any other metric's delta is (no metric-aware neutral special-case)", async () => {
     render(<RatioChart title="Kudos/hits" points={RATIO_POINTS} />);
 
-    screen.getByRole("button", { name: /compare from.*2026-01-03/i }).click();
+    fireEvent.click(screen.getByRole("button", { name: /compare from.*2026-01-03/i }));
     fireEvent.mouseEnter(screen.getByRole("columnheader", { name: "2026-01-04" }));
 
     await waitFor(() => {
@@ -134,7 +147,7 @@ describe("RatioChart: D6 uniform delta coloring, including the ratio itself", ()
   it("shows a -delta for a ratio decrease, colored by the same down rule as any other metric (D6, no ratio exception)", async () => {
     render(<RatioChart title="Kudos/hits" points={RATIO_POINTS} />);
 
-    screen.getByRole("button", { name: /compare from.*2026-01-04/i }).click();
+    fireEvent.click(screen.getByRole("button", { name: /compare from.*2026-01-04/i }));
     fireEvent.mouseEnter(screen.getByRole("columnheader", { name: "2026-02-20" }));
 
     await waitFor(() => {

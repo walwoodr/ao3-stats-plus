@@ -96,7 +96,12 @@ describe("MultiSeriesTrendChart: pin via table header (§3 item 3, D5)", () => {
   it("shows a PinnedComparisonBar naming the pinned date once its table header's pin control is activated", () => {
     render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />);
 
-    screen.getByRole("button", { name: /compare from.*2026-01-01/i }).click();
+    // fireEvent.click (not a raw element.click()) - confirmed via an
+    // isolated repro that a bare .click() does not flush a React state
+    // update before the next synchronous assertion runs in this React 19 +
+    // jsdom + vitest environment, while fireEvent.click (wrapped in act()
+    // by RTL) does.
+    fireEvent.click(screen.getByRole("button", { name: /compare from.*2026-01-01/i }));
 
     expect(screen.getByText(/comparing from 2026-01-01/i)).toBeInTheDocument();
   });
@@ -104,8 +109,8 @@ describe("MultiSeriesTrendChart: pin via table header (§3 item 3, D5)", () => {
   it("clears the pin when the PinnedComparisonBar's Clear button is activated", () => {
     render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />);
 
-    screen.getByRole("button", { name: /compare from.*2026-01-01/i }).click();
-    screen.getByRole("button", { name: /clear comparison/i }).click();
+    fireEvent.click(screen.getByRole("button", { name: /compare from.*2026-01-01/i }));
+    fireEvent.click(screen.getByRole("button", { name: /clear comparison/i }));
 
     expect(screen.queryByText(/comparing from/i)).not.toBeInTheDocument();
   });
@@ -123,6 +128,14 @@ describe("MultiSeriesTrendChart: pin via clicking a chart point (§3 item 3)", (
     expect(wrapper).not.toBeNull();
     if (!wrapper) return;
 
+    // A preceding mousemove is required first, with its own effect
+    // awaited before the click fires - see TrendChart.pin.test.tsx's
+    // identical comment for the full repro-confirmed rationale.
+    fireEvent.mouseMove(wrapper, { clientX: 300, clientY: 120 });
+    await waitFor(() => {
+      expect(container.querySelectorAll('[class*="bg-accent/10"]').length).toBeGreaterThan(0);
+    });
+
     fireEvent.click(wrapper, { clientX: 300, clientY: 120 });
 
     await waitFor(() => {
@@ -137,7 +150,7 @@ describe("MultiSeriesTrendChart: per-row delta independence across N series (C3a
 
     // Pin at Work A's own first point; hover 2026-01-01 too (delta-vs-self
     // for A = 0), but Work B has NO data at/before 2026-01-01 at all.
-    screen.getByRole("button", { name: /compare from.*2026-01-01/i }).click();
+    fireEvent.click(screen.getByRole("button", { name: /compare from.*2026-01-01/i }));
     fireEvent.mouseEnter(screen.getByRole("columnheader", { name: "2026-01-01" }));
 
     await waitFor(() => {
@@ -153,7 +166,7 @@ describe("MultiSeriesTrendChart: per-row delta independence across N series (C3a
   it("gives Work A a real delta at 2026-01-08 while Work B (only real point there) gets its own independent delta too", async () => {
     render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />);
 
-    screen.getByRole("button", { name: /compare from.*2026-01-01/i }).click();
+    fireEvent.click(screen.getByRole("button", { name: /compare from.*2026-01-01/i }));
     fireEvent.mouseEnter(screen.getByRole("columnheader", { name: "2026-01-08" }));
 
     await waitFor(() => {
@@ -174,4 +187,3 @@ describe("MultiSeriesTrendChart: per-row delta independence across N series (C3a
     expect(workBRow.textContent).toMatch(/no data/i);
   });
 });
-

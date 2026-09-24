@@ -65,14 +65,28 @@ function installRechartsSizePolyfill() {
   });
 }
 
+// Scoped to .recharts-wrapper (the chart's own SVG), not the whole render
+// container - the SAME series color/shape is also legitimately reused by
+// ComparisonLegend's swatch and SyncedDataTable's row-header MarkerGlyph
+// (both correctly preserve D5's identity-consistency requirement outside
+// the chart), so an unscoped query over the whole container would also
+// match those, not just the chart's own real point dots.
+function chartWrapper(container: HTMLElement): HTMLElement {
+  const wrapper = container.querySelector<HTMLElement>(".recharts-wrapper");
+  if (!wrapper) throw new Error("expected a .recharts-wrapper");
+  return wrapper;
+}
+
 function seriesDotCxs(container: HTMLElement): number[] {
-  return Array.from(container.querySelectorAll(`circle[fill="${LIGHT_COLOR_TOKENS.series[0]}"]`)).map(
-    (circle) => Number(circle.getAttribute("cx")),
-  );
+  return Array.from(
+    chartWrapper(container).querySelectorAll(`circle[fill="${LIGHT_COLOR_TOKENS.series[0]}"]`),
+  ).map((circle) => Number(circle.getAttribute("cx")));
 }
 
 function leadInCx(container: HTMLElement): number {
-  const circle = container.querySelector(`circle[fill="${LIGHT_COLOR_TOKENS.inkSoft}"]`);
+  const circle = chartWrapper(container).querySelector(
+    `circle[fill="${LIGHT_COLOR_TOKENS.inkSoft}"]`,
+  );
   if (!circle) throw new Error("expected a lead-in dot");
   return Number(circle.getAttribute("cx"));
 }

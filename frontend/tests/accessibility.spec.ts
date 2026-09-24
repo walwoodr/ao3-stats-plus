@@ -312,11 +312,21 @@ test.describe("accessibility - automated axe scans", () => {
     await page.goto("/u/testauthor?token=tok_valid123");
     await expect(page.getByRole("img", { name: /total hits/i })).toBeVisible();
 
-    await page.getByRole("button", { name: /compare from.*2026-01-01/i }).click();
+    // Scoped to the "Total hits" chart's own <details> disclosure (which
+    // contains both its table AND its orientation toggle, as siblings) -
+    // the populated dashboard renders more than one chart (this one, plus
+    // the by-work comparison chart), and both legitimately have a real
+    // capture on 2026-01-01 and their own "Dates down" toggle button, so
+    // an unscoped page-wide locator resolves to multiple elements.
+    const totalHitsDisclosure = page
+      .locator("details")
+      .filter({ has: page.getByRole("table", { name: /total hits/i }) });
+
+    await totalHitsDisclosure.getByRole("button", { name: /compare from.*2026-01-01/i }).click();
     await expect(page.getByText(/comparing from 2026-01-01/i)).toBeVisible();
 
-    await page.getByRole("button", { name: /dates down/i }).click();
-    await expect(page.getByRole("button", { name: /dates down/i })).toHaveAttribute(
+    await totalHitsDisclosure.getByRole("button", { name: /dates down/i }).click();
+    await expect(totalHitsDisclosure.getByRole("button", { name: /dates down/i })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -402,11 +412,18 @@ test.describe("accessibility - automated axe scans (dark mode)", () => {
     await page.goto("/u/testauthor?token=tok_valid123");
     await expect(page.getByRole("img", { name: /total hits/i })).toBeVisible();
 
-    await page.getByRole("button", { name: /compare from.*2026-01-01/i }).click();
+    // Scoped to the "Total hits" chart's own <details> disclosure - see
+    // the identical light-mode test's comment for why an unscoped
+    // page-wide locator is ambiguous here.
+    const totalHitsDisclosure = page
+      .locator("details")
+      .filter({ has: page.getByRole("table", { name: /total hits/i }) });
+
+    await totalHitsDisclosure.getByRole("button", { name: /compare from.*2026-01-01/i }).click();
     await expect(page.getByText(/comparing from 2026-01-01/i)).toBeVisible();
 
-    await page.getByRole("button", { name: /dates down/i }).click();
-    await expect(page.getByRole("button", { name: /dates down/i })).toHaveAttribute(
+    await totalHitsDisclosure.getByRole("button", { name: /dates down/i }).click();
+    await expect(totalHitsDisclosure.getByRole("button", { name: /dates down/i })).toHaveAttribute(
       "aria-pressed",
       "true",
     );

@@ -84,7 +84,12 @@ describe("TrendChart: pin via table header (§3 item 3, D5)", () => {
 
     expect(screen.queryByText(/comparing from/i)).not.toBeInTheDocument();
 
-    screen.getByRole("button", { name: /compare from.*2026-01-04/i }).click();
+    // fireEvent.click (not a raw element.click()) - confirmed via an
+    // isolated repro that a bare .click() does not flush a React state
+    // update before the next synchronous assertion runs in this React 19 +
+    // jsdom + vitest environment, while fireEvent.click (wrapped in act()
+    // by RTL) does.
+    fireEvent.click(screen.getByRole("button", { name: /compare from.*2026-01-04/i }));
 
     expect(screen.getByText(/comparing from 2026-01-04/i)).toBeInTheDocument();
   });
@@ -93,20 +98,20 @@ describe("TrendChart: pin via table header (§3 item 3, D5)", () => {
     render(<TrendChart title="Total hits" valueLabel="Hits" points={POINTS} />);
 
     const pinButton = screen.getByRole("button", { name: /compare from.*2026-01-04/i });
-    pinButton.click();
+    fireEvent.click(pinButton);
     expect(screen.getByText(/comparing from/i)).toBeInTheDocument();
 
-    pinButton.click();
+    fireEvent.click(pinButton);
     expect(screen.queryByText(/comparing from/i)).not.toBeInTheDocument();
   });
 
   it("clears the pin when the PinnedComparisonBar's Clear button is activated", () => {
     render(<TrendChart title="Total hits" valueLabel="Hits" points={POINTS} />);
 
-    screen.getByRole("button", { name: /compare from.*2026-01-04/i }).click();
+    fireEvent.click(screen.getByRole("button", { name: /compare from.*2026-01-04/i }));
     expect(screen.getByText(/comparing from/i)).toBeInTheDocument();
 
-    screen.getByRole("button", { name: /clear comparison/i }).click();
+    fireEvent.click(screen.getByRole("button", { name: /clear comparison/i }));
 
     expect(screen.queryByText(/comparing from/i)).not.toBeInTheDocument();
   });
@@ -116,7 +121,7 @@ describe("TrendChart: pin via table header (§3 item 3, D5)", () => {
     const leadIn = { capturedOn: "2014-01-01", value: 0 };
     render(<TrendChart title="Total hits" valueLabel="Hits" points={POINTS} leadIn={leadIn} />);
 
-    screen.getByRole("button", { name: /compare from.*before 2014/i }).click();
+    fireEvent.click(screen.getByRole("button", { name: /compare from.*before 2014/i }));
 
     expect(screen.getByText(/comparing from before 2014/i)).toBeInTheDocument();
   });
@@ -134,6 +139,18 @@ describe("TrendChart: pin via clicking a chart point (§3 item 3)", () => {
     expect(wrapper).not.toBeNull();
     if (!wrapper) return;
 
+    // A preceding mousemove is required first, with its own effect
+    // awaited before the click fires - confirmed via an isolated repro
+    // that Recharts' redux-toolkit mouse-tracking state in jsdom needs a
+    // mousemove (and a render cycle for that dispatch to actually flush)
+    // to seed activeLabel before a click resolves a position; a bare
+    // click with no prior settled pointer movement (never possible for a
+    // real mouse) resolves nothing.
+    fireEvent.mouseMove(wrapper, { clientX: 300, clientY: 120 });
+    await waitFor(() => {
+      expect(container.querySelectorAll('[class*="bg-accent/10"]').length).toBeGreaterThan(0);
+    });
+
     fireEvent.click(wrapper, { clientX: 300, clientY: 120 });
 
     await waitFor(() => {
@@ -148,7 +165,7 @@ describe("TrendChart: pin and hover are independent states (D5)", () => {
   it("hovering a different column never moves the pin off its original date", () => {
     render(<TrendChart title="Total hits" valueLabel="Hits" points={POINTS} />);
 
-    screen.getByRole("button", { name: /compare from.*2026-01-04/i }).click();
+    fireEvent.click(screen.getByRole("button", { name: /compare from.*2026-01-04/i }));
     expect(screen.getByText(/comparing from 2026-01-04/i)).toBeInTheDocument();
 
     fireEvent.mouseEnter(screen.getByRole("columnheader", { name: "2026-02-20" }));
@@ -159,7 +176,7 @@ describe("TrendChart: pin and hover are independent states (D5)", () => {
   it("shows a delta chip in the table once a different column is hovered while pinned", async () => {
     render(<TrendChart title="Total hits" valueLabel="Hits" points={POINTS} />);
 
-    screen.getByRole("button", { name: /compare from.*2026-01-03/i }).click();
+    fireEvent.click(screen.getByRole("button", { name: /compare from.*2026-01-03/i }));
     fireEvent.mouseEnter(screen.getByRole("columnheader", { name: "2026-01-04" }));
 
     await waitFor(() => {
