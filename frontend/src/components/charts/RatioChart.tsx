@@ -4,8 +4,18 @@ import type { MouseHandlerDataParam } from "recharts";
 import { useChartColors } from "../../lib/useChartColors";
 import { formatNumber } from "../../lib/formatNumber";
 import { buildRatioTableModel } from "../../lib/syncedTableModel";
+import {
+  computeYDomain,
+  formatDateTick,
+  formatLeadInTick,
+  leadInEpoch,
+  toEpoch,
+} from "../../lib/chartTimeAxis";
+import { elapsedLabel as computeElapsedLabel } from "../../lib/pointComparison";
+import type { Orientation } from "../../lib/tableOrientation";
 import { SyncedDataTable } from "./SyncedDataTable";
 import { ChartDisclosure } from "./ChartDisclosure";
+import { PinnedComparisonBar } from "./PinnedComparisonBar";
 import { ActivePointOverlay, type ActivePoint } from "./ActivePointOverlay";
 
 export interface RatioPoint {
@@ -34,18 +44,22 @@ interface RatioChartRow {
   capturedOn: string;
   ratio: number | null;
   lead: number | null;
-  xValue: number;
+  xEpoch: number;
   isLeadIn: boolean;
 }
 
-// Plots the kudos-to-hits ratio over time. The divide-by-zero guard itself
-// is a backend concern (a zero-hits snapshot arrives with ratio already
-// computed as 0) - this component just has to render that zero explicitly
-// rather than treating it as missing data, plus the same irregular-gap/
-// single-point/accessible-table/non-color-only guarantees as TrendChart.
-// The title/description are visible text, not just aria attributes, so a
-// sighted dashboard user can tell what the chart represents at a glance.
-// See TrendChart's identical top-of-file comment for the full chart<->table
+// Plots the kudos-to-hits ratio over real elapsed time (item 4/D7). The
+// divide-by-zero guard itself is a backend concern (a zero-hits snapshot
+// arrives with ratio already computed as 0) - this component just has to
+// render that zero explicitly rather than treating it as missing data, plus
+// the same irregular-gap/single-point/accessible-table/non-color-only
+// guarantees as TrendChart. D6: the ratio's delta is colored by the SAME
+// up=green/down=red rule as any other metric, no metric-aware exception -
+// SyncedDataTable's shared delta-chip rendering already applies this
+// uniformly, so nothing ratio-specific is needed here. The title/
+// description are visible text, not just aria attributes, so a sighted
+// dashboard user can tell what the chart represents at a glance. See
+// TrendChart's identical top-of-file comment for the full chart<->table
 // sync rationale (docs/plans/chart-synced-data-table.md) - this component
 // mirrors that structure exactly for its single ratio series.
 export function RatioChart({ title, description, points, leadIn }: RatioChartProps) {
@@ -56,27 +70,29 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
   // useChartColors rather than left to the surrounding Tailwind classes.
   const colors = useChartColors();
   const [activeDateKey, setActiveDateKey] = useState<string | null>(null);
+  const [pinnedDateKey, setPinnedDateKey] = useState<string | null>(null);
+  const [orientation, setOrientation] = useState<Orientation>("datesAsColumns");
 
-  // X positions are explicit integers rather than left to Recharts' string-
-  // categorical axis: real points sit at 1, 2, 3, ... (always one unit
-  // apart, regardless of real calendar distance) and the lead-in sits at 0 -
-  // exactly one unit before the first real point, the same distance as
-  // between any two consecutive real points. See TrendChart's identical
-  // comment for the full rationale.
+  // Item 4 point 2's two lead-in placement paths - see TrendChart's
+  // identical comment for the full rationale.
+  const realEpochs = points.map((point) => toEpoch(point.capturedOn));
+  const firstRealEpoch = realEpochs[0];
+  const leadInX = leadIn ? leadInEpoch(firstRealEpoch, { realEpochs }) : undefined;
+
   const chartData: RatioChartRow[] = leadIn
     ? [
         {
           capturedOn: leadIn.capturedOn,
           ratio: null,
           lead: leadIn.ratio,
-          xValue: 0,
+          xEpoch: leadInX as number,
           isLeadIn: true,
         },
         ...points.map((point, index) => ({
           capturedOn: point.capturedOn,
           ratio: point.ratio,
           lead: index === 0 ? point.ratio : null,
-          xValue: index + 1,
+          xEpoch: realEpochs[index],
           isLeadIn: false,
         })),
       ]
@@ -84,31 +100,45 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
         capturedOn: point.capturedOn,
         ratio: point.ratio,
         lead: null,
-        xValue: index,
+        xEpoch: realEpochs[index],
         isLeadIn: false,
       }));
 
-  const formatTick = (xValue: number): string => {
-    const row = chartData.find((r) => r.xValue === xValue);
+  const formatTick = (xEpoch: number): string => {
+    const row = chartData.find((r) => r.xEpoch === xEpoch);
     if (!row) return "";
-    return row.isLeadIn ? row.capturedOn.slice(0, 4) : row.capturedOn;
+    return row.isLeadIn ? formatLeadInTick(xEpoch) : formatDateTick(xEpoch);
   };
 
-  // Chart -> table sync (§2.3): mirrors TrendChart's numeric-xValue
+  // Chart -> table sync (§2.3): mirrors TrendChart's numeric-xEpoch
   // resolveDateKey exactly.
   function resolveDateKey(state: MouseHandlerDataParam): string | null {
     const activeLabel = state.activeLabel;
     if (activeLabel == null) return null;
-    const row = chartData.find((r) => r.xValue === activeLabel);
+    const row = chartData.find((r) => r.xEpoch === activeLabel);
     return row ? row.capturedOn : null;
   }
 
-  // Table -> chart sync (§2.3): mirrors TrendChart's activePoints resolution.
-  const activeRow = activeDateKey
-    ? chartData.find((r) => r.capturedOn === activeDateKey)
-    : undefined;
+  function togglePinnedDateKey(dateKey: string | null) {
+    if (dateKey === null) {
+      setPinnedDateKey(null);
+      return;
+    }
+    setPinnedDateKey((previous) => (previous === dateKey ? null : dateKey));
+  }
+
+  // Table -> chart sync (§2.3): mirrors TrendChart's activePoints/
+  // pinnedPoints resolution.
+  function rowFor(dateKey: string | null): RatioChartRow | undefined {
+    return dateKey ? chartData.find((r) => r.capturedOn === dateKey) : undefined;
+  }
+  const activeRow = rowFor(activeDateKey);
   const activePoints: ActivePoint[] = activeRow
-    ? [{ x: activeRow.xValue, y: (activeRow.isLeadIn ? activeRow.lead : activeRow.ratio) ?? 0 }]
+    ? [{ x: activeRow.xEpoch, y: (activeRow.isLeadIn ? activeRow.lead : activeRow.ratio) ?? 0 }]
+    : [];
+  const pinnedRow = rowFor(pinnedDateKey);
+  const pinnedPoints: ActivePoint[] = pinnedRow
+    ? [{ x: pinnedRow.xEpoch, y: (pinnedRow.isLeadIn ? pinnedRow.lead : pinnedRow.ratio) ?? 0 }]
     : [];
 
   // See TrendChart's identical guard: no current caller mounts this with
@@ -137,6 +167,24 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
 
   const tableModel = buildRatioTableModel({ points, leadIn });
 
+  // Item 1/D1's padded y-domain: values INCLUDE the lead-in's literal 0
+  // when present, per D1 (chartTimeAxis.test.ts).
+  const yValues = leadIn ? [0, ...points.map((point) => point.ratio)] : points.map((p) => p.ratio);
+  const { domain: yDomain, broken: brokenYAxis } = computeYDomain(yValues, {
+    hasLeadIn: Boolean(leadIn),
+  });
+
+  const pinnedLabel = pinnedRow
+    ? (tableModel.columns.find((c) => c.dateKey === pinnedRow.capturedOn)?.label ??
+      pinnedRow.capturedOn)
+    : null;
+  const activeRowForElapsed =
+    activeRow && activeRow.capturedOn !== pinnedRow?.capturedOn ? activeRow : undefined;
+  const elapsedLabelText =
+    pinnedRow && activeRowForElapsed
+      ? computeElapsedLabel(pinnedRow.xEpoch, activeRowForElapsed.xEpoch)
+      : null;
+
   return (
     <div className="w-full rounded-lg border border-ink/12 bg-card p-6 transition-colors duration-200 hover:border-ink/24">
       <h3 id={headingId} className="font-display text-base font-semibold text-ink">
@@ -161,17 +209,23 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
                 accessibilityLayer={false}
                 onMouseMove={(state) => setActiveDateKey(resolveDateKey(state))}
                 onMouseLeave={() => setActiveDateKey(null)}
+                onClick={(state) => {
+                  const dateKey = resolveDateKey(state);
+                  if (dateKey) togglePinnedDateKey(dateKey);
+                }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.inkSoft} strokeOpacity={0.2} />
                 <XAxis
-                  dataKey="xValue"
+                  dataKey="xEpoch"
                   type="number"
-                  domain={[chartData[0].xValue, chartData[chartData.length - 1].xValue]}
-                  ticks={chartData.map((row) => row.xValue)}
+                  scale="time"
+                  domain={[chartData[0].xEpoch, chartData[chartData.length - 1].xEpoch]}
+                  ticks={chartData.map((row) => row.xEpoch)}
                   tickFormatter={formatTick}
                   tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
                 />
                 <YAxis
+                  domain={yDomain}
                   tickFormatter={formatNumber}
                   tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
                 />
@@ -245,12 +299,24 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
                     }}
                   />
                 )}
-                <ActivePointOverlay activePoints={activePoints} />
+                <ActivePointOverlay
+                  activePoints={activePoints}
+                  pinnedPoints={pinnedPoints}
+                  brokenYAxis={brokenYAxis}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </figure>
       </ChartDisclosure>
+
+      {pinnedLabel && (
+        <PinnedComparisonBar
+          pinnedLabel={pinnedLabel}
+          elapsedLabel={elapsedLabelText}
+          onClear={() => setPinnedDateKey(null)}
+        />
+      )}
 
       <SyncedDataTable
         title={title}
@@ -258,6 +324,10 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
         model={tableModel}
         activeDateKey={activeDateKey}
         onActiveDateKeyChange={setActiveDateKey}
+        orientation={orientation}
+        onOrientationChange={setOrientation}
+        pinnedDateKey={pinnedDateKey}
+        onPinnedDateKeyChange={togglePinnedDateKey}
       />
     </div>
   );
