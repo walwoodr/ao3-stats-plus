@@ -1427,7 +1427,7 @@
   jsdom's coerced read-back value. Landed as part of the same pass that
   fixed the real overlapping-runs bug this file's sibling suite
   (`fanOut.unloadGuard.test.ts`) also caught.
-- [2026-09-24] (stage: Implementation) `SyncedTableRow.comparablePoints`
+- ~~[2026-09-24] (stage: Implementation) `SyncedTableRow.comparablePoints`
   (item 3, C3a) is a required field, matched by all three
   `syncedTableModel.ts` builders and by the new
   `syncedTableModel.test.ts`/`tableOrientation.test.ts` specs that index
@@ -1444,7 +1444,19 @@
   non-null indexing into `comparablePoints` is the more load-bearing
   contract to protect. A follow-up pass could backfill
   `comparablePoints: []` onto the nine older fixtures to clear `tsc`
-  fully, without touching any assertion.
+  fully, without touching any assertion.~~ — **RESOLVED 2026-09-24
+  (Implementation, same stage)**: the "PRE-EXISTING" framing above was
+  wrong - confirmed via `git log` that `comparablePoints` did not exist in
+  `syncedTableModel.ts` before this stage (added in commit `cfa9fda`,
+  during this same Implementation pass); the nine `tsc` errors were
+  fixture churn this stage's own required-field addition caused, not
+  inherited debt. Per this project's established precedent for exactly
+  this pattern (see `aeec41b`, `116469d`), fixed directly rather than left
+  deferred: `comparablePoints: []` (or realistic per-row data mirroring
+  each fixture's own `cells`, for `SyncedDataTable.test.tsx`'s two
+  MULTI/SINGLE_SERIES_MODEL fixtures specifically) added to all nine
+  `SyncedTableRow` literals (commit `31093da`). `npx tsc -b` is now fully
+  clean project-wide.
 - [2026-09-24] (stage: Implementation) Five genuinely reproducible
   test-environment/test-authoring gaps found while implementing the
   chart-axis-comparison-and-table-orientation-batch plan's item 3 pin
