@@ -18,6 +18,7 @@ import { describe, expect, it } from "vitest";
 // visible XAxis tickFormatter) for slots that are some work's zero-basis
 // and are NOT any work's real capture date.
 import { buildChartData, type SeriesDatum } from "./MultiSeriesTrendChart";
+import { leadInEpoch, toEpoch } from "../../lib/chartTimeAxis";
 
 const WORK_A: SeriesDatum = {
   workId: 1,
@@ -191,5 +192,67 @@ describe("buildChartData: robustness", () => {
   it("does not throw with an empty series array", () => {
     expect(() => buildChartData([])).not.toThrow();
     expect(buildChartData([]).rows).toEqual([]);
+  });
+});
+
+// Testing task 10 (docs/plans/chart-axis-comparison-and-table-orientation-
+// batch.md §10, §3 item 4 point 2): each row must also carry a numeric
+// `xEpoch` for the new real-time XAxis. The two lead-in placement paths are
+// genuinely different code paths (§3 item 4 point 2) - a PUBLISH-DATE
+// lead-in (isPublishDate: true) sits at its own REAL epoch (toEpoch), since
+// the work really was published then; the account-level ESTIMATED-BASELINE
+// lead-in (isPublishDate false/omitted) sits at the BOUNDED synthetic offset
+// (chartTimeAxis.leadInEpoch) instead, never its literal (often
+// many-years-distant) raw date.
+describe("buildChartData: xEpoch (item 4 point 2 - the two lead-in placement paths)", () => {
+  it("gives every real point's row an xEpoch equal to toEpoch(capturedOn)", () => {
+    const { rows } = buildChartData([WORK_D_NO_LEADIN]);
+    const row = rows.find((r) => r.capturedOn === "2026-01-01");
+
+    expect(row?.xEpoch).toBe(toEpoch("2026-01-01"));
+  });
+
+  it("places a PUBLISH-DATE lead-in's row at its own real epoch (toEpoch), not a bounded offset", () => {
+    // WORK_A's own leadIn fixture (above) doesn't set isPublishDate - build
+    // a dedicated one carrying it explicitly, since that flag is what picks
+    // this code path.
+    const publishDateWork: SeriesDatum = {
+      workId: 20,
+      title: "Work Publish",
+      styleIndex: 0,
+      points: [
+        { capturedOn: "2026-01-01", value: 10 },
+        { capturedOn: "2026-01-11", value: 20 }, // 10-day ruler for later timeAxis specs.
+      ],
+      leadIn: { capturedOn: "2010-01-01", label: "Published 2010-01-01", isPublishDate: true },
+    };
+
+    const { rows: publishRows } = buildChartData([publishDateWork]);
+    const leadInRow = publishRows.find((r) => r.capturedOn === "2010-01-01");
+
+    expect(leadInRow?.xEpoch).toBe(toEpoch("2010-01-01"));
+  });
+
+  it("places an ESTIMATED-BASELINE lead-in's row at the bounded synthetic offset (leadInEpoch), not its literal (distant) raw date", () => {
+    const estimatedBaselineWork: SeriesDatum = {
+      workId: 21,
+      title: "Work Estimated",
+      styleIndex: 0,
+      points: [
+        { capturedOn: "2026-01-01", value: 10 },
+        { capturedOn: "2026-01-11", value: 20 },
+      ],
+      leadIn: { capturedOn: "2010-01-01", label: "Before 2010 (estimated baseline)" },
+    };
+
+    const { rows } = buildChartData([estimatedBaselineWork]);
+    const leadInRow = rows.find((r) => r.capturedOn === "2010-01-01");
+    const firstRealEpoch = toEpoch("2026-01-01");
+    const expectedEpoch = leadInEpoch(firstRealEpoch, {
+      realEpochs: [firstRealEpoch, toEpoch("2026-01-11")],
+    });
+
+    expect(leadInRow?.xEpoch).toBe(expectedEpoch);
+    expect(leadInRow?.xEpoch).not.toBe(toEpoch("2010-01-01"));
   });
 });
