@@ -29,10 +29,7 @@ export function rowValueAsOf(points: RowComparablePoint[], date: string): number
 
 // Mirrors rowValueAsOf but also reports which entry's dateKey the value
 // actually came from - null i.e. no dice, when nothing at/before `date`.
-function resolveEntryAsOf(
-  points: RowComparablePoint[],
-  date: string,
-): RowComparablePoint | null {
+function resolveEntryAsOf(points: RowComparablePoint[], date: string): RowComparablePoint | null {
   let result: RowComparablePoint | null = null;
   for (const point of points) {
     if (point.dateKey > date) break;

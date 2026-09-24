@@ -12,7 +12,11 @@ export interface PinnedComparisonBarProps {
 // pinnedDateKey/activeDateKey and computes elapsedLabel itself. Existing
 // slate Tailwind styling, matching the surrounding chart chrome (§9), NOT
 // MASTER design tokens.
-export function PinnedComparisonBar({ pinnedLabel, elapsedLabel, onClear }: PinnedComparisonBarProps) {
+export function PinnedComparisonBar({
+  pinnedLabel,
+  elapsedLabel,
+  onClear,
+}: PinnedComparisonBarProps) {
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-soft">
       <span className="font-semibold text-ink">{`Comparing from ${pinnedLabel}`}</span>

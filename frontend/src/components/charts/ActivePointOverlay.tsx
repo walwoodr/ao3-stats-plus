@@ -105,11 +105,7 @@ export function ActivePointOverlay({
         </>
       )}
       {brokenYAxis && (
-        <YAxisBreakGlyph
-          x={plotArea.x}
-          y={plotArea.y + plotArea.height}
-          color={colors.inkSoft}
-        />
+        <YAxisBreakGlyph x={plotArea.x} y={plotArea.y + plotArea.height} color={colors.inkSoft} />
       )}
     </g>
   );

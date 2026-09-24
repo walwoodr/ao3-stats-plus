@@ -55,10 +55,7 @@ export interface LeadInEpochOptions {
 // gap between consecutive real points (an outlier gap shouldn't dominate),
 // clamped to [MIN, MAX] days, falling back to a flat 30-day gap when there
 // are fewer than two real points to derive a gap from.
-export function leadInEpoch(
-  firstRealEpoch: number,
-  { realEpochs }: LeadInEpochOptions,
-): number {
+export function leadInEpoch(firstRealEpoch: number, { realEpochs }: LeadInEpochOptions): number {
   const sorted = [...realEpochs].sort((a, b) => a - b);
   const gaps: number[] = [];
   for (let i = 1; i < sorted.length; i += 1) {

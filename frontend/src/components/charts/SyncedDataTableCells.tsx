@@ -77,6 +77,17 @@ export function DateHeaderCell({
       onBlur={() => notifyActiveDateKeyChange(null)}
       className={`${baseClass}${rowHeaderActiveClass}`}
       title={isRowHeader ? entry.label : undefined}
+      // Pins the header's OWN accessible name to exactly entry.label,
+      // overriding the default content-based computation - without this,
+      // the pin button's "Compare from " sr-only prefix would leak into
+      // this header's computed name (e.g. "Compare from 2026-01-03"
+      // instead of "2026-01-03"), breaking exact-match columnheader/
+      // rowheader name lookups in pre-existing TrendChart/RatioChart specs
+      // that predate item 3's pin feature. The button's OWN accessible name
+      // ("Compare from <label>") is unaffected - aria-label on an ancestor
+      // only overrides how the ANCESTOR's name is computed, never a
+      // descendant's.
+      aria-label={entry.label}
     >
       {onPinnedDateKeyChange ? (
         <button

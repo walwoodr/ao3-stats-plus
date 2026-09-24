@@ -43,9 +43,7 @@ export interface SyncedDataTableProps {
   onPinnedDateKeyChange?: (dateKey: string | null) => void;
 }
 
-type AxisSlot =
-  | { kind: "date"; entry: DateAxisEntry }
-  | { kind: "series"; entry: SeriesAxisEntry };
+type AxisSlot = { kind: "date"; entry: DateAxisEntry } | { kind: "series"; entry: SeriesAxisEntry };
 
 function dateSlots(axis: DateAxisEntry[]): AxisSlot[] {
   return axis.map((entry) => ({ kind: "date", entry }) as const);
@@ -196,14 +194,20 @@ export function SyncedDataTable({
             onClick={(event) => event.stopPropagation()}
             className="flex items-center gap-1"
           >
+            {/* Deliberately NOT bg-accent/10 for the pressed state here -
+                that class is reserved elsewhere in this table (and widely
+                asserted on in tests) as the ACTIVE-DATE cell/header tint;
+                reusing it on this always-one-pressed toggle would make a
+                button falsely register as an "active date" match for any
+                `[class*="bg-accent/10"]` query. */}
             <button
               type="button"
               aria-pressed={orientation === "datesAsColumns"}
               onClick={() => onOrientationChange("datesAsColumns")}
               className={
                 orientation === "datesAsColumns"
-                  ? "rounded bg-accent/10 px-2 py-1 text-sm font-semibold text-ink"
-                  : "rounded px-2 py-1 text-sm font-semibold text-ink-soft hover:text-ink"
+                  ? "rounded border border-accent/40 px-2 py-1 text-sm font-semibold text-ink"
+                  : "rounded border border-transparent px-2 py-1 text-sm font-semibold text-ink-soft hover:text-ink"
               }
             >
               Dates across
@@ -214,8 +218,8 @@ export function SyncedDataTable({
               onClick={() => onOrientationChange("datesAsRows")}
               className={
                 orientation === "datesAsRows"
-                  ? "rounded bg-accent/10 px-2 py-1 text-sm font-semibold text-ink"
-                  : "rounded px-2 py-1 text-sm font-semibold text-ink-soft hover:text-ink"
+                  ? "rounded border border-accent/40 px-2 py-1 text-sm font-semibold text-ink"
+                  : "rounded border border-transparent px-2 py-1 text-sm font-semibold text-ink-soft hover:text-ink"
               }
             >
               Dates down
@@ -305,8 +309,7 @@ export function SyncedDataTable({
                   const isActive = dateKey === activeDateKey;
                   const cellValue = normalized.valueAt(seriesKey, dateKey);
                   const seriesRow = model.rows.find((r) => r.seriesKey === seriesKey);
-                  const showDelta =
-                    isActive && pinnedDateKey != null && activeDateKey != null;
+                  const showDelta = isActive && pinnedDateKey != null && activeDateKey != null;
                   return (
                     <DataCell
                       key={slotKey(colSlot)}

@@ -4,8 +4,18 @@ import type { MouseHandlerDataParam } from "recharts";
 import { useChartColors } from "../../lib/useChartColors";
 import { formatNumber } from "../../lib/formatNumber";
 import { buildTrendTableModel } from "../../lib/syncedTableModel";
+import {
+  computeYDomain,
+  formatDateTick,
+  formatLeadInTick,
+  leadInEpoch,
+  toEpoch,
+} from "../../lib/chartTimeAxis";
+import { elapsedLabel as computeElapsedLabel } from "../../lib/pointComparison";
+import type { Orientation } from "../../lib/tableOrientation";
 import { SyncedDataTable } from "./SyncedDataTable";
 import { ChartDisclosure } from "./ChartDisclosure";
+import { PinnedComparisonBar } from "./PinnedComparisonBar";
 import { ActivePointOverlay, type ActivePoint } from "./ActivePointOverlay";
 
 export interface TrendPoint {
@@ -30,14 +40,16 @@ interface TrendChartRow {
   capturedOn: string;
   value: number | null;
   lead: number | null;
-  xValue: number;
+  xEpoch: number;
   isLeadIn: boolean;
 }
 
-// Plots one numeric series against real (irregularly spaced) capture dates.
-// The visual Recharts chart is aria-hidden - the actual accessible
-// representation is the visible, transposed SyncedDataTable below it
-// (docs/plans/chart-synced-data-table.md), rendered as a SIBLING of the
+// Plots one numeric series against real (irregularly spaced) capture dates -
+// item 4/D7's true chronological x-axis (chart-axis-comparison-and-table-
+// orientation-batch.md §3 item 4), reversing the prior "not to real-time
+// scale" convention. The visual Recharts chart is aria-hidden - the actual
+// accessible representation is the visible, transposed SyncedDataTable below
+// it (docs/plans/chart-synced-data-table.md), rendered as a SIBLING of the
 // role=img figure (not nested inside it - role=img descendants are
 // generally hidden from assistive tech). Hovering/focusing the chart
 // highlights the matching table column (chart->table sync); hovering/
@@ -56,32 +68,32 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
   // src/lib/useChartColors.ts and MASTER.md's Chart Guidance section.
   const colors = useChartColors();
   const [activeDateKey, setActiveDateKey] = useState<string | null>(null);
+  const [pinnedDateKey, setPinnedDateKey] = useState<string | null>(null);
+  const [orientation, setOrientation] = useState<Orientation>("datesAsColumns");
 
-  // The dashed "lead" series only carries a value on the synthetic row and
-  // the first real row (so it draws exactly one segment connecting them);
-  // the solid "value" series never carries the synthetic row's value, so it
-  // never draws a solid segment where the dashed one belongs.
-  //
-  // X positions are explicit integers rather than left to Recharts' string-
-  // categorical axis: real points sit at 1, 2, 3, ... (always one unit
-  // apart, regardless of real calendar distance - the deliberate "not to
-  // real-time scale" behavior from Task 1's plan) and the lead-in sits at 0,
-  // i.e. exactly one unit before the first real point - the same distance
-  // as between any two consecutive real points.
+  // Item 4 point 2's two lead-in placement paths (§3 item 4): a real point
+  // sits at its true epoch; the account-level estimated-baseline lead-in
+  // sits at a bounded synthetic offset (chartTimeAxis.leadInEpoch) before
+  // the first real point, never its own (often many-years-distant) literal
+  // date - see chartTimeAxis.test.ts for the median-gap-clamp math.
+  const realEpochs = points.map((point) => toEpoch(point.capturedOn));
+  const firstRealEpoch = realEpochs[0];
+  const leadInX = leadIn ? leadInEpoch(firstRealEpoch, { realEpochs }) : undefined;
+
   const chartData: TrendChartRow[] = leadIn
     ? [
         {
           capturedOn: leadIn.capturedOn,
           value: null,
           lead: leadIn.value,
-          xValue: 0,
+          xEpoch: leadInX as number,
           isLeadIn: true,
         },
         ...points.map((point, index) => ({
           capturedOn: point.capturedOn,
           value: point.value,
           lead: index === 0 ? point.value : null,
-          xValue: index + 1,
+          xEpoch: realEpochs[index],
           isLeadIn: false,
         })),
       ]
@@ -89,37 +101,50 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
         capturedOn: point.capturedOn,
         value: point.value,
         lead: null,
-        xValue: index,
+        xEpoch: realEpochs[index],
         isLeadIn: false,
       }));
 
   // The lead-in's axis tick is deliberately coarser (year-only) than a real
   // point's - it's an estimated baseline, not an actual capture date, so
-  // showing a fabricated "January 1st" would overstate its precision.
-  const formatTick = (xValue: number): string => {
-    const row = chartData.find((r) => r.xValue === xValue);
+  // showing a fabricated day-level date would overstate its precision.
+  const formatTick = (xEpoch: number): string => {
+    const row = chartData.find((r) => r.xEpoch === xEpoch);
     if (!row) return "";
-    return row.isLeadIn ? row.capturedOn.slice(0, 4) : row.capturedOn;
+    return row.isLeadIn ? formatLeadInTick(xEpoch) : formatDateTick(xEpoch);
   };
 
-  // Chart -> table sync (§2.3): TrendChart's XAxis is the numeric xValue, so
-  // state.activeLabel is the xValue integer, not the capturedOn dateKey
-  // directly - resolve it via chartData.
+  // Chart -> table sync (§2.3): TrendChart's XAxis is the numeric xEpoch, so
+  // state.activeLabel is that epoch, not the capturedOn dateKey directly -
+  // resolve it via chartData.
   function resolveDateKey(state: MouseHandlerDataParam): string | null {
     const activeLabel = state.activeLabel;
     if (activeLabel == null) return null;
-    const row = chartData.find((r) => r.xValue === activeLabel);
+    const row = chartData.find((r) => r.xEpoch === activeLabel);
     return row ? row.capturedOn : null;
+  }
+
+  function togglePinnedDateKey(dateKey: string | null) {
+    if (dateKey === null) {
+      setPinnedDateKey(null);
+      return;
+    }
+    setPinnedDateKey((previous) => (previous === dateKey ? null : dateKey));
   }
 
   // Table -> chart sync (§2.3): resolve the active date's chart-space point
   // for the overlay. The leadIn row's own value lives on "lead" (its "value"
   // is null), so fall back to that.
-  const activeRow = activeDateKey
-    ? chartData.find((r) => r.capturedOn === activeDateKey)
-    : undefined;
+  function rowFor(dateKey: string | null): TrendChartRow | undefined {
+    return dateKey ? chartData.find((r) => r.capturedOn === dateKey) : undefined;
+  }
+  const activeRow = rowFor(activeDateKey);
   const activePoints: ActivePoint[] = activeRow
-    ? [{ x: activeRow.xValue, y: (activeRow.isLeadIn ? activeRow.lead : activeRow.value) ?? 0 }]
+    ? [{ x: activeRow.xEpoch, y: (activeRow.isLeadIn ? activeRow.lead : activeRow.value) ?? 0 }]
+    : [];
+  const pinnedRow = rowFor(pinnedDateKey);
+  const pinnedPoints: ActivePoint[] = pinnedRow
+    ? [{ x: pinnedRow.xEpoch, y: (pinnedRow.isLeadIn ? pinnedRow.lead : pinnedRow.value) ?? 0 }]
     : [];
 
   // No current caller mounts this with empty points and no leadIn - Recharts'
@@ -148,6 +173,24 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
 
   const tableModel = buildTrendTableModel({ valueLabel, points, leadIn });
 
+  // Item 1/D1's padded y-domain: values INCLUDE the lead-in's literal 0 when
+  // present, per D1's deliberate "safe default" (chartTimeAxis.test.ts).
+  const yValues = leadIn ? [0, ...points.map((point) => point.value)] : points.map((p) => p.value);
+  const { domain: yDomain, broken: brokenYAxis } = computeYDomain(yValues, {
+    hasLeadIn: Boolean(leadIn),
+  });
+
+  const pinnedLabel = pinnedRow
+    ? (tableModel.columns.find((c) => c.dateKey === pinnedRow.capturedOn)?.label ??
+      pinnedRow.capturedOn)
+    : null;
+  const activeRowForElapsed =
+    activeRow && activeRow.capturedOn !== pinnedRow?.capturedOn ? activeRow : undefined;
+  const elapsedLabelText =
+    pinnedRow && activeRowForElapsed
+      ? computeElapsedLabel(pinnedRow.xEpoch, activeRowForElapsed.xEpoch)
+      : null;
+
   return (
     <div className="w-full rounded-lg border border-ink/12 bg-card p-6 transition-colors duration-200 hover:border-ink/24">
       <h3 id={headingId} className="font-display text-base font-semibold text-ink">
@@ -172,17 +215,23 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
                 accessibilityLayer={false}
                 onMouseMove={(state) => setActiveDateKey(resolveDateKey(state))}
                 onMouseLeave={() => setActiveDateKey(null)}
+                onClick={(state) => {
+                  const dateKey = resolveDateKey(state);
+                  if (dateKey) togglePinnedDateKey(dateKey);
+                }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.inkSoft} strokeOpacity={0.2} />
                 <XAxis
-                  dataKey="xValue"
+                  dataKey="xEpoch"
                   type="number"
-                  domain={[chartData[0].xValue, chartData[chartData.length - 1].xValue]}
-                  ticks={chartData.map((row) => row.xValue)}
+                  scale="time"
+                  domain={[chartData[0].xEpoch, chartData[chartData.length - 1].xEpoch]}
+                  ticks={chartData.map((row) => row.xEpoch)}
                   tickFormatter={formatTick}
                   tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
                 />
                 <YAxis
+                  domain={yDomain}
                   tickFormatter={formatNumber}
                   tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
                 />
@@ -256,12 +305,24 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
                     }}
                   />
                 )}
-                <ActivePointOverlay activePoints={activePoints} />
+                <ActivePointOverlay
+                  activePoints={activePoints}
+                  pinnedPoints={pinnedPoints}
+                  brokenYAxis={brokenYAxis}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </figure>
       </ChartDisclosure>
+
+      {pinnedLabel && (
+        <PinnedComparisonBar
+          pinnedLabel={pinnedLabel}
+          elapsedLabel={elapsedLabelText}
+          onClear={() => setPinnedDateKey(null)}
+        />
+      )}
 
       <SyncedDataTable
         title={title}
@@ -269,6 +330,10 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
         model={tableModel}
         activeDateKey={activeDateKey}
         onActiveDateKeyChange={setActiveDateKey}
+        orientation={orientation}
+        onOrientationChange={setOrientation}
+        pinnedDateKey={pinnedDateKey}
+        onPinnedDateKeyChange={togglePinnedDateKey}
       />
     </div>
   );
