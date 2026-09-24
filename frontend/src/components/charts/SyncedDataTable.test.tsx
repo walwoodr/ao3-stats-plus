@@ -26,7 +26,18 @@ const SINGLE_SERIES_MODEL: SyncedTableModel = {
     { dateKey: "2026-01-04", label: "2026-01-04", isLeadIn: false },
     { dateKey: "2026-02-20", label: "2026-02-20", isLeadIn: false },
   ],
-  rows: [{ seriesKey: "value", title: "Hits", cells: [100, 140, 300] }],
+  rows: [
+    {
+      seriesKey: "value",
+      title: "Hits",
+      cells: [100, 140, 300],
+      comparablePoints: [
+        { dateKey: "2026-01-03", value: 100 },
+        { dateKey: "2026-01-04", value: 140 },
+        { dateKey: "2026-02-20", value: 300 },
+      ],
+    },
+  ],
   unitLabel: "Hits",
 };
 
@@ -43,6 +54,10 @@ const MULTI_SERIES_MODEL: SyncedTableModel = {
       colorHex: "#727F8C",
       shape: "circle",
       cells: [10, 20],
+      comparablePoints: [
+        { dateKey: "2026-01-01", value: 10 },
+        { dateKey: "2026-01-08", value: 20 },
+      ],
     },
     {
       seriesKey: "work-2",
@@ -51,6 +66,10 @@ const MULTI_SERIES_MODEL: SyncedTableModel = {
       colorHex: "#4F7074",
       shape: "square",
       cells: ["—", 5],
+      // No real point on 2026-01-01 - its own comparablePoints skips that
+      // slot entirely (mirrors syncedTableModel.ts's builders), matching
+      // this row's own ragged/sparse literal cells above.
+      comparablePoints: [{ dateKey: "2026-01-08", value: 5 }],
     },
   ],
   unitLabel: "Hits",

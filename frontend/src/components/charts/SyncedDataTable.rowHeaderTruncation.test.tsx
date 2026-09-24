@@ -15,7 +15,7 @@ const LONG_TITLE =
 
 const MODEL: SyncedTableModel = {
   columns: [{ dateKey: "2026-01-03", label: "2026-01-03", isLeadIn: false }],
-  rows: [{ seriesKey: "work-1", title: LONG_TITLE, cells: [10] }],
+  rows: [{ seriesKey: "work-1", title: LONG_TITLE, cells: [10], comparablePoints: [] }],
   unitLabel: "Hits",
 };
 
@@ -85,7 +85,7 @@ describe("SyncedDataTable: row-header truncation (Maintenance item 2)", () => {
           isLeadIn: true,
         },
       ],
-      rows: [{ seriesKey: "work-1", title: "Work A", cells: [0] }],
+      rows: [{ seriesKey: "work-1", title: "Work A", cells: [0], comparablePoints: [] }],
       unitLabel: "Hits",
     };
 

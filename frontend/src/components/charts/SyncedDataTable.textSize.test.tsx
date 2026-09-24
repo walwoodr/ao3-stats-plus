@@ -11,7 +11,14 @@ import type { SyncedTableModel } from "../../lib/syncedTableModel";
 // step to text-sm, ~1.2x the prior size and the nearest existing scale step.
 const MODEL: SyncedTableModel = {
   columns: [{ dateKey: "2026-01-03", label: "2026-01-03", isLeadIn: false }],
-  rows: [{ seriesKey: "value", title: "Hits", cells: [100] }],
+  rows: [
+    {
+      seriesKey: "value",
+      title: "Hits",
+      cells: [100],
+      comparablePoints: [{ dateKey: "2026-01-03", value: 100 }],
+    },
+  ],
   unitLabel: "Hits",
 };
 

@@ -21,7 +21,7 @@ const MODEL: SyncedTableModel = {
     { dateKey: "2026-01-04", label: "2026-01-04", isLeadIn: false },
     { dateKey: "2026-01-05", label: "2026-01-05", isLeadIn: false },
   ],
-  rows: [{ seriesKey: "value", title: "Hits", cells: [1, 2, 3, 4, 5] }],
+  rows: [{ seriesKey: "value", title: "Hits", cells: [1, 2, 3, 4, 5], comparablePoints: [] }],
   unitLabel: "Hits",
 };
 
