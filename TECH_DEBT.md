@@ -1457,7 +1457,7 @@
   MULTI/SINGLE_SERIES_MODEL fixtures specifically) added to all nine
   `SyncedTableRow` literals (commit `31093da`). `npx tsc -b` is now fully
   clean project-wide.
-- [2026-09-24] (stage: Implementation) Five genuinely reproducible
+- ~~[2026-09-24] (stage: Implementation) Six genuinely reproducible
   test-environment/test-authoring gaps found while implementing the
   chart-axis-comparison-and-table-orientation-batch plan's item 3 pin
   feature, each verified via an isolated minimal repro (not guessed) and
@@ -1524,4 +1524,37 @@
      remain).
   All six are flagged for Testing/Review to reconcile (either narrow the
   selectors/add explicit `act()`/`waitFor` wrapping/precede clicks with a
-  mousemove, or confirm the intent differs from what's implemented).
+  mousemove, or confirm the intent differs from what's implemented).~~ —
+  **RESOLVED 2026-09-24 (Implementation, same stage)**: per this project's
+  established precedent for Implementation-diagnosed test-authoring
+  defects (see `aeec41b`, `116469d`), fixed directly in commit `12e2c35`
+  rather than left for a separate pass, now that a coordinator review
+  confirmed the diagnoses and asked for a definitive resolution rather
+  than an open flag. All six root causes above were fixed exactly as
+  diagnosed (scoped locators, `getAllByText`, `fireEvent` instead of raw
+  DOM calls, a preceding awaited `mousemove` before each chart click). All
+  1241 vitest tests and all 23 Playwright `accessibility.spec.ts` scans
+  now pass. Re-verifying the final green state also surfaced one genuine
+  application bug this same investigation didn't originally catch (see
+  the separate `MultiSeriesTrendChart.tsx` entry below, commit
+  `5462452`).
+- ~~[2026-09-24] (stage: Implementation) `MultiSeriesTrendChart.tsx`'s
+  `buildChartData` computed the identical `xEpoch` for EVERY
+  estimated-baseline lead-in slot regardless of which one it was, since
+  `leadInEpoch(firstRealEpoch, {realEpochs})` doesn't take the row's own
+  dateKey into account. Two different works with different fallback years
+  (e.g. "Before 2018" vs "Before 2020" - distinct literal `capturedOn`,
+  never collapsed by the union-dates `Set`) landed on the exact same
+  pixel: a real rendering bug (overlapping dots), surfaced as a React
+  "duplicate key" `console.error` in `MultiSeriesTrendChart.leadIn.test.
+  tsx` and the `MultiSeriesTrendChart.stories.tsx` "With Zero Basis Lead
+  Ins" story during a full-suite re-verification pass, not caught by any
+  existing assertion (no test asserted on relative dot position across
+  multiple distinct estimated-baseline dates).~~ — **RESOLVED 2026-09-24
+  (Implementation, same stage, commit `5462452`)**: each distinct
+  estimated-baseline dateKey now gets its own step further back from the
+  nearest bounded offset, ordered so the most recent fallback year sits
+  closest to the real data and earlier ones stack progressively further
+  behind it - preserving relative chronological order while staying
+  bounded/clustered, never colliding. The existing single-lead-in
+  contract (`buildChartData.test.ts`) is unaffected by construction.
