@@ -70,4 +70,28 @@ describe("SyncedDataTable: sticky column full-bleed background + scroll shadow (
     const rowHeader = screen.getByRole("rowheader");
     expect(rowHeader.className).toMatch(/bg-card/);
   });
+
+  // Testing task 5 (chart-axis-comparison-and-table-orientation-batch.md
+  // §10): the sticky left-edge treatment must survive the item 2
+  // orientation flip too - under datesAsRows the leftmost sticky column
+  // becomes the DATE rowheader (not the series title), so this re-runs the
+  // same shadow/opaque-background guarantee against that transposed shape.
+  it("still gives the leftmost sticky column (now the DATE rowheader) the shadow/opaque treatment under datesAsRows orientation", () => {
+    render(
+      <SyncedDataTable
+        title="Hits"
+        rowHeaderLabel="Work"
+        model={MODEL}
+        activeDateKey={null}
+        onActiveDateKeyChange={noop}
+        orientation="datesAsRows"
+        onOrientationChange={noop}
+      />,
+    );
+
+    const rowHeader = screen.getByRole("rowheader", { name: /2026-01-03/ });
+    expect(rowHeader.className).toMatch(/sticky left-0/);
+    expect(rowHeader.className).toMatch(/shadow-\[/);
+    expect(rowHeader.className).toMatch(/bg-card/);
+  });
 });

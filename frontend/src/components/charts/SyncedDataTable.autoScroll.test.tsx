@@ -137,4 +137,40 @@ describe("SyncedDataTable: auto-scroll on externally-triggered activeDateKey (Ma
     const call = vi.mocked(scrollColumnIntoView.animateScrollLeft).mock.calls[0][0];
     expect(call.prefersReducedMotion).toBe(true);
   });
+
+  // Testing task 5 (chart-axis-comparison-and-table-orientation-batch.md
+  // §10): scoped narrowly. The plan doesn't specify a vertical-scroll
+  // equivalent for datesAsRows (scrollColumnIntoView.ts is horizontal-only,
+  // and the plan's own corner cases don't mention one), so this doesn't
+  // assert on scrollLeft/animateScrollLeft behavior under that orientation
+  // - only that the `th[data-date-key]` attribute the auto-scroll effect's
+  // querySelector depends on structurally still identifies date headers
+  // when they're rendered as ROW headers instead of column headers. If
+  // Implementation determines a vertical auto-scroll equivalent is needed
+  // for datesAsRows, that's a product decision beyond this stage's remit -
+  // flag back rather than guess.
+  //
+  // Regression fence, not a red-today assertion: the `orientation` prop
+  // doesn't exist on the component yet, so it's silently ignored and this
+  // already passes against today's unflipped rendering (dates are already
+  // headers with data-date-key). It still earns its place once orientation
+  // ships, catching a future regression that drops the attribute under the
+  // flip specifically.
+  it("still tags each date header with data-date-key when it renders as a ROW header (datesAsRows) - structural precondition for auto-scroll targeting", () => {
+    render(
+      <SyncedDataTable
+        title="Hits"
+        rowHeaderLabel="Metric"
+        model={MODEL}
+        activeDateKey={null}
+        onActiveDateKeyChange={noop}
+        orientation="datesAsRows"
+        onOrientationChange={noop}
+      />,
+    );
+
+    const dateRowHeader = document.querySelector('[data-date-key="2026-01-03"]');
+    expect(dateRowHeader).not.toBeNull();
+    expect(dateRowHeader?.tagName).toBe("TH");
+  });
 });

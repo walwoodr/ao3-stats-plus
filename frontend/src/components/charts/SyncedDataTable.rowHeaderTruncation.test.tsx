@@ -68,4 +68,41 @@ describe("SyncedDataTable: row-header truncation (Maintenance item 2)", () => {
     const rowHeader = screen.getByRole("rowheader");
     expect(rowHeader.textContent).toContain(LONG_TITLE);
   });
+
+  // Testing task 5 (chart-axis-comparison-and-table-orientation-batch.md
+  // §10): under datesAsRows, a long SERIES title moves to the (now
+  // non-sticky) column header instead - but a long LEAD-IN date label (the
+  // longest realistic sticky-row-header text in that orientation, e.g.
+  // "Before 2014 (estimated baseline)") can still land in the sticky
+  // rowheader column, so the same width-cap/truncation guarantee must still
+  // apply there.
+  it("caps and truncates a long lead-in label in the sticky rowheader column under datesAsRows orientation", () => {
+    const modelWithLongLeadInLabel: SyncedTableModel = {
+      columns: [
+        {
+          dateKey: "2014-01-01",
+          label: "Before 2014 (estimated baseline, a genuinely long synthetic label)",
+          isLeadIn: true,
+        },
+      ],
+      rows: [{ seriesKey: "work-1", title: "Work A", cells: [0] }],
+      unitLabel: "Hits",
+    };
+
+    render(
+      <SyncedDataTable
+        title="Hits"
+        rowHeaderLabel="Work"
+        model={modelWithLongLeadInLabel}
+        activeDateKey={null}
+        onActiveDateKeyChange={noop}
+        orientation="datesAsRows"
+        onOrientationChange={noop}
+      />,
+    );
+
+    const rowHeader = screen.getByRole("rowheader", { name: /before 2014/i });
+    expect(rowHeader.className).toMatch(/max-w-\[150px\]/);
+    expect(rowHeader.innerHTML).toMatch(/truncate/);
+  });
 });
