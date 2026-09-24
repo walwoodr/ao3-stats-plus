@@ -294,6 +294,37 @@ test.describe("accessibility - automated axe scans", () => {
 
     expect(results.violations).toEqual([]);
   });
+
+  // Testing task 14 (docs/plans/chart-axis-comparison-and-table-
+  // orientation-batch.md §10, §8): the two new interactive states this
+  // batch adds to the populated dashboard - a pinned comparison point
+  // (item 3, with its delta chips/PinnedComparisonBar) and a flipped table
+  // orientation (item 2) - are new surfaces (pin controls, delta chip
+  // color/contrast, the orientation toggle's pressed state, the scope-
+  // swapped table) not covered by the existing populated-dashboard scan
+  // above. Red today: the pin control's accessible name ("Compare from
+  // <date>") doesn't exist yet, so the `getByRole("button", ...)` lookup
+  // itself fails before any axe assertion runs.
+  test("the populated dashboard with a pinned comparison point and a flipped table has no detectable a11y violations", async ({
+    page,
+  }) => {
+    await mockStatsForUser(page, POPULATED_STATS_RESPONSE);
+    await page.goto("/u/testauthor?token=tok_valid123");
+    await expect(page.getByRole("img", { name: /total hits/i })).toBeVisible();
+
+    await page.getByRole("button", { name: /compare from.*2026-01-01/i }).click();
+    await expect(page.getByText(/comparing from 2026-01-01/i)).toBeVisible();
+
+    await page.getByRole("button", { name: /dates down/i }).click();
+    await expect(page.getByRole("button", { name: /dates down/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    const results = await new AxeBuilder({ page }).analyze();
+
+    expect(results.violations).toEqual([]);
+  });
 });
 
 test.describe("accessibility - automated axe scans (dark mode)", () => {
@@ -353,6 +384,32 @@ test.describe("accessibility - automated axe scans (dark mode)", () => {
     await page.getByRole("combobox", { name: /works to compare/i }).click();
     await expect(page.getByRole("listbox")).toBeVisible();
     await expect(page.getByRole("option", { name: /shared fandom/i })).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).analyze();
+
+    expect(results.violations).toEqual([]);
+  });
+
+  // Testing task 14: dark-mode counterpart of the light-mode pinned-point +
+  // flipped-table scan above - delta-chip green/red contrast and the
+  // orientation toggle's focus ring can differ by theme (§8's "Contrast of
+  // green/red chip text on card background must meet WCAG AA (verify both
+  // modes)").
+  test("the populated dashboard with a pinned comparison point and a flipped table has no detectable a11y violations in dark mode", async ({
+    page,
+  }) => {
+    await mockStatsForUser(page, POPULATED_STATS_RESPONSE);
+    await page.goto("/u/testauthor?token=tok_valid123");
+    await expect(page.getByRole("img", { name: /total hits/i })).toBeVisible();
+
+    await page.getByRole("button", { name: /compare from.*2026-01-01/i }).click();
+    await expect(page.getByText(/comparing from 2026-01-01/i)).toBeVisible();
+
+    await page.getByRole("button", { name: /dates down/i }).click();
+    await expect(page.getByRole("button", { name: /dates down/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
 
     const results = await new AxeBuilder({ page }).analyze();
 
