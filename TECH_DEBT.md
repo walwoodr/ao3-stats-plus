@@ -1427,3 +1427,89 @@
   jsdom's coerced read-back value. Landed as part of the same pass that
   fixed the real overlapping-runs bug this file's sibling suite
   (`fanOut.unloadGuard.test.ts`) also caught.
+- [2026-09-24] (stage: Implementation) `SyncedTableRow.comparablePoints`
+  (item 3, C3a) is a required field, matched by all three
+  `syncedTableModel.ts` builders and by the new
+  `syncedTableModel.test.ts`/`tableOrientation.test.ts` specs that index
+  into it directly with no null-guard - but nine PRE-EXISTING test
+  fixtures across `SyncedDataTable.test.tsx`, `.stickyColumn.test.tsx`,
+  `.autoScroll.test.tsx`, `.rowHeaderTruncation.test.tsx`,
+  `.numberFormatting.test.tsx`, and `.textSize.test.tsx` (all predate item
+  3, not touched by this batch's Testing commits) construct
+  `SyncedTableRow` literals without it. `vitest run` passes regardless
+  (these test files are transpiled by esbuild without type-checking, same
+  precedent as `ActivePointOverlay.test.tsx`'s own "transpiled by esbuild"
+  note), but `tsc -b` reports nine `TS2741` errors against those fixtures.
+  Deferred rather than widened to optional: the new specs' direct,
+  non-null indexing into `comparablePoints` is the more load-bearing
+  contract to protect. A follow-up pass could backfill
+  `comparablePoints: []` onto the nine older fixtures to clear `tsc`
+  fully, without touching any assertion.
+- [2026-09-24] (stage: Implementation) Five genuinely reproducible
+  test-environment/test-authoring gaps found while implementing the
+  chart-axis-comparison-and-table-orientation-batch plan's item 3 pin
+  feature, each verified via an isolated minimal repro (not guessed) and
+  left red rather than worked around by weakening the real feature, since
+  every one of them is incompatible with fixing it from the
+  implementation side without breaking some OTHER locked-down test's
+  contract:
+  1. `SyncedDataTable.orientation.test.tsx`'s "renders a control that
+     names the current orientation state" test calls
+     `screen.getByText(/across|down|dates/i)` - a broad OR-regex that
+     inherently matches BOTH "Dates across" and "Dates down" buttons
+     simultaneously; RTL's `getByText` throws on any multi-match by
+     design. The two-button design is independently required by
+     `TableOrientationToggle.test.tsx`'s own suite, this same file's
+     "calls onOrientationChange..." test (via `getAllByRole` +
+     `.filter(...)`), and `accessibility.spec.ts`'s e2e scan (which
+     clicks a pre-existing "Dates down" button, requiring both options to
+     already be present before any interaction).
+  2. The same file's "calls onActiveDateKeyChange(dateKey) when a date
+     ROW header is hovered" test calls
+     `element.dispatchEvent(new MouseEvent("mouseenter", { bubbles:
+     true }))` directly - confirmed via an isolated repro
+     (`<div onMouseEnter={handler}>` + raw `dispatchEvent`) that this
+     does NOT trigger React's synthetic `onMouseEnter` in this React 19 +
+     jsdom + vitest environment, while `fireEvent.mouseEnter` (used by
+     every other hover-sync test in this codebase) does.
+  3. Several `TrendChart.pin.test.tsx`/`RatioChart.pin.test.tsx`/
+     `MultiSeriesTrendChart.pin.test.tsx` sub-tests call a pin button's
+     raw `.click()` DOM method, then assert on rendered output
+     synchronously with no `waitFor`/`act()`. Confirmed via an isolated
+     repro (`<button onClick={() => setOn(true)}>`) that a raw `.click()`
+     does not flush a React state update before the next synchronous line
+     runs here, while `fireEvent.click()` (wrapped in `act()` by RTL)
+     does.
+  4. Each of those same three files' "pins the clicked date's column when
+     the chart itself is clicked" test dispatches a single
+     `fireEvent.click(wrapper, { clientX, clientY })` with NO preceding
+     `fireEvent.mouseMove` first. Confirmed via an isolated repro that the
+     identical click resolves correctly (pins the point) when preceded by
+     a mousemove, but resolves nothing when it is the very first pointer
+     event - Recharts' redux-toolkit mouse-tracking state in jsdom appears
+     to need a preceding mousemove to seed `activeLabel`, a precondition a
+     real mouse interaction always satisfies but a bare synthetic click
+     does not.
+  5. `MultiSeriesTrendChart.timeAxis.test.tsx`'s `seriesDotCxs`/
+     `leadInCx` helpers query `circle[fill="<series color>"]` across the
+     WHOLE render output rather than scoped to `.recharts-wrapper`, so
+     they also match the SAME series' `MarkerGlyph` swatches rendered in
+     `ComparisonLegend` and `SyncedDataTable`'s row header (both
+     pre-existing, both correctly reusing the identical color+shape per
+     D5's identity-consistency requirement). Verified via direct DOM
+     inspection that the three real chart dots ARE present and correctly,
+     proportionally spaced among the (polluted) set of matched circles.
+  6. `accessibility.spec.ts`'s two new pinned-point/flipped-table
+     Playwright scans call
+     `page.getByRole("button", { name: /compare from.*2026-01-01/i })`
+     unscoped - on the real populated dashboard this resolves to TWO
+     buttons (the "Total hits" chart's own pin button and the by-work
+     comparison chart's, since both legitimately have a real capture on
+     2026-01-01), a Playwright strict-mode locator ambiguity, not an axe
+     violation (confirmed: after fixing the real `<summary>`-nested-
+     focusable-descendants axe violation this same scan caught, 21/23
+     scans pass cleanly - only these two locator-ambiguity failures
+     remain).
+  All six are flagged for Testing/Review to reconcile (either narrow the
+  selectors/add explicit `act()`/`waitFor` wrapping/precede clicks with a
+  mousemove, or confirm the intent differs from what's implemented).
