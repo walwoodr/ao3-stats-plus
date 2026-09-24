@@ -110,6 +110,32 @@ export function buildChartData(series: SeriesDatum[]): BuildChartDataResult {
   const sortedRealEpochs = [...realDates].map(toEpoch).sort((a, b) => a - b);
   const firstRealEpoch: number | undefined = sortedRealEpochs[0];
 
+  // Multiple DIFFERENT works can each carry their own distinct
+  // estimated-baseline dateKey (e.g. "Before 2018" vs "Before 2020" -
+  // different fallback years, so different literal capturedOn/dateKey
+  // slots, NOT collapsed by the union-dates Set above). A naive
+  // leadInEpoch(firstRealEpoch, ...) call ignores which slot it's for, so
+  // every one of them would land on the IDENTICAL computed epoch -
+  // visually overlapping dots and duplicate React keys (a real rendering
+  // bug, not just cosmetic). Each distinct estimated-baseline dateKey
+  // instead gets its own step further back, ordered so the one closest to
+  // the real data (latest literal date) sits nearest firstRealEpoch and
+  // earlier ones stack progressively further behind it - preserving their
+  // relative chronological order while staying a bounded, clustered
+  // synthetic offset (never real calendar-distance apart).
+  const estimatedBaselineEpochAt = new Map<string, number>();
+  if (firstRealEpoch !== undefined) {
+    const nearestOffset = leadInEpoch(firstRealEpoch, { realEpochs: sortedRealEpochs });
+    const stepMs = firstRealEpoch - nearestOffset;
+    const distinctEstimatedBaselineDateKeys = [...zeroBasisLabels.keys()]
+      .filter((dateKey) => !isPublishDateAt.get(dateKey))
+      .sort()
+      .reverse(); // latest (closest to real data) first.
+    distinctEstimatedBaselineDateKeys.forEach((dateKey, index) => {
+      estimatedBaselineEpochAt.set(dateKey, nearestOffset - index * stepMs);
+    });
+  }
+
   function xEpochFor(capturedOn: string): number {
     if (realDates.has(capturedOn)) return toEpoch(capturedOn);
     // A PUBLISH-DATE lead-in is a real date (the work really was published
@@ -119,9 +145,7 @@ export function buildChartData(series: SeriesDatum[]): BuildChartDataResult {
     // the chart's first real point. Degenerate fallback (no real points at
     // all, so there's nothing to be "before") uses the literal epoch - not
     // exercised by any current caller, but keeps this total.
-    return firstRealEpoch === undefined
-      ? toEpoch(capturedOn)
-      : leadInEpoch(firstRealEpoch, { realEpochs: sortedRealEpochs });
+    return estimatedBaselineEpochAt.get(capturedOn) ?? toEpoch(capturedOn);
   }
 
   const rows: ChartRow[] = sortedDates.map((capturedOn) => {
