@@ -246,14 +246,17 @@ export function SyncedDataTable({
                 scope="col"
                 className={`${HEADER_CELL_BASE} sticky left-0 z-10 bg-card text-ink-soft ${STICKY_COLUMN_SHADOW}`}
               >
-                {/* "(row header)" suffix, not just rowHeaderLabel alone -
-                    the header <tr>'s accessible name concatenates every
-                    cell's text, and a bare label immediately followed by a
-                    pin button's "Compare from " prefix can otherwise form
-                    an accidental substring (e.g. "Work" + "Compare" reads
-                    as "...work c..." to a case-insensitive /work c/i
-                    lookup elsewhere) - this suffix reliably breaks that. */}
-                <span className="sr-only">{`${rowHeaderLabel} (row header)`}</span>
+                {/* Plain rowHeaderLabel, no suffix - the pin button's
+                    "Compare from " text lives in aria-label now
+                    (SyncedDataTableCells.tsx), not DOM text/textContent, so
+                    it no longer risks concatenating with this corner's text
+                    into an accidental substring collision (e.g. the earlier
+                    "Work" + "Compare" reading as "...work c..." to some
+                    other case-insensitive lookup) - and several pre-existing
+                    specs (e.g. WorkComparisonSection.bookmarksByWork.test.
+                    tsx) assert this corner cell's textContent equals
+                    rowHeaderLabel exactly. */}
+                <span className="sr-only">{rowHeaderLabel}</span>
               </th>
               {columnSlots.map((slot) =>
                 slot.kind === "date" ? (

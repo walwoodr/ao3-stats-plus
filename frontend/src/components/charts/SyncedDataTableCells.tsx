@@ -93,10 +93,22 @@ export function DateHeaderCell({
         <button
           type="button"
           aria-pressed={isPinned}
+          // "Compare from " lives in aria-label (accessible-name only), NOT
+          // as DOM text - a visible/sr-only text child would show up in
+          // this button's own textContent, which would in turn pollute any
+          // EXACT textContent equality check on the surrounding header
+          // (several pre-existing, unrelated specs - e.g.
+          // WorkComparisonSection.bookmarksByWork.test.tsx - assert the
+          // column header's textContent equals the bare date/label). The
+          // "pinned comparison point" suffix, by contrast, stays a real
+          // sr-only DOM child (not aria-label) because
+          // SyncedDataTable.pinDelta.test.tsx asserts on it via the
+          // header's textContent directly, not the button's accessible
+          // name.
+          aria-label={`Compare from ${entry.label}`}
           onClick={() => togglePin(entry.dateKey)}
           className="min-w-0 max-w-full truncate text-left"
         >
-          <span className="sr-only">Compare from </span>
           {entry.label}
           {isPinned && <span className="sr-only"> — pinned comparison point</span>}
         </button>
