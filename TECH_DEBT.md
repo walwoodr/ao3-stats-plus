@@ -2,6 +2,18 @@
 
 ## Backlog
 
+- [2026-09-24] (stage: Testing) `frontend/src/lib/syncedTableModel.test.ts`
+  is now 656 lines, over `CODE_STANDARDS.md`'s 400-line `.ts` budget - it was
+  already at 523 lines (over budget) before this stage's item 3
+  `comparablePoints` extension (docs/plans/chart-axis-comparison-and-table-
+  orientation-batch.md §10 task 2) added ~130 more. Not fixed inline during
+  Testing per that doc's "a file exceeding its limit ... is a signal to split
+  responsibilities" guidance (a judgment call, not a mechanical truncation) -
+  the natural split is one spec file per builder (`buildTrendTableModel`,
+  `buildRatioTableModel`, `buildMultiSeriesTableModel` each already have
+  their own clearly-delimited `describe` block), which Implementation or a
+  follow-up Maintenance pass can extract without touching test content.
+
 - ~~[2026-09-22] (stage: Testing) **EXTERNAL-UNVERIFIED**: the chart->table
   direction of `TrendChart.sync.test.tsx`/`MultiSeriesTrendChart.sync.test.tsx`
   (docs/plans/chart-synced-data-table.md T9) fires `fireEvent.mouseMove` at a
