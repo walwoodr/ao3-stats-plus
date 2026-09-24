@@ -1396,7 +1396,7 @@
   hover frame. Deferred: minor perf only; a `useMemo` keyed on `series` +
   `seriesColors` would remove it.
 
-- [2026-09-23] (stage: Review) `unloadGuard.test.ts`'s "sets preventDefault
+- ~~[2026-09-23] (stage: Review) `unloadGuard.test.ts`'s "sets preventDefault
   and returnValue" test asserts `event.returnValue).not.toBe("")`, but jsdom
   dispatches a plain `Event` (not a real `BeforeUnloadEvent`), so
   `event.returnValue` reads through the legacy `Event.returnValue` accessor
@@ -1406,4 +1406,12 @@
   meaningful, correct one (that is what actually triggers the browser prompt),
   so this is cosmetic. Deferred: production handler follows the canonical
   MDN pattern and is correct; only the returnValue sub-assertion is
-  misleading. Could drop it or comment why it reads boolean under jsdom.
+  misleading. Could drop it or comment why it reads boolean under jsdom.~~ —
+  **RESOLVED 2026-09-23 (Maintenance)**: replaced the read-back assertion
+  with a spy on the event's `returnValue` *setter* (`Object.defineProperty`
+  on the dispatched event instance, recording every value assigned), and
+  asserts the recorded values include `""` - proves `unloadGuard.ts`'s
+  `event.returnValue = ""` line actually runs, rather than just observing
+  jsdom's coerced read-back value. Landed as part of the same pass that
+  fixed the real overlapping-runs bug this file's sibling suite
+  (`fanOut.unloadGuard.test.ts`) also caught.

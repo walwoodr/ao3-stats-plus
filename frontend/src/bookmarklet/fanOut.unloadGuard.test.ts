@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkDetailIngestResult } from "./workDetailIngestClient";
 import {
   baseOptions,
+  emptyBookmarksResult,
   importRunFanOut,
   scrapedWorkPage,
   stubBannerImplementation,
@@ -91,6 +92,75 @@ describe("runFanOut - beforeunload guard lifecycle", () => {
 
     resolveWork();
     await runPromise;
+  });
+
+  // Regression test for the overlapping-runs bug an adversarial review
+  // caught in commit 008771c (2026-09-23): unloadGuard.ts stored its
+  // listener in a single module-level ref shared by the whole page. If two
+  // runFanOut() calls were ever in flight at once (reachable via
+  // entrypoint.ts's unguarded retry-banner double-submit path - see
+  // entrypointFanOut.test.ts and banners.states.test.ts for the fixes on
+  // that side), the FIRST run to finish called stopUnloadGuard() in its
+  // `finally`, tearing down the shared listener out from under the SECOND,
+  // still-in-progress run - from that point the browser would let the tab
+  // close with no warning while the second run's data was still unsaved,
+  // and the second run's own eventual stopUnloadGuard() call silently
+  // no-op'd since the ref was already null. Fixed by reference-counting
+  // start/stop in unloadGuard.ts itself, so the guard only tears down once
+  // every active run has stopped - this test proves the guard now stays
+  // active until the LAST of two overlapping runs finishes, not the first.
+  it("stays active until the LAST of two overlapping runs finishes, not the first", async () => {
+    const runFanOut = await importRunFanOut();
+    const isUnloadGuardActive = await importIsUnloadGuardActive();
+    const { scrapeWorkPage } = await import("./scrapeWorkPage");
+    const { fetchAllWorkBookmarks } = await import("./scrapeWorkBookmarks");
+    const { postWorkDetail } = await import("./workDetailIngestClient");
+    vi.mocked(scrapeWorkPage).mockReturnValue(scrapedWorkPage(111));
+    vi.mocked(fetchAllWorkBookmarks).mockResolvedValue(emptyBookmarksResult);
+    vi.mocked(postWorkDetail).mockResolvedValue({ status: "success" } as WorkDetailIngestResult);
+
+    let resolveFirst: () => void = () => {};
+    let resolveSecond: () => void = () => {};
+    const fetchWorkPageDocumentFirst = vi.fn().mockImplementation(
+      () =>
+        new Promise<Document | null>((resolve) => {
+          resolveFirst = () => resolve(new Document());
+        }),
+    );
+    const fetchWorkPageDocumentSecond = vi.fn().mockImplementation(
+      () =>
+        new Promise<Document | null>((resolve) => {
+          resolveSecond = () => resolve(new Document());
+        }),
+    );
+
+    const firstRun = runFanOut(baseOptions(container, [111]), {
+      fetchWorkPageDocument: fetchWorkPageDocumentFirst,
+      fetchBookmarksPageDocument: vi.fn(),
+      sleep: vi.fn().mockResolvedValue(undefined),
+    });
+    const secondRun = runFanOut(baseOptions(container, [222]), {
+      fetchWorkPageDocument: fetchWorkPageDocumentSecond,
+      fetchBookmarksPageDocument: vi.fn(),
+      sleep: vi.fn().mockResolvedValue(undefined),
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(isUnloadGuardActive()).toBe(true);
+
+    // The first run finishes while the second is still mid-flight - the
+    // guard must remain active. This is the exact moment the original bug
+    // manifested: the first run's `finally` block tore down the single
+    // shared listener here, even though the second run was still capturing
+    // unsaved data.
+    resolveFirst();
+    await firstRun;
+    expect(isUnloadGuardActive()).toBe(true);
+
+    resolveSecond();
+    await secondRun;
+    expect(isUnloadGuardActive()).toBe(false);
   });
 
   it("is inactive again once the run completes successfully", async () => {
