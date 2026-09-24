@@ -100,9 +100,7 @@ describe("RatioChart: bounded synthetic lead-in offset (item 4 point 2)", () => 
     ];
     const leadIn = { capturedOn: "2016-01-01", ratio: 0 };
 
-    const { container } = render(
-      <RatioChart title="Kudos/hits" points={points} leadIn={leadIn} />,
-    );
+    const { container } = render(<RatioChart title="Kudos/hits" points={points} leadIn={leadIn} />);
 
     const realCxs = realPointCxs(container);
     const leadCx = leadInCx(container);

@@ -70,10 +70,7 @@ describe("normalizeTableModel: dateAxis", () => {
   it("preserves column order exactly as given (never re-sorted)", () => {
     const normalized = normalizeTableModel(MULTI_SERIES_MODEL);
 
-    expect(normalized.dateAxis.map((entry) => entry.dateKey)).toEqual([
-      "2026-01-01",
-      "2026-01-08",
-    ]);
+    expect(normalized.dateAxis.map((entry) => entry.dateKey)).toEqual(["2026-01-01", "2026-01-08"]);
   });
 });
 

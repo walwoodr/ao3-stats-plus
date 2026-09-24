@@ -141,9 +141,7 @@ describe("ActivePointOverlay: pinned-point overlay, distinct from the hover over
     });
 
     await waitFor(() => {
-      expect(container.querySelectorAll('[data-testid="pinned-point-guide-line"]')).toHaveLength(
-        1,
-      );
+      expect(container.querySelectorAll('[data-testid="pinned-point-guide-line"]')).toHaveLength(1);
     });
   });
 

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { computeYDomain, formatDateTick, formatLeadInTick, leadInEpoch, toEpoch } from "./chartTimeAxis";
+import {
+  computeYDomain,
+  formatDateTick,
+  formatLeadInTick,
+  leadInEpoch,
+  toEpoch,
+} from "./chartTimeAxis";
 
 // Testing task 1 (docs/plans/chart-axis-comparison-and-table-orientation-
 // batch.md §10, §2.1, §3 item 4, D7): chartTimeAxis.ts does not exist yet -
@@ -86,12 +92,7 @@ describe("leadInEpoch: bounded synthetic offset before the first real point (§3
     // average would be ~34.7 days (also within bounds) - this test only
     // passes if the implementation genuinely computes a median.
     const first = toEpoch("2026-01-01");
-    const realEpochs = [
-      first,
-      toEpoch("2026-01-03"),
-      toEpoch("2026-01-05"),
-      toEpoch("2026-04-15"),
-    ];
+    const realEpochs = [first, toEpoch("2026-01-03"), toEpoch("2026-01-05"), toEpoch("2026-04-15")];
 
     const result = leadInEpoch(first, { realEpochs });
 

@@ -20,7 +20,11 @@ import { PinnedComparisonBar } from "./PinnedComparisonBar";
 //                                   omitted/null when nothing is hovered
 //   onClear: () => void
 // Implementation must match this contract, or flag back if it's wrong.
-function renderBar(props: { pinnedLabel: string; elapsedLabel?: string | null; onClear?: () => void }) {
+function renderBar(props: {
+  pinnedLabel: string;
+  elapsedLabel?: string | null;
+  onClear?: () => void;
+}) {
   const onClear = props.onClear ?? vi.fn();
   render(
     <PinnedComparisonBar
