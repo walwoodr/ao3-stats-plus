@@ -6,9 +6,13 @@ import { formatNumber } from "../../lib/formatNumber";
 import { renderMarkerShape } from "../../lib/markerPaths";
 import { SERIES_STYLE_SLOTS } from "../../lib/seriesStyles";
 import { buildMultiSeriesTableModel } from "../../lib/syncedTableModel";
+import { computeYDomain, leadInEpoch, toEpoch } from "../../lib/chartTimeAxis";
+import { elapsedLabel as computeElapsedLabel } from "../../lib/pointComparison";
+import type { Orientation } from "../../lib/tableOrientation";
 import { ComparisonLegend } from "./ComparisonLegend";
 import { SyncedDataTable } from "./SyncedDataTable";
 import { ChartDisclosure } from "./ChartDisclosure";
+import { PinnedComparisonBar } from "./PinnedComparisonBar";
 import { ActivePointOverlay, type ActivePoint } from "./ActivePointOverlay";
 import type { TrendPoint } from "./TrendChart";
 
@@ -46,7 +50,7 @@ export interface MultiSeriesTrendChartProps {
   defaultOpen?: boolean;
 }
 
-type ChartRow = { capturedOn: string } & Record<string, string | number | null>;
+type ChartRow = { capturedOn: string; xEpoch: number } & Record<string, string | number | null>;
 
 export interface BuildChartDataResult {
   rows: ChartRow[];
@@ -87,14 +91,41 @@ export function buildChartData(series: SeriesDatum[]): BuildChartDataResult {
   // shared slot that happens to double as another work's real point keeps
   // the precise ISO date instead.
   const zeroBasisLabels = new Map<string, string>();
+  // Item 4 point 2's two lead-in placement paths (§3 item 4): tracked per
+  // zero-basis-only date, alongside zeroBasisLabels above, so buildChartData
+  // knows which xEpoch path to use for that slot below.
+  const isPublishDateAt = new Map<string, boolean>();
   series.forEach((s) => {
     if (s.leadIn && !realDates.has(s.leadIn.capturedOn)) {
       zeroBasisLabels.set(s.leadIn.capturedOn, s.leadIn.label);
+      isPublishDateAt.set(s.leadIn.capturedOn, Boolean(s.leadIn.isPublishDate));
     }
   });
 
+  // The bounded synthetic offset (chartTimeAxis.leadInEpoch) for an
+  // ESTIMATED-BASELINE lead-in slot is computed once, relative to the
+  // chart's OVERALL real-capture cadence (every selected work's real
+  // points combined) - not any single work's own cadence - since the
+  // shared x-axis spans every series together.
+  const sortedRealEpochs = [...realDates].map(toEpoch).sort((a, b) => a - b);
+  const firstRealEpoch: number | undefined = sortedRealEpochs[0];
+
+  function xEpochFor(capturedOn: string): number {
+    if (realDates.has(capturedOn)) return toEpoch(capturedOn);
+    // A PUBLISH-DATE lead-in is a real date (the work really was published
+    // then) - placed at its own true epoch, never a bounded offset.
+    if (isPublishDateAt.get(capturedOn)) return toEpoch(capturedOn);
+    // The account-level ESTIMATED-BASELINE lead-in: bounded offset before
+    // the chart's first real point. Degenerate fallback (no real points at
+    // all, so there's nothing to be "before") uses the literal epoch - not
+    // exercised by any current caller, but keeps this total.
+    return firstRealEpoch === undefined
+      ? toEpoch(capturedOn)
+      : leadInEpoch(firstRealEpoch, { realEpochs: sortedRealEpochs });
+  }
+
   const rows: ChartRow[] = sortedDates.map((capturedOn) => {
-    const row: ChartRow = { capturedOn };
+    const row: ChartRow = { capturedOn, xEpoch: xEpochFor(capturedOn) };
     series.forEach((s) => {
       const point = s.points.find((p) => p.capturedOn === capturedOn);
       row[workKey(s.workId)] = point ? point.value : null;
@@ -164,6 +195,8 @@ export function MultiSeriesTrendChart({
   const headingId = useId();
   const colors = useChartColors();
   const [activeDateKey, setActiveDateKey] = useState<string | null>(null);
+  const [pinnedDateKey, setPinnedDateKey] = useState<string | null>(null);
+  const [orientation, setOrientation] = useState<Orientation>("datesAsColumns");
 
   if (series.length === 0) {
     return (
@@ -175,28 +208,53 @@ export function MultiSeriesTrendChart({
   }
 
   const { rows: chartData, zeroBasisLabels } = buildChartData(series);
-  const tickFormatter = (capturedOn: string): string =>
-    zeroBasisLabels.get(capturedOn) ?? capturedOn;
+  // Preserves the pre-existing word-label-vs-raw-date tick wording exactly
+  // (zeroBasisLabels), just re-keyed off the new numeric xEpoch axis (item
+  // 4/D7) instead of the prior categorical capturedOn one.
+  const tickFormatter = (xEpoch: number): string => {
+    const row = chartData.find((r) => r.xEpoch === xEpoch);
+    if (!row) return "";
+    return zeroBasisLabels.get(row.capturedOn) ?? row.capturedOn;
+  };
 
-  // Chart -> table sync (§2.3): MultiSeriesTrendChart's XAxis is the
-  // categorical capturedOn, so state.activeLabel IS the dateKey directly -
-  // the "easy" resolution path (no chartData lookup needed, unlike
-  // TrendChart/RatioChart's numeric xValue).
+  // Chart -> table sync (§2.3): item 4 switches the XAxis from categorical
+  // capturedOn to numeric xEpoch, so state.activeLabel is now that epoch -
+  // resolve it via chartData, mirroring TrendChart/RatioChart's path.
   function resolveDateKey(state: MouseHandlerDataParam): string | null {
     const activeLabel = state.activeLabel;
-    return typeof activeLabel === "string" ? activeLabel : null;
+    if (activeLabel == null) return null;
+    const row = chartData.find((r) => r.xEpoch === activeLabel);
+    return row ? row.capturedOn : null;
+  }
+
+  function togglePinnedDateKey(dateKey: string | null) {
+    if (dateKey === null) {
+      setPinnedDateKey(null);
+      return;
+    }
+    setPinnedDateKey((previous) => (previous === dateKey ? null : dateKey));
   }
 
   // Table -> chart sync (§2.3): every series with a resolvable value at the
   // active date gets a ring (plan §6's sparse-cell skip rule).
-  const activeRow = activeDateKey
-    ? chartData.find((r) => r.capturedOn === activeDateKey)
-    : undefined;
+  function rowFor(dateKey: string | null): ChartRow | undefined {
+    return dateKey ? chartData.find((r) => r.capturedOn === dateKey) : undefined;
+  }
+  const activeRow = rowFor(activeDateKey);
   const activePoints: ActivePoint[] = activeRow
     ? series
         .map((s): ActivePoint | null => {
           const value = seriesValueAt(activeRow, s.workId);
-          return value == null ? null : { x: activeRow.capturedOn, y: value };
+          return value == null ? null : { x: activeRow.xEpoch, y: value };
+        })
+        .filter((point): point is ActivePoint => point != null)
+    : [];
+  const pinnedRow = rowFor(pinnedDateKey);
+  const pinnedPoints: ActivePoint[] = pinnedRow
+    ? series
+        .map((s): ActivePoint | null => {
+          const value = seriesValueAt(pinnedRow, s.workId);
+          return value == null ? null : { x: pinnedRow.xEpoch, y: value };
         })
         .filter((point): point is ActivePoint => point != null)
     : [];
@@ -206,6 +264,27 @@ export function MultiSeriesTrendChart({
     series,
     seriesColors: colors.series,
   });
+
+  // Item 1/D1's padded y-domain: values across every series, INCLUDING each
+  // lead-in's literal 0 when present (D1, chartTimeAxis.test.ts).
+  const yValues: number[] = [];
+  series.forEach((s) => {
+    s.points.forEach((point) => yValues.push(point.value));
+    if (s.leadIn) yValues.push(0);
+  });
+  const { domain: yDomain, broken: brokenYAxis } = computeYDomain(yValues, {
+    hasLeadIn: series.some((s) => Boolean(s.leadIn)),
+  });
+
+  const pinnedLabel = pinnedRow
+    ? (zeroBasisLabels.get(pinnedRow.capturedOn) ?? pinnedRow.capturedOn)
+    : null;
+  const activeRowForElapsed =
+    activeRow && activeRow.capturedOn !== pinnedRow?.capturedOn ? activeRow : undefined;
+  const elapsedLabelText =
+    pinnedRow && activeRowForElapsed
+      ? computeElapsedLabel(pinnedRow.xEpoch, activeRowForElapsed.xEpoch)
+      : null;
 
   return (
     <div className="w-full rounded-lg border border-ink/12 bg-card p-6 transition-colors duration-200 hover:border-ink/24">
@@ -222,15 +301,23 @@ export function MultiSeriesTrendChart({
                 accessibilityLayer={false}
                 onMouseMove={(state) => setActiveDateKey(resolveDateKey(state))}
                 onMouseLeave={() => setActiveDateKey(null)}
+                onClick={(state) => {
+                  const dateKey = resolveDateKey(state);
+                  if (dateKey) togglePinnedDateKey(dateKey);
+                }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.inkSoft} strokeOpacity={0.2} />
                 <XAxis
-                  dataKey="capturedOn"
-                  type="category"
+                  dataKey="xEpoch"
+                  type="number"
+                  scale="time"
+                  domain={[chartData[0].xEpoch, chartData[chartData.length - 1].xEpoch]}
+                  ticks={chartData.map((row) => row.xEpoch)}
                   tickFormatter={tickFormatter}
                   tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
                 />
                 <YAxis
+                  domain={yDomain}
                   tickFormatter={formatNumber}
                   tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
                 />
@@ -312,7 +399,11 @@ export function MultiSeriesTrendChart({
                     />
                   );
                 })}
-                <ActivePointOverlay activePoints={activePoints} />
+                <ActivePointOverlay
+                  activePoints={activePoints}
+                  pinnedPoints={pinnedPoints}
+                  brokenYAxis={brokenYAxis}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -321,6 +412,14 @@ export function MultiSeriesTrendChart({
 
       <ComparisonLegend entries={series} seriesColors={colors.series} />
 
+      {pinnedLabel && (
+        <PinnedComparisonBar
+          pinnedLabel={pinnedLabel}
+          elapsedLabel={elapsedLabelText}
+          onClear={() => setPinnedDateKey(null)}
+        />
+      )}
+
       <SyncedDataTable
         title={title}
         rowHeaderLabel="Work"
@@ -328,6 +427,10 @@ export function MultiSeriesTrendChart({
         activeDateKey={activeDateKey}
         onActiveDateKeyChange={setActiveDateKey}
         defaultOpen={defaultOpen}
+        orientation={orientation}
+        onOrientationChange={setOrientation}
+        pinnedDateKey={pinnedDateKey}
+        onPinnedDateKeyChange={togglePinnedDateKey}
       />
     </div>
   );
