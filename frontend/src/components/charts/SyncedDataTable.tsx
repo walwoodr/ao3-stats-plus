@@ -169,30 +169,34 @@ export function SyncedDataTable({
   }
 
   return (
-    <details
-      open={open}
-      className="mt-4 rounded-lg border border-ink/12 bg-card transition-colors duration-200"
-    >
-      <summary
-        onClick={toggleOpen}
-        onKeyDown={handleSummaryKeyDown}
-        className="flex cursor-pointer select-none items-center justify-between gap-2 px-4 py-2 text-sm font-semibold text-ink"
+    <div className="relative">
+      <details
+        open={open}
+        className="mt-4 rounded-lg border border-ink/12 bg-card transition-colors duration-200"
       >
-        <span>Data table</span>
+        <summary
+          onClick={toggleOpen}
+          onKeyDown={handleSummaryKeyDown}
+          className="cursor-pointer select-none px-4 py-2 pr-40 text-sm font-semibold text-ink"
+        >
+          Data table
+        </summary>
         {onOrientationChange && (
-          // Deliberately NOT the standalone TableOrientationToggle.tsx
-          // component here: that component intentionally no-ops a click on
-          // its already-active button (its own dedicated test suite locks
-          // this down), but this embedded control's own contract
-          // (SyncedDataTable.orientation.test.tsx) calls onOrientationChange
-          // unconditionally on either button - a small, deliberate
-          // duplication to keep each component's own tested contract
-          // intact rather than forcing one to compromise the other.
-          <span
+          // Positioned absolutely (relative to this component's outer
+          // wrapping div, not <details>) rather than nested inside
+          // <summary> - axe flags "summary has focusable descendants" as a
+          // serious WCAG 4.1.2 violation when a native, independently
+          // focusable control sits inside a <summary>'s own interactive
+          // semantics. A sibling of <summary> (still a child of <details>,
+          // so it hides along with the table when collapsed - it has
+          // nothing useful to toggle while hidden) sidesteps that
+          // entirely, and no longer needs its own click-stopPropagation
+          // guard either, since it's no longer a descendant of <summary>'s
+          // click handler.
+          <div
             role="group"
             aria-label="Table orientation"
-            onClick={(event) => event.stopPropagation()}
-            className="flex items-center gap-1"
+            className="absolute right-4 top-2 flex items-center gap-1"
           >
             {/* Deliberately NOT bg-accent/10 for the pressed state here -
                 that class is reserved elsewhere in this table (and widely
@@ -224,29 +228,28 @@ export function SyncedDataTable({
             >
               Dates down
             </button>
-          </span>
+          </div>
         )}
-      </summary>
-      {/* WCAG 2.1.1/axe scrollable-region-focusable: a horizontally
+        {/* WCAG 2.1.1/axe scrollable-region-focusable: a horizontally
           scrollable region with no naturally focusable content (no links/
           inputs here) must itself be a keyboard-operable tab stop, or
           keyboard-only users have no way to scroll it. */}
-      <div
-        ref={scrollContainerRef}
-        className="overflow-x-auto bg-card px-4 pb-4 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        tabIndex={0}
-        role="region"
-        aria-label={`${title} data table, scrollable`}
-      >
-        <table aria-label={title} className="w-full border-collapse">
-          <thead>
-            <tr>
-              <th
-                ref={stickyCornerRef}
-                scope="col"
-                className={`${HEADER_CELL_BASE} sticky left-0 z-10 bg-card text-ink-soft ${STICKY_COLUMN_SHADOW}`}
-              >
-                {/* Plain rowHeaderLabel, no suffix - the pin button's
+        <div
+          ref={scrollContainerRef}
+          className="overflow-x-auto bg-card px-4 pb-4 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          tabIndex={0}
+          role="region"
+          aria-label={`${title} data table, scrollable`}
+        >
+          <table aria-label={title} className="w-full border-collapse">
+            <thead>
+              <tr>
+                <th
+                  ref={stickyCornerRef}
+                  scope="col"
+                  className={`${HEADER_CELL_BASE} sticky left-0 z-10 bg-card text-ink-soft ${STICKY_COLUMN_SHADOW}`}
+                >
+                  {/* Plain rowHeaderLabel, no suffix - the pin button's
                     "Compare from " text lives in aria-label now
                     (SyncedDataTableCells.tsx), not DOM text/textContent, so
                     it no longer risks concatenating with this corner's text
@@ -256,80 +259,81 @@ export function SyncedDataTable({
                     specs (e.g. WorkComparisonSection.bookmarksByWork.test.
                     tsx) assert this corner cell's textContent equals
                     rowHeaderLabel exactly. */}
-                <span className="sr-only">{rowHeaderLabel}</span>
-              </th>
-              {columnSlots.map((slot) =>
-                slot.kind === "date" ? (
-                  <DateHeaderCell
-                    key={slotKey(slot)}
-                    entry={slot.entry}
-                    as="columnheader"
-                    activeDateKey={activeDateKey}
-                    pinnedDateKey={pinnedDateKey}
-                    onPinnedDateKeyChange={onPinnedDateKeyChange}
-                    notifyActiveDateKeyChange={notifyActiveDateKeyChange}
-                    togglePin={togglePin}
-                  />
-                ) : (
-                  <SeriesHeaderCell key={slotKey(slot)} entry={slot.entry} as="columnheader" />
-                ),
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {rowSlots.map((rowSlot) => (
-              <tr key={slotKey(rowSlot)}>
-                {rowSlot.kind === "date" ? (
-                  <DateHeaderCell
-                    entry={rowSlot.entry}
-                    as="rowheader"
-                    activeDateKey={activeDateKey}
-                    pinnedDateKey={pinnedDateKey}
-                    onPinnedDateKeyChange={onPinnedDateKeyChange}
-                    notifyActiveDateKeyChange={notifyActiveDateKeyChange}
-                    togglePin={togglePin}
-                  />
-                ) : (
-                  <SeriesHeaderCell entry={rowSlot.entry} as="rowheader" />
-                )}
-                {columnSlots.map((colSlot) => {
-                  const dateEntry = isDateSlot(rowSlot)
-                    ? rowSlot.entry
-                    : isDateSlot(colSlot)
-                      ? colSlot.entry
-                      : null;
-                  const seriesEntry = isSeriesSlot(rowSlot)
-                    ? rowSlot.entry
-                    : isSeriesSlot(colSlot)
-                      ? colSlot.entry
-                      : null;
-                  // Exactly one of {rowSlot, colSlot} is always the date
-                  // axis and the other the series axis, by construction
-                  // (columnSlots/rowSlots are built from opposite axes per
-                  // orientation) - both resolve on every real render.
-                  const dateKey = dateEntry?.dateKey ?? "";
-                  const seriesKey = seriesEntry?.seriesKey ?? "";
-                  const isActive = dateKey === activeDateKey;
-                  const cellValue = normalized.valueAt(seriesKey, dateKey);
-                  const seriesRow = model.rows.find((r) => r.seriesKey === seriesKey);
-                  const showDelta = isActive && pinnedDateKey != null && activeDateKey != null;
-                  return (
-                    <DataCell
-                      key={slotKey(colSlot)}
-                      isActive={isActive}
-                      cellValue={cellValue}
-                      showDelta={showDelta}
-                      pinnedDateKey={pinnedDateKey}
+                  <span className="sr-only">{rowHeaderLabel}</span>
+                </th>
+                {columnSlots.map((slot) =>
+                  slot.kind === "date" ? (
+                    <DateHeaderCell
+                      key={slotKey(slot)}
+                      entry={slot.entry}
+                      as="columnheader"
                       activeDateKey={activeDateKey}
-                      comparablePoints={seriesRow?.comparablePoints ?? []}
+                      pinnedDateKey={pinnedDateKey}
+                      onPinnedDateKeyChange={onPinnedDateKeyChange}
+                      notifyActiveDateKeyChange={notifyActiveDateKeyChange}
+                      togglePin={togglePin}
                     />
-                  );
-                })}
+                  ) : (
+                    <SeriesHeaderCell key={slotKey(slot)} entry={slot.entry} as="columnheader" />
+                  ),
+                )}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </details>
+            </thead>
+            <tbody>
+              {rowSlots.map((rowSlot) => (
+                <tr key={slotKey(rowSlot)}>
+                  {rowSlot.kind === "date" ? (
+                    <DateHeaderCell
+                      entry={rowSlot.entry}
+                      as="rowheader"
+                      activeDateKey={activeDateKey}
+                      pinnedDateKey={pinnedDateKey}
+                      onPinnedDateKeyChange={onPinnedDateKeyChange}
+                      notifyActiveDateKeyChange={notifyActiveDateKeyChange}
+                      togglePin={togglePin}
+                    />
+                  ) : (
+                    <SeriesHeaderCell entry={rowSlot.entry} as="rowheader" />
+                  )}
+                  {columnSlots.map((colSlot) => {
+                    const dateEntry = isDateSlot(rowSlot)
+                      ? rowSlot.entry
+                      : isDateSlot(colSlot)
+                        ? colSlot.entry
+                        : null;
+                    const seriesEntry = isSeriesSlot(rowSlot)
+                      ? rowSlot.entry
+                      : isSeriesSlot(colSlot)
+                        ? colSlot.entry
+                        : null;
+                    // Exactly one of {rowSlot, colSlot} is always the date
+                    // axis and the other the series axis, by construction
+                    // (columnSlots/rowSlots are built from opposite axes per
+                    // orientation) - both resolve on every real render.
+                    const dateKey = dateEntry?.dateKey ?? "";
+                    const seriesKey = seriesEntry?.seriesKey ?? "";
+                    const isActive = dateKey === activeDateKey;
+                    const cellValue = normalized.valueAt(seriesKey, dateKey);
+                    const seriesRow = model.rows.find((r) => r.seriesKey === seriesKey);
+                    const showDelta = isActive && pinnedDateKey != null && activeDateKey != null;
+                    return (
+                      <DataCell
+                        key={slotKey(colSlot)}
+                        isActive={isActive}
+                        cellValue={cellValue}
+                        showDelta={showDelta}
+                        pinnedDateKey={pinnedDateKey}
+                        activeDateKey={activeDateKey}
+                        comparablePoints={seriesRow?.comparablePoints ?? []}
+                      />
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>
   );
 }
