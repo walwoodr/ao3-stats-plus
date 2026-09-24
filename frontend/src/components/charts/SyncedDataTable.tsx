@@ -1,13 +1,25 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import type { SyncedTableModel } from "../../lib/syncedTableModel";
-import { MarkerGlyph } from "../../lib/markerShapes";
-import { formatNumber } from "../../lib/formatNumber";
+import {
+  normalizeTableModel,
+  type DateAxisEntry,
+  type NormalizedTableModel,
+  type Orientation,
+  type SeriesAxisEntry,
+} from "../../lib/tableOrientation";
 import {
   animateScrollLeft,
   computeTargetScrollLeft,
   prefersReducedMotion,
   type ColumnLayout,
 } from "../../lib/scrollColumnIntoView";
+import {
+  DataCell,
+  DateHeaderCell,
+  HEADER_CELL_BASE,
+  SeriesHeaderCell,
+  STICKY_COLUMN_SHADOW,
+} from "./SyncedDataTableCells";
 
 export interface SyncedDataTableProps {
   title: string;
@@ -18,30 +30,34 @@ export interface SyncedDataTableProps {
   // D-A: open/collapsible everywhere by default, EXCEPT the By-Work
   // Bookmarks view (up to 10 stacked charts), which passes false.
   defaultOpen?: boolean;
+  // Item 2 (§3 item 2): both optional, backward-compatible defaults, so
+  // every pre-existing call site keeps compiling/rendering unmodified.
+  // Defaults to today's datesAsColumns shape; the toggle control itself
+  // only renders when onOrientationChange is provided.
+  orientation?: Orientation;
+  onOrientationChange?: (orientation: Orientation) => void;
+  // Item 3 (§2.3, §3 item 3, C3b): also optional/backward-compatible. Pin
+  // controls only render on date headers when onPinnedDateKeyChange is
+  // provided; every date header (lead-in included) is an equal pin target.
+  pinnedDateKey?: string | null;
+  onPinnedDateKeyChange?: (dateKey: string | null) => void;
 }
 
-// Maintenance item 7 (post-ship bug batch, 2026-09-23): text-sm, not
-// text-xs - ~1.2x the prior size, and the nearest existing step on
-// MASTER.md's documented type scale, which starts at text-sm/14px for
-// captions/labels (design-system/ao3-stats-plus/MASTER.md's Typography
-// section never names text-xs at all).
-const HEADER_CELL_BASE =
-  "whitespace-nowrap px-3 py-1 text-left font-mono text-sm border-b border-ink/12";
-const DATA_CELL_BASE = "whitespace-nowrap px-3 py-1 text-left font-mono text-sm text-ink";
-// Maintenance item 4 (post-ship bug batch, 2026-09-23): every sticky (left-0)
-// cell gets this same light right-edge shadow - both a "more content this
-// way" scroll affordance and a defensive fix for the seam/gap that
-// `position: sticky` cells can otherwise show in a `border-collapse` table.
-// A plain rgba shadow (not a --color-ink token) reads acceptably subtle in
-// both light and dark without needing its own theme-reactive variant.
-const STICKY_COLUMN_SHADOW = "shadow-[4px_0_6px_-4px_rgba(0,0,0,0.25)]";
+type AxisSlot =
+  | { kind: "date"; entry: DateAxisEntry }
+  | { kind: "series"; entry: SeriesAxisEntry };
 
-// Maintenance item 6 (post-ship bug batch, 2026-09-23): thousands-separate
-// numeric cell values (en-US comma grouping) so large stat counts stay
-// readable at a glance. Non-numeric cells ("—" sparse, "Published (N)"
-// placeholders built by syncedTableModel.ts) pass through unchanged.
-function formatCellValue(cell: number | string): string {
-  return typeof cell === "number" ? formatNumber(cell) : cell;
+function dateSlots(axis: DateAxisEntry[]): AxisSlot[] {
+  return axis.map((entry) => ({ kind: "date", entry }) as const);
+}
+function seriesSlots(axis: SeriesAxisEntry[]): AxisSlot[] {
+  return axis.map((entry) => ({ kind: "series", entry }) as const);
+}
+function isDateSlot(slot: AxisSlot): slot is { kind: "date"; entry: DateAxisEntry } {
+  return slot.kind === "date";
+}
+function isSeriesSlot(slot: AxisSlot): slot is { kind: "series"; entry: SeriesAxisEntry } {
+  return slot.kind === "series";
 }
 
 // The single presentational transposed table shared by TrendChart,
@@ -55,6 +71,16 @@ function formatCellValue(cell: number | string): string {
 // click/Enter/Space handling is explicit (not left to the UA's implicit
 // <summary> activation behavior) so the toggle is exercised the same way in
 // every environment.
+//
+// Item 2/3 (this batch): renders from tableOrientation.ts's normalized
+// dateAxis/seriesAxis/valueAt triple rather than a hardcoded columns=dates/
+// rows=series loop, so BOTH orientations render off the same source of
+// truth - whichever axis is the "primary" (header row, across the top) vs
+// "secondary" (row headers, down the sticky left side) just swaps per
+// `orientation`. A cell's dateKey/seriesKey pair is always resolved from
+// whichever of {row, column} carries each kind, independent of which one
+// is currently rendered as headers vs rows (§2.2's a11y-tied-to-meaning
+// design).
 export function SyncedDataTable({
   title,
   rowHeaderLabel,
@@ -62,6 +88,10 @@ export function SyncedDataTable({
   activeDateKey,
   onActiveDateKeyChange,
   defaultOpen = true,
+  orientation = "datesAsColumns",
+  onOrientationChange,
+  pinnedDateKey = null,
+  onPinnedDateKeyChange,
 }: SyncedDataTableProps) {
   const [open, setOpen] = useState(defaultOpen);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -122,6 +152,24 @@ export function SyncedDataTable({
     }
   }
 
+  function togglePin(dateKey: string) {
+    if (!onPinnedDateKeyChange) return;
+    onPinnedDateKeyChange(pinnedDateKey === dateKey ? null : dateKey);
+  }
+
+  const normalized: NormalizedTableModel = normalizeTableModel(model);
+  const isDatesAsColumns = orientation === "datesAsColumns";
+  const columnSlots: AxisSlot[] = isDatesAsColumns
+    ? dateSlots(normalized.dateAxis)
+    : seriesSlots(normalized.seriesAxis);
+  const rowSlots: AxisSlot[] = isDatesAsColumns
+    ? seriesSlots(normalized.seriesAxis)
+    : dateSlots(normalized.dateAxis);
+
+  function slotKey(slot: AxisSlot): string {
+    return slot.kind === "date" ? slot.entry.dateKey : slot.entry.seriesKey;
+  }
+
   return (
     <details
       open={open}
@@ -130,9 +178,50 @@ export function SyncedDataTable({
       <summary
         onClick={toggleOpen}
         onKeyDown={handleSummaryKeyDown}
-        className="cursor-pointer select-none px-4 py-2 text-sm font-semibold text-ink"
+        className="flex cursor-pointer select-none items-center justify-between gap-2 px-4 py-2 text-sm font-semibold text-ink"
       >
-        Data table
+        <span>Data table</span>
+        {onOrientationChange && (
+          // Deliberately NOT the standalone TableOrientationToggle.tsx
+          // component here: that component intentionally no-ops a click on
+          // its already-active button (its own dedicated test suite locks
+          // this down), but this embedded control's own contract
+          // (SyncedDataTable.orientation.test.tsx) calls onOrientationChange
+          // unconditionally on either button - a small, deliberate
+          // duplication to keep each component's own tested contract
+          // intact rather than forcing one to compromise the other.
+          <span
+            role="group"
+            aria-label="Table orientation"
+            onClick={(event) => event.stopPropagation()}
+            className="flex items-center gap-1"
+          >
+            <button
+              type="button"
+              aria-pressed={orientation === "datesAsColumns"}
+              onClick={() => onOrientationChange("datesAsColumns")}
+              className={
+                orientation === "datesAsColumns"
+                  ? "rounded bg-accent/10 px-2 py-1 text-sm font-semibold text-ink"
+                  : "rounded px-2 py-1 text-sm font-semibold text-ink-soft hover:text-ink"
+              }
+            >
+              Dates across
+            </button>
+            <button
+              type="button"
+              aria-pressed={orientation === "datesAsRows"}
+              onClick={() => onOrientationChange("datesAsRows")}
+              className={
+                orientation === "datesAsRows"
+                  ? "rounded bg-accent/10 px-2 py-1 text-sm font-semibold text-ink"
+                  : "rounded px-2 py-1 text-sm font-semibold text-ink-soft hover:text-ink"
+              }
+            >
+              Dates down
+            </button>
+          </span>
+        )}
       </summary>
       {/* WCAG 2.1.1/axe scrollable-region-focusable: a horizontally
           scrollable region with no naturally focusable content (no links/
@@ -153,66 +242,81 @@ export function SyncedDataTable({
                 scope="col"
                 className={`${HEADER_CELL_BASE} sticky left-0 z-10 bg-card text-ink-soft ${STICKY_COLUMN_SHADOW}`}
               >
-                <span className="sr-only">{rowHeaderLabel}</span>
+                {/* "(row header)" suffix, not just rowHeaderLabel alone -
+                    the header <tr>'s accessible name concatenates every
+                    cell's text, and a bare label immediately followed by a
+                    pin button's "Compare from " prefix can otherwise form
+                    an accidental substring (e.g. "Work" + "Compare" reads
+                    as "...work c..." to a case-insensitive /work c/i
+                    lookup elsewhere) - this suffix reliably breaks that. */}
+                <span className="sr-only">{`${rowHeaderLabel} (row header)`}</span>
               </th>
-              {model.columns.map((column) => {
-                const isActive = column.dateKey === activeDateKey;
-                return (
-                  <th
-                    key={column.dateKey}
-                    data-date-key={column.dateKey}
-                    scope="col"
-                    onMouseEnter={() => notifyActiveDateKeyChange(column.dateKey)}
-                    onMouseLeave={() => notifyActiveDateKeyChange(null)}
-                    onFocus={() => notifyActiveDateKeyChange(column.dateKey)}
-                    onBlur={() => notifyActiveDateKeyChange(null)}
-                    className={
-                      isActive
-                        ? `${HEADER_CELL_BASE} bg-accent/10 font-semibold text-ink`
-                        : `${HEADER_CELL_BASE} text-ink-soft`
-                    }
-                  >
-                    {column.label}
-                  </th>
-                );
-              })}
+              {columnSlots.map((slot) =>
+                slot.kind === "date" ? (
+                  <DateHeaderCell
+                    key={slotKey(slot)}
+                    entry={slot.entry}
+                    as="columnheader"
+                    activeDateKey={activeDateKey}
+                    pinnedDateKey={pinnedDateKey}
+                    onPinnedDateKeyChange={onPinnedDateKeyChange}
+                    notifyActiveDateKeyChange={notifyActiveDateKeyChange}
+                    togglePin={togglePin}
+                  />
+                ) : (
+                  <SeriesHeaderCell key={slotKey(slot)} entry={slot.entry} as="columnheader" />
+                ),
+              )}
             </tr>
           </thead>
           <tbody>
-            {model.rows.map((row) => (
-              <tr key={row.seriesKey}>
-                <th
-                  scope="row"
-                  className={`sticky left-0 z-10 max-w-[150px] bg-card px-2 py-1 text-left text-sm font-semibold text-ink ${STICKY_COLUMN_SHADOW}`}
-                >
-                  {/* max-w-[150px] caps the column so a long work title can't
-                      push the table wide before horizontal scroll kicks in;
-                      `title` carries the FULL text for a hover tooltip, and
-                      `truncate` (overflow-hidden + ellipsis) is CSS-only - it
-                      never removes the underlying DOM text, so non-hover/AT
-                      users still get the whole title via the row's own
-                      textContent (verified by SyncedDataTable.
-                      rowHeaderTruncation.test.tsx). */}
-                  <span className="flex items-center gap-1.5" title={row.title}>
-                    {row.shape && row.colorHex && (
-                      <MarkerGlyph shape={row.shape} color={row.colorHex} size={4} />
-                    )}
-                    <span className="min-w-0 flex-1 truncate">{row.title}</span>
-                  </span>
-                  {row.identityDescription && (
-                    <span className="sr-only">{` — ${row.identityDescription}`}</span>
-                  )}
-                </th>
-                {row.cells.map((cell, index) => {
-                  const column = model.columns[index];
-                  const isActive = column !== undefined && column.dateKey === activeDateKey;
+            {rowSlots.map((rowSlot) => (
+              <tr key={slotKey(rowSlot)}>
+                {rowSlot.kind === "date" ? (
+                  <DateHeaderCell
+                    entry={rowSlot.entry}
+                    as="rowheader"
+                    activeDateKey={activeDateKey}
+                    pinnedDateKey={pinnedDateKey}
+                    onPinnedDateKeyChange={onPinnedDateKeyChange}
+                    notifyActiveDateKeyChange={notifyActiveDateKeyChange}
+                    togglePin={togglePin}
+                  />
+                ) : (
+                  <SeriesHeaderCell entry={rowSlot.entry} as="rowheader" />
+                )}
+                {columnSlots.map((colSlot) => {
+                  const dateEntry = isDateSlot(rowSlot)
+                    ? rowSlot.entry
+                    : isDateSlot(colSlot)
+                      ? colSlot.entry
+                      : null;
+                  const seriesEntry = isSeriesSlot(rowSlot)
+                    ? rowSlot.entry
+                    : isSeriesSlot(colSlot)
+                      ? colSlot.entry
+                      : null;
+                  // Exactly one of {rowSlot, colSlot} is always the date
+                  // axis and the other the series axis, by construction
+                  // (columnSlots/rowSlots are built from opposite axes per
+                  // orientation) - both resolve on every real render.
+                  const dateKey = dateEntry?.dateKey ?? "";
+                  const seriesKey = seriesEntry?.seriesKey ?? "";
+                  const isActive = dateKey === activeDateKey;
+                  const cellValue = normalized.valueAt(seriesKey, dateKey);
+                  const seriesRow = model.rows.find((r) => r.seriesKey === seriesKey);
+                  const showDelta =
+                    isActive && pinnedDateKey != null && activeDateKey != null;
                   return (
-                    <td
-                      key={column?.dateKey ?? index}
-                      className={isActive ? `${DATA_CELL_BASE} bg-accent/10` : DATA_CELL_BASE}
-                    >
-                      {formatCellValue(cell)}
-                    </td>
+                    <DataCell
+                      key={slotKey(colSlot)}
+                      isActive={isActive}
+                      cellValue={cellValue}
+                      showDelta={showDelta}
+                      pinnedDateKey={pinnedDateKey}
+                      activeDateKey={activeDateKey}
+                      comparablePoints={seriesRow?.comparablePoints ?? []}
+                    />
                   );
                 })}
               </tr>
