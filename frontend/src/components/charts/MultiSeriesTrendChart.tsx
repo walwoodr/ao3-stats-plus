@@ -241,6 +241,11 @@ export function MultiSeriesTrendChart({
     if (!row) return "";
     return zeroBasisLabels.get(row.capturedOn) ?? row.capturedOn;
   };
+  // Shared by both the XAxis `domain` prop below and EdgeSafeXAxisTick, so
+  // the tick's "is this the true domain-leftmost point" check is compared
+  // against the SAME value the axis itself was actually built from, rather
+  // than a re-derived (and potentially inconsistent) one.
+  const domainMin = Math.min(...chartData.map((row) => row.xEpoch));
 
   // Chart -> table sync (§2.3): item 4 switches the XAxis from categorical
   // capturedOn to numeric xEpoch, so state.activeLabel is now that epoch -
@@ -336,15 +341,13 @@ export function MultiSeriesTrendChart({
                   dataKey="xEpoch"
                   type="number"
                   scale="time"
-                  domain={[
-                    Math.min(...chartData.map((row) => row.xEpoch)),
-                    Math.max(...chartData.map((row) => row.xEpoch)),
-                  ]}
+                  domain={[domainMin, Math.max(...chartData.map((row) => row.xEpoch))]}
                   ticks={chartData.map((row) => row.xEpoch).sort((a, b) => a - b)}
                   tickFormatter={tickFormatter}
                   tick={createEdgeSafeXAxisTick({
                     fill: colors.inkSoft,
                     formatTick: tickFormatter,
+                    domainMin,
                   })}
                 />
                 <YAxis

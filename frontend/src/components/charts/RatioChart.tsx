@@ -224,7 +224,11 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
                   domain={[chartData[0].xEpoch, chartData[chartData.length - 1].xEpoch]}
                   ticks={chartData.map((row) => row.xEpoch)}
                   tickFormatter={formatTick}
-                  tick={createEdgeSafeXAxisTick({ fill: colors.inkSoft, formatTick })}
+                  tick={createEdgeSafeXAxisTick({
+                    fill: colors.inkSoft,
+                    formatTick,
+                    domainMin: chartData[0].xEpoch,
+                  })}
                 />
                 <YAxis
                   domain={yDomain}
