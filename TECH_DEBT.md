@@ -1558,3 +1558,35 @@
   behind it - preserving relative chronological order while staying
   bounded/clustered, never colliding. The existing single-lead-in
   contract (`buildChartData.test.ts`) is unaffected by construction.
+- [2026-09-24] (stage: Review (adversarial), fix verified stage: main thread)
+  **`MultiSeriesTrendChart.tsx`'s XAxis `domain`/`ticks` were computed
+  positionally from `chartData[0]`/`chartData[last]`**, which assumes
+  ISO-string sort order (how `chartData` is ordered) equals `xEpoch` order -
+  an invariant item 4's own lead-in remapping breaks (an estimated-baseline
+  lead-in keeps its early literal dateKey for sorting but gets a REMAPPED
+  near-first-real-point epoch, while a publish-date lead-in keeps its real,
+  possibly much earlier, epoch). Adversarial review flagged this as a
+  Medium/demonstrated defect ("a publish-date lead-in dot clips off the
+  plot area"). Fixed (main thread) by computing `domain`/sorted `ticks`
+  from `Math.min`/`Math.max` of the actual `xEpoch` values instead of a
+  positional guess - unambiguously more correct regardless of the point
+  below, so kept.
+  **Severity note, downgraded after independent verification**: rendering
+  the adversarial reviewer's exact repro (a mixed publish-date +
+  estimated-baseline multi-select) under the ORIGINAL buggy code showed
+  no actual off-canvas clipping - every dot rendered within the visible
+  [0, 600] canvas, because Recharts' XAxis defaults to
+  `allowDataOverflow: false`, which auto-expands the effective render
+  domain to fit any data point outside the literal `domain` prop rather
+  than clipping/hiding it. This appears to have prevented the worst-case
+  visual symptom the adversarial review predicted, in this specific
+  scenario at least. A DOM-rendered regression test was attempted but
+  produced no observable difference between the buggy and fixed code
+  (both rendered the same visible positions), so no such test was added -
+  it would not have been a real regression fence. The fix is retained as
+  defensive correctness (using the real data extent rather than a
+  positional assumption that happens to only be "saved" by a Recharts
+  default), not as a confirmed visible-bug fix - if `allowDataOverflow`
+  behavior/defaults ever change, or an edge case exists where Recharts'
+  auto-expansion doesn't fully compensate, this fix is what actually
+  prevents the symptom.

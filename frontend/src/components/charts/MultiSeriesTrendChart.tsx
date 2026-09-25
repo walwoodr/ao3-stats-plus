@@ -335,8 +335,11 @@ export function MultiSeriesTrendChart({
                   dataKey="xEpoch"
                   type="number"
                   scale="time"
-                  domain={[chartData[0].xEpoch, chartData[chartData.length - 1].xEpoch]}
-                  ticks={chartData.map((row) => row.xEpoch)}
+                  domain={[
+                    Math.min(...chartData.map((row) => row.xEpoch)),
+                    Math.max(...chartData.map((row) => row.xEpoch)),
+                  ]}
+                  ticks={chartData.map((row) => row.xEpoch).sort((a, b) => a - b)}
                   tickFormatter={tickFormatter}
                   tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
                 />
