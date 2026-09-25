@@ -6,7 +6,7 @@ import { formatNumber } from "../../lib/formatNumber";
 import { renderMarkerShape } from "../../lib/markerPaths";
 import { SERIES_STYLE_SLOTS } from "../../lib/seriesStyles";
 import { buildMultiSeriesTableModel } from "../../lib/syncedTableModel";
-import { computeYDomain, leadInEpoch, toEpoch } from "../../lib/chartTimeAxis";
+import { computeYDomain, estimateYAxisWidth, leadInEpoch, toEpoch } from "../../lib/chartTimeAxis";
 import { elapsedLabel as computeElapsedLabel } from "../../lib/pointComparison";
 import type { Orientation } from "../../lib/tableOrientation";
 import { ComparisonLegend } from "./ComparisonLegend";
@@ -14,6 +14,7 @@ import { SyncedDataTable } from "./SyncedDataTable";
 import { ChartDisclosure } from "./ChartDisclosure";
 import { PinnedComparisonBar } from "./PinnedComparisonBar";
 import { ActivePointOverlay, type ActivePoint } from "./ActivePointOverlay";
+import { createEdgeSafeXAxisTick } from "./EdgeSafeXAxisTick";
 import type { TrendPoint } from "./TrendChart";
 
 // Per-work zero-basis dates (docs/plans/per-work-zero-basis-dates.md):
@@ -341,10 +342,14 @@ export function MultiSeriesTrendChart({
                   ]}
                   ticks={chartData.map((row) => row.xEpoch).sort((a, b) => a - b)}
                   tickFormatter={tickFormatter}
-                  tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
+                  tick={createEdgeSafeXAxisTick({
+                    fill: colors.inkSoft,
+                    formatTick: tickFormatter,
+                  })}
                 />
                 <YAxis
                   domain={yDomain}
+                  width={estimateYAxisWidth(yDomain[1])}
                   tickFormatter={formatNumber}
                   tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
                 />

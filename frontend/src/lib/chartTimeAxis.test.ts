@@ -116,19 +116,25 @@ describe("leadInEpoch: bounded synthetic offset before the first real point (§3
 });
 
 describe("computeYDomain: padded domain + broken-axis flag (§3 item 1, D1)", () => {
+  // 324/316's raw pad-only ceilings are themselves the bug this batch fixes
+  // (see the "nice-rounded ceiling" describe block below) - computeYDomain
+  // now rounds the ceiling UP to a clean 2-significant-figure number
+  // (324 -> 330, 316 -> 320) as part of its return contract, so these two
+  // expected values were updated accordingly; the pad-ratio math itself
+  // (range * 0.08) is unchanged and still verified via the comments below.
   it("D1: pins the floor at 0 and pads only the top when the lead-in's 0 is present (dataMin <= 0)", () => {
     const result = computeYDomain([0, 100, 140, 300], { hasLeadIn: true });
 
-    // range = 300, pad = 300 * 0.08 = 24.
-    expect(result.domain).toEqual([0, 324]);
+    // range = 300, pad = 300 * 0.08 = 24, raw ceiling = 324 -> nice-rounded to 330.
+    expect(result.domain).toEqual([0, 330]);
     expect(result.broken).toBe(false);
   });
 
   it("lifts the floor off zero and sets broken=true when there is no lead-in and dataMin > 0", () => {
     const result = computeYDomain([100, 140, 300], { hasLeadIn: false });
 
-    // range = 200, pad = 16, lo = 100 - 16 = 84.
-    expect(result.domain).toEqual([84, 316]);
+    // range = 200, pad = 16, lo = 100 - 16 = 84, raw ceiling 316 -> nice-rounded to 320.
+    expect(result.domain).toEqual([84, 320]);
     expect(result.broken).toBe(true);
   });
 
@@ -144,9 +150,10 @@ describe("computeYDomain: padded domain + broken-axis flag (§3 item 1, D1)", ()
   it("gives a lone point (no lead-in) breathing room via the single-point fallback pad, and marks it broken", () => {
     const result = computeYDomain([50], { hasLeadIn: false });
 
-    // range === 0 -> fallback = max(abs(50) * 0.1, 1) = 5; pad = 5 * 0.08 = 0.4.
+    // range === 0 -> fallback = max(abs(50) * 0.1, 1) = 5; pad = 5 * 0.08 = 0.4;
+    // raw ceiling 50.4 -> nice-rounded up to 51 (2 sig figs).
     expect(result.domain[0]).toBeCloseTo(49.6, 5);
-    expect(result.domain[1]).toBeCloseTo(50.4, 5);
+    expect(result.domain[1]).toBeCloseTo(51, 5);
     expect(result.broken).toBe(true);
   });
 
@@ -172,5 +179,60 @@ describe("computeYDomain: padded domain + broken-axis flag (§3 item 1, D1)", ()
     // abs(0.001) * 0.1 is far below 1, so the max(..., 1) floor kicks in:
     // fallback = 1, pad = 0.08.
     expect(result.domain[1] - result.domain[0]).toBeCloseTo(0.08, 5);
+  });
+});
+
+// Bug fix regression tests (2026-09-25 Preview finding, item 1): the raw
+// padded ceiling used to be returned as an arbitrary unrounded float,
+// producing an ugly Y-axis top tick ("141,823.44"/"778.68" alongside clean
+// round ticks) that could also overflow the width Recharts allocated for
+// the shorter round labels around it. Deliberately uses REAL, non-round
+// magnitudes lifted straight from the Preview screenshots that exposed the
+// bug (a ~131k-hit aggregate series, a ~721-hit per-work series) rather than
+// small clean numbers - the pre-existing describe block above already used
+// plenty of those and none of them caught this.
+describe("computeYDomain: nice-rounded ceiling, realistic non-round magnitudes (bug fix, 2026-09-25)", () => {
+  it("rounds a large aggregate-scale ceiling (dashboard 'Total hits', dataMax=131069) to a clean multiple of 10,000, not a raw decimal", () => {
+    // Mirrors the real "Total hits" dashboard chart: hasLeadIn -> dataMin
+    // 0 included. range = 131069, pad = 131069 * 0.08 = 10485.52, raw
+    // ceiling = 141554.52 - confirmed live as the exact clipped/decimal tick.
+    const result = computeYDomain([0, 130536, 130597, 130911, 131069], { hasLeadIn: true });
+
+    expect(result.domain).toEqual([0, 150000]);
+    expect(Number.isInteger(result.domain[1])).toBe(true);
+  });
+
+  it("rounds a small-but-not-round per-work ceiling (dataMax=721) to a clean integer, not a raw decimal", () => {
+    // Mirrors the real per-work "Hits" comparison chart (pinned_compare.png):
+    // raw ceiling = 721 + 721*0.08 = 778.68 - confirmed live as that exact
+    // unrounded top tick.
+    const result = computeYDomain([0, 720, 721], { hasLeadIn: true });
+
+    expect(result.domain).toEqual([0, 780]);
+    expect(Number.isInteger(result.domain[1])).toBe(true);
+  });
+
+  it("still preserves meaningful fractional precision for a RatioChart-scale ceiling (values well under 1), not blown up to an unrelated round number", () => {
+    // A kudos-to-hits ratio never gets anywhere near the large-integer
+    // magnitudes above - the rounding must stay proportionate at this scale
+    // too, not regress RatioChart's legitimate fractional ticks.
+    const result = computeYDomain([0, 0.041, 0.0623], { hasLeadIn: true });
+
+    // range = 0.0623, pad = 0.0623 * 0.08 = 0.004984, raw ceiling =
+    // 0.067284 -> nice-rounded (2 sig figs) up to 0.068.
+    expect(result.domain[1]).toBeCloseTo(0.068, 10);
+    // Nice-rounding must never pull the ceiling below the real data max -
+    // no data point can be clipped out of the visible domain by this fix.
+    expect(result.domain[1]).toBeGreaterThanOrEqual(0.0623);
+  });
+
+  it("never rounds the ceiling below the raw padded value, for any magnitude (no data point is ever clipped out of view)", () => {
+    const inputs = [[0, 130536, 130597, 130911, 131069], [0, 720, 721], [100, 140, 300], [0.001]];
+
+    for (const values of inputs) {
+      const dataMax = Math.max(...values);
+      const result = computeYDomain(values, { hasLeadIn: values.includes(0) });
+      expect(result.domain[1]).toBeGreaterThanOrEqual(dataMax);
+    }
   });
 });

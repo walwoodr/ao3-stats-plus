@@ -6,6 +6,7 @@ import { formatNumber } from "../../lib/formatNumber";
 import { buildRatioTableModel } from "../../lib/syncedTableModel";
 import {
   computeYDomain,
+  estimateYAxisWidth,
   formatDateTick,
   formatLeadInTick,
   leadInEpoch,
@@ -17,6 +18,7 @@ import { SyncedDataTable } from "./SyncedDataTable";
 import { ChartDisclosure } from "./ChartDisclosure";
 import { PinnedComparisonBar } from "./PinnedComparisonBar";
 import { ActivePointOverlay, type ActivePoint } from "./ActivePointOverlay";
+import { createEdgeSafeXAxisTick } from "./EdgeSafeXAxisTick";
 
 export interface RatioPoint {
   capturedOn: string;
@@ -222,10 +224,11 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
                   domain={[chartData[0].xEpoch, chartData[chartData.length - 1].xEpoch]}
                   ticks={chartData.map((row) => row.xEpoch)}
                   tickFormatter={formatTick}
-                  tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
+                  tick={createEdgeSafeXAxisTick({ fill: colors.inkSoft, formatTick })}
                 />
                 <YAxis
                   domain={yDomain}
+                  width={estimateYAxisWidth(yDomain[1])}
                   tickFormatter={formatNumber}
                   tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
                 />

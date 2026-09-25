@@ -1614,3 +1614,24 @@
   `leadInDate < firstCapturedOn`, which requires at least one real capture to
   exist. Flagged as a latent fragility only - no live path found to trigger
   it.
+- [2026-09-25] (stage: Implementation) **Systemic test-coverage gap: the
+  chart test suite had no test using non-round/large real-world-scale
+  numbers before this fix, and no test asserting rendered tick-label text
+  against its allocated rendering space.** The two bugs this entry's commits
+  fix (`chartTimeAxis.ts`'s unrounded Y-domain ceiling; `MultiSeriesTrendChart`'s
+  left-clipped lead-in X-tick label) both passed the full pre-existing suite
+  because every prior `computeYDomain`/chart-render test used small, clean,
+  round input values (`[0, 100, 140, 300]`, `10`/`20`/`30`, etc.) - none
+  exercised a value like a real 131,069-hit dashboard total or a real
+  21-character "Published 2014-09-06" lead-in label sitting at the domain's
+  literal edge. Both bugs were only caught by a real production-build
+  Preview run against real account data (38 works, 6 snapshots, dates back to
+  2014), not by any unit/component test. The new regression tests added here
+  (`chartTimeAxis.test.ts`'s "realistic non-round magnitudes" block,
+  `TrendChart.yAxisRounding.test.tsx`, `MultiSeriesTrendChart.leadInTickClipping.test.tsx`)
+  close these two specific gaps, but the broader pattern - this suite's
+  fixtures skew toward small/round numbers and toward mid-chart rather than
+  domain-edge positions - is worth a deliberate look during Retrospective:
+  consider a standing convention (or even a lint/review checklist item) that
+  new chart tests include at least one large/non-round-magnitude case and one
+  domain-edge-label case, not just algebraically convenient small ones.

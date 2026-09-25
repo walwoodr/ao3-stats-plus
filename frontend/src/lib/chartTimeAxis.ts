@@ -3,6 +3,8 @@
 // orientation-batch.md §2.1/§3 item 1/§3 item 4. No React/Recharts
 // dependency here; the chart components consume these directly.
 
+import { formatNumber } from "./formatNumber";
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -80,6 +82,53 @@ export interface YDomainResult {
 
 const PAD_RATIO = 0.08;
 
+// Bug fix (2026-09-25 Preview finding, item 1): the raw padded ceiling
+// (dataMax + pad) is an arbitrary float. Rendered as a Y-axis tick it looks
+// inconsistent next to the clean round ticks below it (e.g. "141,554.52"
+// beside "0 / 40,000 / 80,000 / 120,000") and, because it's WIDER than the
+// short round labels Recharts' default axis width was effectively sized
+// for, the extra characters get left-clipped in the real chart (confirmed
+// live on the "Total hits"/"Kudos" dashboard charts). Rounding the ceiling
+// itself UP (never below the raw value, so no data point is ever pushed out
+// of the visible domain) to a "nice" 2-significant-figure number fixes the
+// root cause: e.g. 141554.52 -> 150000, 316 -> 320, 0.083 -> 0.084. This is
+// the standard nice-axis-bound technique (Heckbert, "Nice Numbers for Graph
+// Labels", Graphics Gems, 1990). 2 sig figs (not the coarser 1) keeps the
+// extra headroom proportionate to PAD_RATIO's own small-headroom intent
+// (D1) rather than snapping all the way to the next power-of-ten multiple.
+const NICE_CEILING_SIGNIFICANT_DIGITS = 2;
+
+function niceCeiling(value: number): number {
+  if (value <= 0) return 0;
+  const magnitude = 10 ** (Math.floor(Math.log10(value)) - (NICE_CEILING_SIGNIFICANT_DIGITS - 1));
+  return Math.ceil(value / magnitude) * magnitude;
+}
+
+// Root-cause-adjacent defense-in-depth for the same bug: Recharts' YAxis
+// `width="auto"` sizing depends on a live DOM text-measurement pass
+// (getBoundingClientRect on each rendered tick) that this codebase's charts
+// can't rely on being correct in every real layout (and which is a no-op in
+// this project's jsdom test environment, since jsdom never lays text out) -
+// an explicit width, sized generously for the widest formatted tick label,
+// is deterministic instead of hoping "auto" catches up. Approximates a
+// monospace glyph's rendered width at the charts' fixed 12px tick font size;
+// the padding covers the tick line + Recharts' built-in tick margin.
+const APPROX_MONO_CHAR_WIDTH_PX = 7.3;
+const Y_AXIS_WIDTH_PADDING_PX = 18;
+const MIN_Y_AXIS_WIDTH_PX = 40;
+
+// `topTickValue` is expected to be the (already nice-rounded) domain
+// ceiling - the widest label on a Y-axis that starts at/near 0 and counts
+// up is always its top tick, so that one value is a sufficient stand-in for
+// "the widest tick label this axis will render."
+export function estimateYAxisWidth(topTickValue: number): number {
+  const label = formatNumber(topTickValue);
+  return Math.max(
+    MIN_Y_AXIS_WIDTH_PX,
+    Math.round(label.length * APPROX_MONO_CHAR_WIDTH_PX) + Y_AXIS_WIDTH_PADDING_PX,
+  );
+}
+
 // Item 1's padded y-domain rule (D1/D2). `values` must include the lead-in's
 // literal 0 when a lead-in is present (D1 - the caller's responsibility).
 // `hasLeadIn` is part of the documented call contract (callers state their
@@ -102,7 +151,7 @@ export function computeYDomain(
   const pad = (range || fallbackForSinglePoint) * PAD_RATIO;
 
   if (dataMin <= 0) {
-    return { domain: [0, dataMax + pad], broken: false };
+    return { domain: [0, niceCeiling(dataMax + pad)], broken: false };
   }
 
   const lo = Math.max(0, dataMin - pad);
@@ -111,6 +160,6 @@ export function computeYDomain(
   // a near-zero single point would otherwise inherit a lopsided extra
   // dataMax's worth of headroom it doesn't need (hasLeadIn is false here, so
   // there is no meaningful "floor at 0" semantics to preserve beyond this).
-  const hi = dataMin - pad < 0 ? pad : dataMax + pad;
+  const hi = niceCeiling(dataMin - pad < 0 ? pad : dataMax + pad);
   return { domain: [lo, hi], broken: lo > 0 };
 }

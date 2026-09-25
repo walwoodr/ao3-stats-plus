@@ -6,6 +6,7 @@ import { formatNumber } from "../../lib/formatNumber";
 import { buildTrendTableModel } from "../../lib/syncedTableModel";
 import {
   computeYDomain,
+  estimateYAxisWidth,
   formatDateTick,
   formatLeadInTick,
   leadInEpoch,
@@ -17,6 +18,7 @@ import { SyncedDataTable } from "./SyncedDataTable";
 import { ChartDisclosure } from "./ChartDisclosure";
 import { PinnedComparisonBar } from "./PinnedComparisonBar";
 import { ActivePointOverlay, type ActivePoint } from "./ActivePointOverlay";
+import { createEdgeSafeXAxisTick } from "./EdgeSafeXAxisTick";
 
 export interface TrendPoint {
   capturedOn: string;
@@ -228,10 +230,11 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
                   domain={[chartData[0].xEpoch, chartData[chartData.length - 1].xEpoch]}
                   ticks={chartData.map((row) => row.xEpoch)}
                   tickFormatter={formatTick}
-                  tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
+                  tick={createEdgeSafeXAxisTick({ fill: colors.inkSoft, formatTick })}
                 />
                 <YAxis
                   domain={yDomain}
+                  width={estimateYAxisWidth(yDomain[1])}
                   tickFormatter={formatNumber}
                   tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
                 />
