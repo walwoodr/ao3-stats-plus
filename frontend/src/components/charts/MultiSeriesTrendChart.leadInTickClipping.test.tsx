@@ -2,16 +2,19 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import { MultiSeriesTrendChart, type SeriesDatum } from "./MultiSeriesTrendChart";
 
-// Bug fix regression test (2026-09-25 Preview finding, item 4/D7): a real
-// production-build preview against a real per-work publish-date lead-in
-// ("Lay Down Your Stones and Arrows", published 2014-09-06, a real
-// chronological-axis leftmost point per item 4) found the lead-in's X-axis
-// tick label rendering left-clipped: "Published 2014-09-06" rendered as
-// "ublished 2014-09-06". Recharts center-anchors tick labels by default, so
-// a label sitting at the domain's true leftmost edge has half its width
-// pushed past the chart's own left boundary. Deliberately uses the real
-// label text/date from the screenshot (not a short label that wouldn't have
-// overflowed) so this test actually would have caught the bug.
+// Structural fix regression test (2026-09-25, third round - supersedes the
+// text-anchor-based EdgeSafeXAxisTick approach from `026890f`). A real
+// production-build Preview run against a real per-work publish-date lead-in
+// ("Lay Down Your Stones and Arrows", published 2014-09-06) originally found
+// this exact label rendering left-clipped ("Published 2014-09-06" ->
+// "ublished 2014-09-06"). Two subsequent fix attempts targeting Recharts'
+// own tick-anchoring/index internals each surfaced a NEW failure mode
+// against real data (see TECH_DEBT.md's superseded entries and
+// LeadInXAxisTick.tsx's top-of-file comment for the full history). The
+// user-directed pivot: never render the lead-in's date/label text as an
+// X-axis tick at all - render a small marker instead. This test keeps the
+// real long label text from the original bug report so it would still
+// catch a regression back to rendering it as a tick label.
 function installRechartsSizePolyfill() {
   class ResizeObserverStub {
     private readonly callback: ResizeObserverCallback;
@@ -58,25 +61,33 @@ function installRechartsSizePolyfill() {
   });
 }
 
-function xAxisTickLabelFor(container: HTMLElement, text: string): Element {
-  const label = Array.from(
+function xAxisTickLabelTexts(container: HTMLElement): string[] {
+  return Array.from(
     container.querySelectorAll(".recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value"),
-  ).find((el) => el.textContent === text);
-  if (!label) throw new Error(`expected an X-axis tick label with text "${text}"`);
-  return label;
+  ).map((el) => el.textContent ?? "");
 }
 
-describe("MultiSeriesTrendChart: leftmost X-axis lead-in tick label doesn't get clipped (bug fix, 2026-09-25)", () => {
+function xAxisTickMarkers(container: HTMLElement): Element[] {
+  return Array.from(container.querySelectorAll(".recharts-xAxis-tick-labels circle"));
+}
+
+describe("MultiSeriesTrendChart: the lead-in's X-axis tick is a marker, never the long publish-date label (structural fix, 2026-09-25)", () => {
   installRechartsSizePolyfill();
 
-  it("left-anchors (not center-anchors) the leftmost tick, so a long publish-date lead-in label starts within the chart instead of overflowing its left edge", () => {
+  it("renders a marker (not text) at the publish-date lead-in's position - the real label never appears among the rendered tick texts", () => {
     const work: SeriesDatum = {
       workId: 1,
       title: "Lay Down Your Stones and Arrows",
       styleIndex: 0,
+      // Spread months apart (not days) so every real tick clears Recharts'
+      // OWN, unrelated minimum-tick-gap spacing given the ~12-year total
+      // domain this publish-date lead-in creates - a fixture-scale detail
+      // orthogonal to this fix (Recharts still declines to render two real
+      // ticks that would overlap each other in pixel space; that's expected
+      // and untouched here, not the bug under test).
       points: [
-        { capturedOn: "2026-08-02", value: 720 },
-        { capturedOn: "2026-08-03", value: 721 },
+        { capturedOn: "2025-01-15", value: 700 },
+        { capturedOn: "2025-09-01", value: 715 },
         { capturedOn: "2026-08-05", value: 721 },
       ],
       leadIn: {
@@ -90,20 +101,24 @@ describe("MultiSeriesTrendChart: leftmost X-axis lead-in tick label doesn't get 
       <MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[work]} />,
     );
 
-    const leadInLabel = xAxisTickLabelFor(container, "Published 2014-09-06");
-    // The bug: a center ("middle") anchor pushes roughly half the label's
-    // width to the LEFT of its x position - for this 21-character label at
-    // the domain's leftmost edge, that reliably went negative (off-canvas),
-    // producing the observed "ublished 2014-09-06" clip.
-    expect(leadInLabel.getAttribute("text-anchor")).toBe("start");
+    const labels = xAxisTickLabelTexts(container);
+    // Every rendered text label is a real capture date - the lead-in's own
+    // label never appears among them, long or otherwise.
+    expect(labels).toEqual(["2025-01-15", "2025-09-01", "2026-08-05"]);
+    labels.forEach((label) => expect(label).not.toContain("Published"));
 
-    // A later, non-leftmost tick keeps the original centered look - this
-    // fix is scoped to the domain-edge tick only, not every tick.
-    const laterLabel = xAxisTickLabelFor(container, "2026-08-05");
-    expect(laterLabel.getAttribute("text-anchor")).toBe("middle");
+    // Every rendered real-point tick keeps the default centered anchor -
+    // this fix never left-anchors anything, unlike the superseded approach.
+    const anchors = Array.from(
+      container.querySelectorAll(".recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value"),
+    ).map((el) => el.getAttribute("text-anchor"));
+    expect(anchors).toEqual(["middle", "middle", "middle"]);
+
+    // Exactly one marker renders, for the lead-in slot.
+    expect(xAxisTickMarkers(container)).toHaveLength(1);
   });
 
-  it("still shows the real capture dates' ticks correctly when there's no lead-in at all (regression fence)", () => {
+  it("still shows the real capture dates' ticks correctly, centered, when there's no lead-in at all (regression fence)", () => {
     const work: SeriesDatum = {
       workId: 2,
       title: "Another Work",
@@ -118,7 +133,11 @@ describe("MultiSeriesTrendChart: leftmost X-axis lead-in tick label doesn't get 
       <MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[work]} />,
     );
 
-    const firstLabel = xAxisTickLabelFor(container, "2026-08-02");
-    expect(firstLabel.getAttribute("text-anchor")).toBe("start");
+    expect(xAxisTickLabelTexts(container)).toEqual(["2026-08-02", "2026-08-05"]);
+    expect(xAxisTickMarkers(container)).toHaveLength(0);
+    const firstLabel = Array.from(
+      container.querySelectorAll(".recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value"),
+    )[0];
+    expect(firstLabel.getAttribute("text-anchor")).toBe("middle");
   });
 });

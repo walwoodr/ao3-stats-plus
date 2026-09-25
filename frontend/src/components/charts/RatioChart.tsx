@@ -8,7 +8,6 @@ import {
   computeYDomain,
   estimateYAxisWidth,
   formatDateTick,
-  formatLeadInTick,
   leadInEpoch,
   toEpoch,
 } from "../../lib/chartTimeAxis";
@@ -18,7 +17,7 @@ import { SyncedDataTable } from "./SyncedDataTable";
 import { ChartDisclosure } from "./ChartDisclosure";
 import { PinnedComparisonBar } from "./PinnedComparisonBar";
 import { ActivePointOverlay, type ActivePoint } from "./ActivePointOverlay";
-import { createEdgeSafeXAxisTick } from "./EdgeSafeXAxisTick";
+import { createLeadInXAxisTick } from "./LeadInXAxisTick";
 
 export interface RatioPoint {
   capturedOn: string;
@@ -106,11 +105,21 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
         isLeadIn: false,
       }));
 
-  const formatTick = (xEpoch: number): string => {
-    const row = chartData.find((r) => r.xEpoch === xEpoch);
-    if (!row) return "";
-    return row.isLeadIn ? formatLeadInTick(xEpoch) : formatDateTick(xEpoch);
-  };
+  function isLeadInTick(xEpoch: number): boolean {
+    return chartData.find((r) => r.xEpoch === xEpoch)?.isLeadIn ?? false;
+  }
+
+  // Only a real point's tick gets text at all - the lead-in slot renders a
+  // marker instead (see LeadInXAxisTick.tsx), so this never needs to format
+  // a lead-in's date.
+  const formatTick = (xEpoch: number): string => formatDateTick(xEpoch);
+
+  // Passed to <XAxis tickFormatter>, NOT to the custom tick renderer's own
+  // `formatTick` above - see TrendChart's identical comment/
+  // LeadInXAxisTick.tsx's top-of-file comment for why this must return ""
+  // for the lead-in's slot.
+  const axisTickFormatter = (xEpoch: number): string =>
+    isLeadInTick(xEpoch) ? "" : formatTick(xEpoch);
 
   // Chart -> table sync (§2.3): mirrors TrendChart's numeric-xEpoch
   // resolveDateKey exactly.
@@ -223,11 +232,12 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
                   scale="time"
                   domain={[chartData[0].xEpoch, chartData[chartData.length - 1].xEpoch]}
                   ticks={chartData.map((row) => row.xEpoch)}
-                  tickFormatter={formatTick}
-                  tick={createEdgeSafeXAxisTick({
+                  tickFormatter={axisTickFormatter}
+                  tick={createLeadInXAxisTick({
                     fill: colors.inkSoft,
                     formatTick,
-                    domainMin: chartData[0].xEpoch,
+                    isLeadInTick,
+                    markerColor: colors.accent,
                   })}
                 />
                 <YAxis

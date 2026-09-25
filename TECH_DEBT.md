@@ -1366,7 +1366,7 @@
   matching column tints, especially ahead of any Recharts 4 upgrade (plan R6) -
   the additive-overlay bet is the feature's riskiest Recharts coupling and
   deserves a browser-level fence, not just jsdom + source.
-- [2026-09-23] (stage: Maintenance) Maintenance item 3 (chart-synced-data-table
+- ~~[2026-09-23] (stage: Maintenance) Maintenance item 3 (chart-synced-data-table
   post-ship bug batch) reformatted `SyncedDataTable`'s per-work publish-date
   lead-in column header (now just the raw date) and cell ("Published (N)")
   in `syncedTableModel.ts`'s `buildMultiSeriesTableModel`, per direct user
@@ -1377,7 +1377,12 @@
   visible inconsistency between the chart axis and the table header for a
   work's own publish-date lead-in. Deferred: out of scope for this fix (not
   requested), and low-severity (cosmetic wording mismatch, not a correctness
-  bug) - worth revisiting if it reads as confusing in practice.
+  bug) - worth revisiting if it reads as confusing in practice.~~ —
+  **RESOLVED 2026-09-25 (Implementation, lead-in axis-marker structural fix)**:
+  moot now. The X-axis tick for any lead-in slot no longer renders text of
+  any kind (see the entry above) - it renders a small marker instead, so
+  there is no longer a "Published <date>" wording on the axis to be
+  inconsistent with the table header at all.
 - [2026-09-23] (stage: Review) `scrollColumnIntoView.ts`'s `animateScrollLeft`
   returns no cancel handle, and `SyncedDataTable`'s auto-scroll effect
   (Maintenance item 5) neither stores the rAF id nor cancels a prior animation
@@ -1635,3 +1640,34 @@
   consider a standing convention (or even a lint/review checklist item) that
   new chart tests include at least one large/non-round-magnitude case and one
   domain-edge-label case, not just algebraically convenient small ones.
+- ~~[2026-09-25] (stage: Implementation, commit `026890f`) X-axis leftmost
+  tick left-anchored via `EdgeSafeXAxisTick.tsx`'s `index === 0` render
+  position.~~ ~~[2026-09-25] (stage: Implementation, commit `ff1afc3`)
+  Follow-up fix: identify the domain-leftmost tick by its own x-value
+  instead of Recharts' render index, since `interval="preserveEnd"`
+  collision filtering can hand `index === 0` to the WRONG (non-leftmost)
+  survivor on a 2-tick chart.~~ — **SUPERSEDED 2026-09-25 (Implementation,
+  same day, third round)**: a real production-build Preview run against the
+  `ff1afc3` fix found a THIRD distinct failure mode against real account
+  data, the same day - the third attempt in a row to reconcile a long
+  lead-in axis-tick label (e.g. "Published 2014-09-06") with Recharts' own
+  center-anchored tick-overlap-avoidance filtering. All three attempts
+  shared the same root cause: Recharts' `getTicks.js`/`getEquidistantTicks.js`
+  measure every tick's collision width from whatever string its
+  `tickFormatter` prop returns for that tick - independent of what a custom
+  `tick` render function actually paints - so as long as ANY long text
+  string existed for that slot, some version of the collision math could
+  misfire (clipped text, a misplaced neighbor tick, or a dropped label,
+  depending on the chart's exact data shape). Rather than attempt a fourth
+  patch to Recharts' tick-anchoring internals, the user directed a
+  structural pivot: stop rendering the lead-in's date/label text as an
+  X-axis tick at all - render a small marker (a `circle`, reusing
+  MASTER.md's existing lead-in-dot shape/color, just relocated to the axis)
+  there instead, with the `tickFormatter` passed to `<XAxis>` returning `""`
+  for that slot so Recharts' own collision math always measures it as
+  zero-width. `EdgeSafeXAxisTick.tsx` was deleted outright (not layered
+  under) and replaced by `LeadInXAxisTick.tsx` - see that file's top-of-file
+  comment for the full structural argument for why this can't recur. The
+  lead-in's full date/label text remains available in the synced data table
+  rendered below each chart (unchanged by this fix) - no data loss, just
+  relocated discoverability.

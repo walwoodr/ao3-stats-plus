@@ -14,7 +14,7 @@ import { SyncedDataTable } from "./SyncedDataTable";
 import { ChartDisclosure } from "./ChartDisclosure";
 import { PinnedComparisonBar } from "./PinnedComparisonBar";
 import { ActivePointOverlay, type ActivePoint } from "./ActivePointOverlay";
-import { createEdgeSafeXAxisTick } from "./EdgeSafeXAxisTick";
+import { createLeadInXAxisTick } from "./LeadInXAxisTick";
 import type { TrendPoint } from "./TrendChart";
 
 // Per-work zero-basis dates (docs/plans/per-work-zero-basis-dates.md):
@@ -233,18 +233,30 @@ export function MultiSeriesTrendChart({
   }
 
   const { rows: chartData, zeroBasisLabels } = buildChartData(series);
-  // Preserves the pre-existing word-label-vs-raw-date tick wording exactly
-  // (zeroBasisLabels), just re-keyed off the new numeric xEpoch axis (item
-  // 4/D7) instead of the prior categorical capturedOn one.
+
+  function isLeadInTick(xEpoch: number): boolean {
+    const row = chartData.find((r) => r.xEpoch === xEpoch);
+    return row ? zeroBasisLabels.has(row.capturedOn) : false;
+  }
+
+  // Only a real capture date's tick gets text at all - a zero-basis-only
+  // slot renders a marker instead (see LeadInXAxisTick.tsx), so this never
+  // needs to consult zeroBasisLabels for its own rendering.
   const tickFormatter = (xEpoch: number): string => {
     const row = chartData.find((r) => r.xEpoch === xEpoch);
-    if (!row) return "";
-    return zeroBasisLabels.get(row.capturedOn) ?? row.capturedOn;
+    return row ? row.capturedOn : "";
   };
-  // Shared by both the XAxis `domain` prop below and EdgeSafeXAxisTick, so
-  // the tick's "is this the true domain-leftmost point" check is compared
-  // against the SAME value the axis itself was actually built from, rather
-  // than a re-derived (and potentially inconsistent) one.
+
+  // Passed to <XAxis tickFormatter>, NOT to the custom tick renderer's own
+  // `tickFormatter` above - see LeadInXAxisTick.tsx's top-of-file comment
+  // for why this must return "" for every zero-basis-only slot (a lead-in
+  // may not sit at the domain's leftmost position here, unlike TrendChart/
+  // RatioChart's single lead-in - a chart comparing several works can have
+  // multiple distinct estimated-baseline dates, see buildChartData's
+  // distinctEstimatedBaselineDateKeys handling - so every one of them, not
+  // just "the leftmost tick," must be zeroed out here).
+  const axisTickFormatter = (xEpoch: number): string =>
+    isLeadInTick(xEpoch) ? "" : tickFormatter(xEpoch);
   const domainMin = Math.min(...chartData.map((row) => row.xEpoch));
 
   // Chart -> table sync (§2.3): item 4 switches the XAxis from categorical
@@ -343,11 +355,12 @@ export function MultiSeriesTrendChart({
                   scale="time"
                   domain={[domainMin, Math.max(...chartData.map((row) => row.xEpoch))]}
                   ticks={chartData.map((row) => row.xEpoch).sort((a, b) => a - b)}
-                  tickFormatter={tickFormatter}
-                  tick={createEdgeSafeXAxisTick({
+                  tickFormatter={axisTickFormatter}
+                  tick={createLeadInXAxisTick({
                     fill: colors.inkSoft,
                     formatTick: tickFormatter,
-                    domainMin,
+                    isLeadInTick,
+                    markerColor: colors.inkSoft,
                   })}
                 />
                 <YAxis

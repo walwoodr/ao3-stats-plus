@@ -8,7 +8,6 @@ import {
   computeYDomain,
   estimateYAxisWidth,
   formatDateTick,
-  formatLeadInTick,
   leadInEpoch,
   toEpoch,
 } from "../../lib/chartTimeAxis";
@@ -18,7 +17,7 @@ import { SyncedDataTable } from "./SyncedDataTable";
 import { ChartDisclosure } from "./ChartDisclosure";
 import { PinnedComparisonBar } from "./PinnedComparisonBar";
 import { ActivePointOverlay, type ActivePoint } from "./ActivePointOverlay";
-import { createEdgeSafeXAxisTick } from "./EdgeSafeXAxisTick";
+import { createLeadInXAxisTick } from "./LeadInXAxisTick";
 
 export interface TrendPoint {
   capturedOn: string;
@@ -107,14 +106,23 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
         isLeadIn: false,
       }));
 
-  // The lead-in's axis tick is deliberately coarser (year-only) than a real
-  // point's - it's an estimated baseline, not an actual capture date, so
-  // showing a fabricated day-level date would overstate its precision.
-  const formatTick = (xEpoch: number): string => {
-    const row = chartData.find((r) => r.xEpoch === xEpoch);
-    if (!row) return "";
-    return row.isLeadIn ? formatLeadInTick(xEpoch) : formatDateTick(xEpoch);
-  };
+  function isLeadInTick(xEpoch: number): boolean {
+    return chartData.find((r) => r.xEpoch === xEpoch)?.isLeadIn ?? false;
+  }
+
+  // Only a real point's tick gets text at all - the lead-in slot renders a
+  // marker instead (see LeadInXAxisTick.tsx), so this never needs to format
+  // a lead-in's date.
+  const formatTick = (xEpoch: number): string => formatDateTick(xEpoch);
+
+  // Passed to <XAxis tickFormatter>, NOT to the custom tick renderer's own
+  // `formatTick` above - this is the string Recharts' internal tick-overlap-
+  // avoidance filtering measures for collision purposes (see
+  // LeadInXAxisTick.tsx's top-of-file comment). Returning "" for the
+  // lead-in's slot makes Recharts treat it as zero-width, which is what
+  // structurally prevents it from re-triggering the same filtering bug.
+  const axisTickFormatter = (xEpoch: number): string =>
+    isLeadInTick(xEpoch) ? "" : formatTick(xEpoch);
 
   // Chart -> table sync (§2.3): TrendChart's XAxis is the numeric xEpoch, so
   // state.activeLabel is that epoch, not the capturedOn dateKey directly -
@@ -229,11 +237,12 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
                   scale="time"
                   domain={[chartData[0].xEpoch, chartData[chartData.length - 1].xEpoch]}
                   ticks={chartData.map((row) => row.xEpoch)}
-                  tickFormatter={formatTick}
-                  tick={createEdgeSafeXAxisTick({
+                  tickFormatter={axisTickFormatter}
+                  tick={createLeadInXAxisTick({
                     fill: colors.inkSoft,
                     formatTick,
-                    domainMin: chartData[0].xEpoch,
+                    isLeadInTick,
+                    markerColor: colors.accent,
                   })}
                 />
                 <YAxis

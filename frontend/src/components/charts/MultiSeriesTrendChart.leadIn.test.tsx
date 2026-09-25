@@ -155,10 +155,18 @@ describe("MultiSeriesTrendChart: visible dashed lead-in line + zero dot", () => 
       />,
     );
 
-    const inkSoftCircles = Array.from(container.querySelectorAll("circle")).filter(
+    // r="4" scopes this to the chart's own lead-in POINT dot specifically
+    // (MultiSeriesTrendChart.tsx's dashed-line lead marker) - distinct from
+    // the smaller r="3.5" marker LeadInXAxisTick.tsx now also draws, in the
+    // same inkSoft fill, at each lead-in's X-AXIS tick position (see
+    // "renders a marker...for each distinct lead-in slot" below). Both are
+    // real, intentional inkSoft circles now; this assertion is scoped to
+    // keep proving the point-marker count specifically, not conflate it
+    // with the newer axis-marker count.
+    const inkSoftDots = Array.from(container.querySelectorAll('circle[r="4"]')).filter(
       (circle) => circle.getAttribute("fill") === LIGHT_COLOR_TOKENS.inkSoft,
     );
-    expect(inkSoftCircles).toHaveLength(2);
+    expect(inkSoftDots).toHaveLength(2);
   });
 
   // Regression fence, not a red-today assertion: with no series carrying a
@@ -170,19 +178,24 @@ describe("MultiSeriesTrendChart: visible dashed lead-in line + zero dot", () => 
       <MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_NO_LEAD]} />,
     );
 
-    const inkSoftCircles = Array.from(container.querySelectorAll("circle")).filter(
+    const inkSoftDots = Array.from(container.querySelectorAll('circle[r="4"]')).filter(
       (circle) => circle.getAttribute("fill") === LIGHT_COLOR_TOKENS.inkSoft,
     );
-    expect(inkSoftCircles).toHaveLength(0);
+    expect(inkSoftDots).toHaveLength(0);
   });
 
-  // Axis-label/precision treatment: the visible (aria-hidden) XAxis
-  // tickFormatter and the sr-only table's date cell both consult the same
-  // capturedOn -> label map (plan: "The sr-only table's date cell and the
-  // categorical XAxis tickFormatter use this map"), so a zero-basis-only
-  // slot's visible tick reads the same synthetic-baseline wording as the
-  // accessible layer, never a bare fabricated ISO date.
-  it("shows the zero-basis label (not the raw ISO date) on the visible chart's axis tick for a fallback slot", () => {
+  // Structural fix (2026-09-25, third round - see LeadInXAxisTick.tsx):
+  // superseded by the marker approach. A zero-basis-only slot's X-axis tick
+  // used to render the full word-label text ("Before 2018 (estimated
+  // baseline)") - that's exactly the class of long axis-tick text that
+  // repeatedly broke Recharts' own tick-overlap-avoidance filtering against
+  // real production data (see TECH_DEBT.md's superseded 026890f/ff1afc3
+  // entries). The user-directed fix: never render that text (or the raw
+  // ISO date) as a tick at all - render a small marker there instead. The
+  // full label remains available in the visible synced data table below the
+  // chart (see this file's "the visible synced table gains zero-basis
+  // columns" describe block, unaffected by this change).
+  it("renders a marker - not the zero-basis label, and not the raw ISO date - on the visible chart's axis tick for a fallback slot", () => {
     const fallbackWork: SeriesDatum = {
       workId: 4,
       title: "Work D",
@@ -196,8 +209,11 @@ describe("MultiSeriesTrendChart: visible dashed lead-in line + zero dot", () => 
     );
 
     const hiddenChart = container.querySelector('[aria-hidden="true"]');
-    expect(hiddenChart?.textContent).toMatch(/Before 2018 \(estimated baseline\)/);
+    expect(hiddenChart?.textContent).not.toMatch(/Before 2018 \(estimated baseline\)/);
     expect(hiddenChart?.textContent).not.toMatch(/2018-01-01/);
+
+    const axisMarkers = container.querySelectorAll(".recharts-xAxis-tick-labels circle");
+    expect(axisMarkers).toHaveLength(1);
   });
 });
 
