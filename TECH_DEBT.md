@@ -1671,3 +1671,59 @@
   lead-in's full date/label text remains available in the synced data table
   rendered below each chart (unchanged by this fix) - no data loss, just
   relocated discoverability.
+
+  **Round 4 (2026-09-25, commit `f9b58e6`, not separately logged here until
+  now): the marker-based approach above correctly fixed the SINGLE lead-in
+  case** - confirmed by real Preview testing at the time. **Round 5 (same
+  day, this entry): a follow-up real Preview run comparing 2+ works with
+  far-apart publish-date lead-ins (e.g. one from 2014, one from late 2025)
+  found the marker for whichever lead-in ISN'T the domain minimum could
+  still be silently dropped**, even though its own measured width is zero.
+  Root-caused directly in the installed recharts@3.10.0 source
+  (`node_modules/recharts/es6/cartesian/getTicks.js`'s `getTicksEnd`):
+  working backward from the axis end, every KEPT tick reserves a
+  `minTickGap`-based proximity buffer (default 5px, `CartesianAxis.js`)
+  around itself, and the NEXT candidate is excluded if its coordinate falls
+  inside that buffer - a check based entirely on the *kept* tick's own
+  position, independent of the *candidate's* size. Round 4's zero-width fix
+  only addressed the WIDTH half of Recharts' filtering, not this separate
+  minTickGap-proximity half - it was a real, correct partial fix, not a
+  wrong one, but incomplete against this second mechanism.
+
+  **The round-5 fix goes further: every `<XAxis>` (`TrendChart.tsx`,
+  `RatioChart.tsx`, `MultiSeriesTrendChart.tsx`) now sets `interval={0}`**,
+  which - verified directly against the installed recharts@3.10.0 source,
+  not assumed from older-version docs - routes `getTicks.js` to
+  `getNumberIntervalTicks(ticks, 0)` -> `getEveryNth(ticks, 1)`, returning
+  the `ticks` array UNCHANGED and skipping `getTicksEnd`/`getTicksStart`
+  (and both their width AND minTickGap logic) entirely. Since Recharts no
+  longer does ANY tick curation, `chartTimeAxis.ts`'s new
+  `selectDisplayedTicks` now does it instead: every lead-in tick is always
+  included (unbounded - these render as small markers via
+  `LeadInXAxisTick.tsx`, not text, so they carry none of the width-collision
+  risk this exists for), while REAL (non-lead-in) date ticks are capped at
+  `MAX_REAL_AXIS_TICKS` (6), evenly sampled across the sorted real epochs
+  (always keeping the earliest and latest). This second half matters because
+  bypassing Recharts' filtering also removes protection it WAS providing
+  correctly for dense real ticks - snapshots dedupe only per CALENDAR DAY
+  (`backend/app/models/snapshot.rb`) with no server-side history cap
+  (`StatsForUserResult#aggregate_series` returns full unbounded history), so
+  months of regular use can realistically produce far more real capture
+  dates than comfortably fit as text labels on this dashboard's current
+  fixed-width (`max-w-4xl`, non-responsive) chart cards.
+
+  **Known limitation, flagged proactively rather than left for a round 6
+  Preview surprise**: `MAX_REAL_AXIS_TICKS` is a deterministic constant, not
+  a live pixel measurement (consistent with this module's existing
+  `estimateYAxisWidth` precedent, and with jsdom's inability to lay out real
+  text at all) - it's sized for this dashboard's current desktop-oriented
+  layout, not independently verified against the project's own
+  design-context snapshot's narrower (375px) responsive target, which this
+  dashboard hasn't migrated to yet (see CLAUDE.md's "Design context"
+  section). If/when that migration happens, this cap should be revisited
+  against real measured plot width rather than left as a silent assumption.
+  Regression test: `MultiSeriesTrendChart.leadInTickProximityDrop.test.tsx`
+  (confirmed red against pre-round-5 code, reproducing the exact two-work
+  far-apart-lead-in drop; green after) - re-verified the single-lead-in case
+  (round 4) and the Y-axis rounding fix (`026890f`) both still pass
+  unmodified.

@@ -9,6 +9,7 @@ import {
   estimateYAxisWidth,
   formatDateTick,
   leadInEpoch,
+  selectDisplayedTicks,
   toEpoch,
 } from "../../lib/chartTimeAxis";
 import { elapsedLabel as computeElapsedLabel } from "../../lib/pointComparison";
@@ -231,7 +232,12 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
                   type="number"
                   scale="time"
                   domain={[chartData[0].xEpoch, chartData[chartData.length - 1].xEpoch]}
-                  ticks={chartData.map((row) => row.xEpoch)}
+                  ticks={selectDisplayedTicks(chartData)}
+                  // interval={0}: see TrendChart's identical comment -
+                  // bypasses Recharts' own tick-selection/filtering
+                  // entirely, verified against the installed recharts@3.10.0
+                  // source (chartTimeAxis.ts's selectDisplayedTicks).
+                  interval={0}
                   tickFormatter={axisTickFormatter}
                   tick={createLeadInXAxisTick({
                     fill: colors.inkSoft,

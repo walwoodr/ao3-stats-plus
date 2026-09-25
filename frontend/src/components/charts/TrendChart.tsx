@@ -9,6 +9,7 @@ import {
   estimateYAxisWidth,
   formatDateTick,
   leadInEpoch,
+  selectDisplayedTicks,
   toEpoch,
 } from "../../lib/chartTimeAxis";
 import { elapsedLabel as computeElapsedLabel } from "../../lib/pointComparison";
@@ -236,7 +237,14 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
                   type="number"
                   scale="time"
                   domain={[chartData[0].xEpoch, chartData[chartData.length - 1].xEpoch]}
-                  ticks={chartData.map((row) => row.xEpoch)}
+                  ticks={selectDisplayedTicks(chartData)}
+                  // interval={0}: bypasses Recharts' own tick-selection/
+                  // filtering entirely (verified against the installed
+                  // recharts@3.10.0 source - see chartTimeAxis.ts's
+                  // selectDisplayedTicks comment) - every value this
+                  // component curates into `ticks` above renders, no more,
+                  // no less.
+                  interval={0}
                   tickFormatter={axisTickFormatter}
                   tick={createLeadInXAxisTick({
                     fill: colors.inkSoft,

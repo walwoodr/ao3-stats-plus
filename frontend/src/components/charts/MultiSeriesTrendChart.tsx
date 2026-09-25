@@ -6,7 +6,13 @@ import { formatNumber } from "../../lib/formatNumber";
 import { renderMarkerShape } from "../../lib/markerPaths";
 import { SERIES_STYLE_SLOTS } from "../../lib/seriesStyles";
 import { buildMultiSeriesTableModel } from "../../lib/syncedTableModel";
-import { computeYDomain, estimateYAxisWidth, leadInEpoch, toEpoch } from "../../lib/chartTimeAxis";
+import {
+  computeYDomain,
+  estimateYAxisWidth,
+  leadInEpoch,
+  selectDisplayedTicks,
+  toEpoch,
+} from "../../lib/chartTimeAxis";
 import { elapsedLabel as computeElapsedLabel } from "../../lib/pointComparison";
 import type { Orientation } from "../../lib/tableOrientation";
 import { ComparisonLegend } from "./ComparisonLegend";
@@ -258,6 +264,12 @@ export function MultiSeriesTrendChart({
   const axisTickFormatter = (xEpoch: number): string =>
     isLeadInTick(xEpoch) ? "" : tickFormatter(xEpoch);
   const domainMin = Math.min(...chartData.map((row) => row.xEpoch));
+  // Curated once here (not inline in the JSX below) so the interval={0}
+  // comment next to <XAxis ticks=...> can stay short - see
+  // chartTimeAxis.ts's selectDisplayedTicks for the full rationale.
+  const displayedTicks = selectDisplayedTicks(
+    chartData.map((row) => ({ xEpoch: row.xEpoch, isLeadIn: isLeadInTick(row.xEpoch) })),
+  );
 
   // Chart -> table sync (§2.3): item 4 switches the XAxis from categorical
   // capturedOn to numeric xEpoch, so state.activeLabel is now that epoch -
@@ -354,7 +366,10 @@ export function MultiSeriesTrendChart({
                   type="number"
                   scale="time"
                   domain={[domainMin, Math.max(...chartData.map((row) => row.xEpoch))]}
-                  ticks={chartData.map((row) => row.xEpoch).sort((a, b) => a - b)}
+                  ticks={displayedTicks}
+                  // interval={0}: bypasses Recharts' own tick filtering
+                  // entirely - see chartTimeAxis.ts's selectDisplayedTicks.
+                  interval={0}
                   tickFormatter={axisTickFormatter}
                   tick={createLeadInXAxisTick({
                     fill: colors.inkSoft,

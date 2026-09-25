@@ -71,6 +71,88 @@ export function leadInEpoch(firstRealEpoch: number, { realEpochs }: LeadInEpochO
   return firstRealEpoch - clampedMs;
 }
 
+// Round 5 fix (2026-09-25, supersedes round 4's `f9b58e6` partial fix - see
+// TECH_DEBT.md). Every XAxis below now passes `interval={0}` (verified
+// against the installed recharts@3.10.0 source, node_modules/recharts/es6/
+// cartesian/getTicks.js: `isNumber(interval)` routes straight to
+// `getNumberIntervalTicks`/`getEveryNth(ticks, interval + 1)`, which for 0
+// returns the input `ticks` array UNCHANGED - entirely bypassing
+// getTicksEnd/getTicksStart and their width-collision AND minTickGap-
+// proximity-buffer logic). That buffer was round 4's remaining bug: even a
+// zero-width lead-in tick could still get dropped just for sitting within
+// `minTickGap` (default 5px) of an already-kept neighbor, independent of
+// its own size - confirmed directly in getTicks.js's getTicksEnd.
+//
+// Bypassing Recharts' filtering entirely removes a real protection it WAS
+// providing correctly for dense REAL (non-lead-in) date ticks - each chart
+// already passes every real capture date as a candidate tick, and a
+// snapshot is deduped only per CALENDAR DAY (Snapshot's captured_on unique
+// index - backend/app/models/snapshot.rb), with no server-side cap on
+// total history (StatsForUserResult#aggregate_series returns the user's
+// full snapshot history, ordered, unbounded). A dashboard tracking months
+// of daily use can realistically accumulate dozens of same-length
+// "YYYY-MM-DD" labels (formatDateTick above - always exactly 10 chars),
+// which the OLD default `interval="preserveEnd"` collision filtering was
+// silently thinning down to a non-overlapping subset - losing that on a
+// fixed-width chart card (DashboardPage's `max-w-4xl` + `p-8`, non-
+// responsive at time of writing) would reintroduce the exact class of
+// overlap bug rounds 1-4 fought, just for real ticks instead of the
+// lead-in. Since Recharts no longer does this for us, this module now
+// does: cap how many REAL ticks are ever handed to `ticks`, evenly sampled
+// (always keeping the earliest and latest), while every LEAD-IN tick is
+// ALWAYS included, uncapped and untouched by this sampling - lead-in
+// ticks render as small markers (LeadInXAxisTick.tsx), not text, so they
+// carry none of the width-collision risk this cap exists for.
+//
+// MAX_REAL_AXIS_TICKS is a deterministic constant, not a live pixel
+// measurement - consistent with this module's existing
+// estimateYAxisWidth precedent (also deterministic, for the same reason:
+// jsdom never lays out real text, and Recharts' own "auto" DOM measurement
+// has now been shown untrustworthy across 4 rounds of this bug). Sized
+// generously for this dashboard's current desktop-oriented fixed-width
+// layout; the project's own design-context snapshot targets narrower
+// (375px) viewports as a checklist item that the existing dashboard hasn't
+// migrated to yet (see CLAUDE.md's "Design context" section) - if/when
+// that migration happens, this cap should be revisited against real
+// measured plot width rather than left as a silent assumption.
+export const MAX_REAL_AXIS_TICKS = 6;
+
+export interface DisplayTickRow {
+  xEpoch: number;
+  isLeadIn: boolean;
+}
+
+// Picks exactly which xEpoch values get handed to <XAxis ticks={...}> once
+// Recharts' own filtering (interval={0}) is bypassed - see the comment
+// above. `rows` may contain duplicate xEpoch values (e.g. a publish-date
+// lead-in that coincides with a real capture date); the result is
+// deduplicated and sorted ascending.
+export function selectDisplayedTicks(rows: DisplayTickRow[]): number[] {
+  const leadInEpochs = rows.filter((row) => row.isLeadIn).map((row) => row.xEpoch);
+  const realEpochsSorted = [
+    ...new Set(rows.filter((row) => !row.isLeadIn).map((row) => row.xEpoch)),
+  ].sort((a, b) => a - b);
+
+  let selectedReal: number[];
+  if (realEpochsSorted.length <= MAX_REAL_AXIS_TICKS) {
+    selectedReal = realEpochsSorted;
+  } else {
+    // Evenly sample MAX_REAL_AXIS_TICKS indices across the sorted real
+    // epochs. Always keeping index 0 and the last index (the domain's real
+    // edges) exact - rounding elsewhere in the sampled sequence is fine,
+    // but the edges must never drift.
+    const lastIndex = realEpochsSorted.length - 1;
+    const pickedIndices = new Set<number>();
+    for (let i = 0; i < MAX_REAL_AXIS_TICKS; i += 1) {
+      const fraction = i / (MAX_REAL_AXIS_TICKS - 1);
+      pickedIndices.add(Math.round(fraction * lastIndex));
+    }
+    selectedReal = [...pickedIndices].sort((a, b) => a - b).map((index) => realEpochsSorted[index]);
+  }
+
+  return [...new Set([...leadInEpochs, ...selectedReal])].sort((a, b) => a - b);
+}
+
 export interface ComputeYDomainOptions {
   hasLeadIn: boolean;
 }
