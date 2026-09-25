@@ -20,6 +20,7 @@ import {
   SeriesHeaderCell,
   STICKY_COLUMN_SHADOW,
 } from "./SyncedDataTableCells";
+import { TableOrientationToggle } from "./TableOrientationToggle";
 
 export interface SyncedDataTableProps {
   title: string;
@@ -190,44 +191,15 @@ export function SyncedDataTable({
           // semantics. A sibling of <summary> (still a child of <details>,
           // so it hides along with the table when collapsed - it has
           // nothing useful to toggle while hidden) sidesteps that
-          // entirely, and no longer needs its own click-stopPropagation
-          // guard either, since it's no longer a descendant of <summary>'s
-          // click handler.
-          <div
-            role="group"
-            aria-label="Table orientation"
-            className="absolute right-4 top-2 flex items-center gap-1"
-          >
-            {/* Deliberately NOT bg-accent/10 for the pressed state here -
-                that class is reserved elsewhere in this table (and widely
-                asserted on in tests) as the ACTIVE-DATE cell/header tint;
-                reusing it on this always-one-pressed toggle would make a
-                button falsely register as an "active date" match for any
-                `[class*="bg-accent/10"]` query. */}
-            <button
-              type="button"
-              aria-pressed={orientation === "datesAsColumns"}
-              onClick={() => onOrientationChange("datesAsColumns")}
-              className={
-                orientation === "datesAsColumns"
-                  ? "rounded border border-accent/40 px-2 py-1 text-sm font-semibold text-ink"
-                  : "rounded border border-transparent px-2 py-1 text-sm font-semibold text-ink-soft hover:text-ink"
-              }
-            >
-              Dates across
-            </button>
-            <button
-              type="button"
-              aria-pressed={orientation === "datesAsRows"}
-              onClick={() => onOrientationChange("datesAsRows")}
-              className={
-                orientation === "datesAsRows"
-                  ? "rounded border border-accent/40 px-2 py-1 text-sm font-semibold text-ink"
-                  : "rounded border border-transparent px-2 py-1 text-sm font-semibold text-ink-soft hover:text-ink"
-              }
-            >
-              Dates down
-            </button>
+          // entirely. The real, shared TableOrientationToggle.tsx (plan
+          // §2.1/§3 item 2) renders here directly - no separate inline
+          // toggle; its own no-op-on-already-active-option contract is the
+          // standardized behavior for both surfaces.
+          <div className="absolute right-4 top-2">
+            <TableOrientationToggle
+              orientation={orientation}
+              onOrientationChange={onOrientationChange}
+            />
           </div>
         )}
         {/* WCAG 2.1.1/axe scrollable-region-focusable: a horizontally

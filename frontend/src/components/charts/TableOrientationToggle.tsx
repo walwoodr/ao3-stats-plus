@@ -6,9 +6,15 @@ export interface TableOrientationToggleProps {
 }
 
 const BUTTON_BASE =
-  "rounded px-2 py-1 text-sm font-semibold transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
-const BUTTON_ACTIVE = `${BUTTON_BASE} bg-accent/10 text-ink`;
-const BUTTON_INACTIVE = `${BUTTON_BASE} text-ink-soft hover:text-ink`;
+  "rounded border px-2 py-1 text-sm font-semibold transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+// Deliberately NOT bg-accent/10 for the pressed state - that class is
+// reserved elsewhere in SyncedDataTable (and widely asserted on in tests,
+// both here and in the chart components that embed this control) as the
+// ACTIVE-DATE cell/header tint; reusing it on this always-one-pressed
+// toggle would make a button falsely register as an "active date" match
+// for any `[class*="bg-accent/10"]` query.
+const BUTTON_ACTIVE = `${BUTTON_BASE} border-accent/40 text-ink`;
+const BUTTON_INACTIVE = `${BUTTON_BASE} border-transparent text-ink-soft hover:text-ink`;
 
 // Item 2's real, shipped orientation toggle (§3 item 2, §8): a labeled
 // group of two native buttons ("Dates across" / "Dates down"), not a custom

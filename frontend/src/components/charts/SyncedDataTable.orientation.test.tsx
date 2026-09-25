@@ -95,7 +95,7 @@ describe("SyncedDataTable: orientation toggle control (§2.2/§3 item 2)", () =>
     expect(screen.getAllByText(/across|down|dates/i).length).toBeGreaterThan(0);
   });
 
-  it("calls onOrientationChange with the flipped value when the toggle is activated", async () => {
+  it("calls onOrientationChange with the flipped value when the INACTIVE toggle option is activated", async () => {
     const onOrientationChange = vi.fn();
     render(
       <SyncedDataTable
@@ -109,15 +109,33 @@ describe("SyncedDataTable: orientation toggle control (§2.2/§3 item 2)", () =>
       />,
     );
 
-    const toggleButtons = screen
-      .getAllByRole("button")
-      .filter((button) => /down|across/i.test(button.textContent ?? ""));
-    expect(toggleButtons.length).toBeGreaterThan(0);
-    toggleButtons[0].click();
+    // The embedded toggle is TableOrientationToggle.tsx, whose own locked
+    // contract no-ops a click on the ALREADY-active option (the standard
+    // segmented-control/toggle-group convention) - so this test targets
+    // the currently-INACTIVE "Dates down" button specifically, rather than
+    // an arbitrary toggleButtons[0] that could resolve to the active one.
+    fireEvent.click(screen.getByRole("button", { name: /dates down/i }));
 
-    expect(onOrientationChange).toHaveBeenCalledWith(
-      expect.stringMatching(/datesAsColumns|datesAsRows/),
+    expect(onOrientationChange).toHaveBeenCalledWith("datesAsRows");
+  });
+
+  it("does not call onOrientationChange when the already-ACTIVE toggle option is clicked again", () => {
+    const onOrientationChange = vi.fn();
+    render(
+      <SyncedDataTable
+        title="Hits"
+        rowHeaderLabel="Work"
+        model={MULTI_SERIES_MODEL}
+        activeDateKey={null}
+        onActiveDateKeyChange={noop}
+        orientation="datesAsColumns"
+        onOrientationChange={onOrientationChange}
+      />,
     );
+
+    fireEvent.click(screen.getByRole("button", { name: /dates across/i }));
+
+    expect(onOrientationChange).not.toHaveBeenCalled();
   });
 
   it("renders no orientation toggle at all when onOrientationChange is omitted (backward compatible)", () => {
