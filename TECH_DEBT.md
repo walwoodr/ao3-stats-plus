@@ -1590,3 +1590,27 @@
   behavior/defaults ever change, or an edge case exists where Recharts'
   auto-expansion doesn't fully compensate, this fix is what actually
   prevents the symptom.
+- [2026-09-24] (stage: Review (adversarial)) **Delta chips aren't run through
+  `formatNumber`** - `SyncedDataTableCells.tsx`'s `deltaLabel(result.delta)`
+  returns raw `` `+${delta}` `` while cell values use `formatNumber` (en-US
+  thousands grouping), so a large count delta reads e.g. `+10000` next to a
+  cell reading `10,000`. The sr-only text has the same gap; for the ratio
+  metric it will additionally show raw floating-point precision. Cosmetic,
+  not blocking - low severity.
+- [2026-09-24] (stage: Review (adversarial)) **Carried-forward clarifier only
+  covers the hovered (B) side of a pin comparison, not the pinned (A) side**
+  - `SyncedDataTableCells.tsx`'s `carriedForward` check
+  (`result.resolvedDateKeyB !== activeDateKey`) only fires when the B
+  (hovered) basis was backward-walked. A row whose A (pinned) basis was
+  itself carried forward from an earlier date, with an exact B hit, gives a
+  screen-reader user a signed delta with no "as of `<date>`" disclosure that
+  the A basis isn't literally the pinned date. Minor a11y-transparency gap,
+  not a wrong number - low severity.
+- [2026-09-24] (stage: Review (adversarial)) **Theoretical, unconfirmed
+  reachable: empty `points` + present `leadIn` yields a `NaN` axis domain**
+  in `TrendChart.tsx`/`RatioChart.tsx` - `firstRealEpoch` is `undefined` when
+  `points` is empty, and `leadInEpoch(undefined, {realEpochs: []})` returns
+  `NaN`. Not reachable today: `DashboardPage` only constructs a lead-in when
+  `leadInDate < firstCapturedOn`, which requires at least one real capture to
+  exist. Flagged as a latent fragility only - no live path found to trigger
+  it.
