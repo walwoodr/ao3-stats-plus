@@ -37,6 +37,19 @@ export function formatLeadInTick(epoch: number): string {
   return String(new Date(epoch).getUTCFullYear());
 }
 
+// D1 (docs/plans/date-hierarchy-grouping.md §2.2): the three charts' real-
+// tick text switches from the full ISO date (formatDateTick) to bare
+// day-of-month - month/year context now lives in DateGroupingOverlay's own
+// span/rule labels instead of being repeated on every day tick. Purely a
+// tick-TEXT change; it never touches selectDisplayedTicks/interval={0}/the
+// lead-in marker path. Degrades to the literal (NaN-stringified) text for a
+// malformed/NaN epoch rather than throwing, matching formatDateTick's own
+// defense-in-depth precedent for an unparseable upstream date.
+export function formatDayTick(epoch: number): string {
+  if (Number.isNaN(epoch)) return "NaN";
+  return pad2(new Date(epoch).getUTCDate());
+}
+
 const MIN_LEAD_IN_GAP_DAYS = 14;
 const MAX_LEAD_IN_GAP_DAYS = 90;
 const FALLBACK_GAP_DAYS = 30;
