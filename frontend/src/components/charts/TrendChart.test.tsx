@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { TrendChart } from "./TrendChart";
+import { leafColumnHeaders } from "./syncedDataTableTestSupport";
 
 // Recharts' ResponsiveContainer renders NOTHING (not even its children, so
 // not even a <Tooltip>'s always-present-but-hidden wrapper div) until it
@@ -121,13 +122,17 @@ describe("TrendChart", () => {
       render(<TrendChart title="Total hits" valueLabel="Hits" points={SPARSE_POINTS} />);
 
       const table = screen.getByRole("table", { name: /total hits/i });
-      // one date column-header per point + the corner cell.
-      expect(within(table).getAllByRole("columnheader")).toHaveLength(SPARSE_POINTS.length + 1);
+      // one date column-header (day tier) per point + the corner cell - the
+      // new year/month grouping tiers are ALSO real columnheaders (§4/§6's
+      // scope=colgroup choice), so this is scoped to the day tier + corner
+      // via leafColumnHeaders, matching this test's original "one column
+      // per point" intent (docs/plans/date-hierarchy-grouping.md T5).
+      expect(leafColumnHeaders(table)).toHaveLength(SPARSE_POINTS.length + 1);
       // exactly one series row (single-series is the degenerate N=1 case).
       expect(within(table).getAllByRole("rowheader")).toHaveLength(1);
     });
 
-    it("labels each date column with the real capturedOn date", () => {
+    it("labels each date column with the real capturedOn date (accessible name, unaffected by D1's visual day-of-month text)", () => {
       render(<TrendChart title="Total hits" valueLabel="Hits" points={SPARSE_POINTS} />);
 
       const table = screen.getByRole("table", { name: /total hits/i });
@@ -138,12 +143,21 @@ describe("TrendChart", () => {
       });
     });
 
+    // D1 (docs/plans/date-hierarchy-grouping.md): the day tier now displays
+    // bare day-of-month ("20"), not the full ISO date - this test's original
+    // visible-text check is rewritten to the accessible-name lookup instead
+    // (T5's named regression: this file's prior line asserting
+    // getByText("2026-02-20") broke on the display-text change).
     it("does not fabricate a column for the irregular gap between sparse points", () => {
       render(<TrendChart title="Total hits" valueLabel="Hits" points={SPARSE_POINTS} />);
 
       const table = screen.getByRole("table", { name: /total hits/i });
-      expect(within(table).getByText("2026-02-20")).toBeInTheDocument();
-      expect(within(table).queryByText("2026-01-20")).not.toBeInTheDocument();
+      expect(
+        within(table).getByRole("columnheader", { name: "2026-02-20" }),
+      ).toBeInTheDocument();
+      expect(
+        within(table).queryByRole("columnheader", { name: "2026-01-20" }),
+      ).not.toBeInTheDocument();
     });
 
     it("renders the value for every point in the single row's cells", () => {
@@ -160,7 +174,7 @@ describe("TrendChart", () => {
 
       expect(screen.getByRole("img", { name: /total hits/i })).toBeInTheDocument();
       const table = screen.getByRole("table", { name: /total hits/i });
-      expect(within(table).getAllByRole("columnheader")).toHaveLength(2);
+      expect(leafColumnHeaders(table)).toHaveLength(2);
     });
   });
 
@@ -208,25 +222,28 @@ describe("TrendChart", () => {
 
       const table = screen.getByRole("table", { name: /total hits/i });
       // corner + one synthetic + one per real point.
-      expect(within(table).getAllByRole("columnheader")).toHaveLength(SPARSE_POINTS.length + 2);
+      expect(leafColumnHeaders(table)).toHaveLength(SPARSE_POINTS.length + 2);
     });
 
-    // Risk #3 (plan §5.2): the lead-in/zero-basis label that used to live in
-    // the removed tooltip's formatTooltipLabel now lives in the synthetic
-    // lead-in COLUMN's header, never a raw ISO date.
-    it("labels the synthetic column's header as an estimated baseline, never a raw ISO date", () => {
+    // Risk #3 (plan §5.2) + date-hierarchy-grouping.md D2/§6: the lead-in/
+    // zero-basis wording that used to live in the removed tooltip's
+    // formatTooltipLabel now lives in the synthetic lead-in column header's
+    // ACCESSIBLE NAME (aria-label), never its visible text (which is now
+    // just the bare day-of-month, per D1) and never a raw ISO date.
+    it("labels the synthetic column's header as an estimated baseline, never a raw ISO date (accessible name, D2)", () => {
       render(
         <TrendChart title="Total hits" valueLabel="Hits" points={SPARSE_POINTS} leadIn={LEAD_IN} />,
       );
 
       const table = screen.getByRole("table", { name: /total hits/i });
-      const columnHeaders = within(table).getAllByRole("columnheader");
-      const syntheticHeader = columnHeaders[1]; // corner is index 0
+      const syntheticHeader = within(table).getByRole("columnheader", {
+        name: /before.*2014.*estimated baseline/i,
+      });
 
-      expect(syntheticHeader.textContent).toMatch(/before/i);
-      expect(syntheticHeader.textContent).toMatch(/2014/);
-      expect(syntheticHeader.textContent).toMatch(/estimated baseline/i);
-      expect(within(table).queryByText("2014-01-01")).not.toBeInTheDocument();
+      expect(syntheticHeader).toBeInTheDocument();
+      expect(
+        within(table).queryByRole("columnheader", { name: "2014-01-01" }),
+      ).not.toBeInTheDocument();
     });
 
     it("gives the synthetic column's cell a value of exactly 0", () => {
@@ -246,10 +263,13 @@ describe("TrendChart", () => {
       );
 
       const table = screen.getByRole("table", { name: /total hits/i });
-      const columnHeaders = within(table).getAllByRole("columnheader");
+      // leafColumnHeaders (day tier + corner only) preserves the original
+      // "corner is index 0" ordering the 3-tier header's extra columnheader-
+      // role grouping cells would otherwise disturb.
+      const columnHeaders = leafColumnHeaders(table);
 
-      expect(columnHeaders[1].textContent).toMatch(/before/i);
-      expect(columnHeaders[2].textContent).toMatch(SPARSE_POINTS[0].capturedOn);
+      expect(columnHeaders[1].getAttribute("aria-label")).toMatch(/before/i);
+      expect(columnHeaders[2].getAttribute("aria-label")).toBe(SPARSE_POINTS[0].capturedOn);
     });
 
     it("still renders correctly for a single real point plus a leadIn (a drawable two-point trend)", () => {
@@ -264,7 +284,7 @@ describe("TrendChart", () => {
 
       const table = screen.getByRole("table", { name: /total hits/i });
       // corner + synthetic + one real point.
-      expect(within(table).getAllByRole("columnheader")).toHaveLength(3);
+      expect(leafColumnHeaders(table)).toHaveLength(3);
     });
   });
 

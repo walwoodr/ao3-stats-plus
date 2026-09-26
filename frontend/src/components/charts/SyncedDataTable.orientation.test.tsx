@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { SyncedDataTable } from "./SyncedDataTable";
 import type { SyncedTableModel } from "../../lib/syncedTableModel";
+import { leafRowHeaders } from "./syncedDataTableTestSupport";
 
 // Testing task 5 (docs/plans/chart-axis-comparison-and-table-orientation-
 // batch.md §10, §2.1/§2.2, §3 item 2, §8): SyncedDataTable.tsx must grow an
@@ -172,13 +173,19 @@ describe("SyncedDataTable: datesAsRows orientation - multi-series (§3 item 2)",
     renderFlipped();
 
     const table = screen.getByRole("table", { name: /hits/i });
-    const rowHeaders = within(table).getAllByRole("rowheader");
+    // leafRowHeaders (scope=row only) excludes the 3-tier header's new
+    // year/month scope=rowgroup grouping cells (date-hierarchy-grouping.md
+    // §4/§6/T5), restoring this test's original "one per date" count. The
+    // day rowheader's VISIBLE text is now the bare day-of-month (D1); its
+    // full worded label lives in the accessible name instead (§6/D2), so
+    // this asserts aria-label rather than textContent.
+    const rowHeaders = leafRowHeaders(table);
     const columnHeaders = within(table).getAllByRole("columnheader");
 
-    expect(rowHeaders.map((el) => el.textContent)).toEqual([
+    expect(rowHeaders.map((el) => el.getAttribute("aria-label"))).toEqual([
       expect.stringContaining("Before 2014"),
-      expect.stringContaining("2026-01-01"),
-      expect.stringContaining("2026-01-08"),
+      "2026-01-01",
+      "2026-01-08",
     ]);
     // corner cell + one per series.
     expect(columnHeaders).toHaveLength(3);
@@ -266,10 +273,16 @@ describe("SyncedDataTable: datesAsRows orientation - single series (§3 item 2)"
     );
 
     const table = screen.getByRole("table", { name: /total hits/i });
-    const rowHeaders = within(table).getAllByRole("rowheader");
+    // See the multi-series test above's identical comment: leafRowHeaders +
+    // aria-label, not raw textContent, now that the day tier's visible text
+    // is the bare day-of-month (D1) and the full date lives in aria-label.
+    const rowHeaders = leafRowHeaders(table);
     const columnHeaders = within(table).getAllByRole("columnheader");
 
-    expect(rowHeaders.map((el) => el.textContent)).toEqual(["2026-01-03", "2026-01-04"]);
+    expect(rowHeaders.map((el) => el.getAttribute("aria-label"))).toEqual([
+      "2026-01-03",
+      "2026-01-04",
+    ]);
     // corner + exactly one series column.
     expect(columnHeaders).toHaveLength(2);
     expect(within(table).getByText("100")).toBeInTheDocument();

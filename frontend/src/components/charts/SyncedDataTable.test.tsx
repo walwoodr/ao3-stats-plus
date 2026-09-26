@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SyncedDataTable } from "./SyncedDataTable";
 import type { SyncedTableModel } from "../../lib/syncedTableModel";
+import { leafColumnHeaders } from "./syncedDataTableTestSupport";
 
 // Testing tasks T3-T5 (docs/plans/chart-synced-data-table.md §10, §5.3-§5.5,
 // D-A). SyncedDataTable.tsx does not exist yet, so every test below fails
@@ -104,11 +105,18 @@ describe("SyncedDataTable: structure and semantics (T3)", () => {
     );
 
     const table = screen.getByRole("table", { name: /total hits/i });
-    const columnHeaders = within(table).getAllByRole("columnheader");
+    // leafColumnHeaders (scope=col only) excludes the 3-tier header's new
+    // year/month scope=colgroup grouping cells (date-hierarchy-grouping.md
+    // §4/§6/T5), restoring this test's original "one per date column"
+    // count.
+    const columnHeaders = leafColumnHeaders(table);
     // corner cell + one per date column.
     expect(columnHeaders).toHaveLength(SINGLE_SERIES_MODEL.columns.length + 1);
+    // The day cell's visible text is now the bare day-of-month (D1); its
+    // full label lives in the accessible name instead (§6) - asserted via
+    // role+name rather than visible textContent.
     SINGLE_SERIES_MODEL.columns.forEach((column) => {
-      expect(within(table).getByText(column.label)).toBeInTheDocument();
+      expect(within(table).getByRole("columnheader", { name: column.label })).toBeInTheDocument();
     });
   });
 

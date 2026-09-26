@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { MultiSeriesTrendChart, type SeriesDatum } from "./MultiSeriesTrendChart";
 import { SERIES_STYLE_SLOTS } from "../../lib/seriesStyles";
+import { leafColumnHeaders } from "./syncedDataTableTestSupport";
 
 // Testing task T8 (docs/plans/chart-synced-data-table.md §10): rewrite for
 // the hover-tooltip -> synced-data-table replacement. MultiSeriesTrendChart
@@ -171,7 +172,10 @@ describe("MultiSeriesTrendChart", () => {
       render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />);
 
       const table = screen.getByRole("table", { name: /hits/i });
-      const columnHeaders = within(table).getAllByRole("columnheader");
+      // Scoped to the day tier (+corner) via leafColumnHeaders - the 3-tier
+      // header's year/month grouping cells are ALSO real columnheaders
+      // (date-hierarchy-grouping.md §4/§6/T5).
+      const columnHeaders = leafColumnHeaders(table);
       // corner + 2026-01-01 + 2026-01-08.
       expect(columnHeaders).toHaveLength(3);
     });
@@ -287,7 +291,7 @@ describe("MultiSeriesTrendChart", () => {
 
       const table = screen.getByRole("table", { name: /hits/i });
       // corner + one shared date column (all 10 works share 2026-01-01).
-      expect(within(table).getAllByRole("columnheader")).toHaveLength(2);
+      expect(leafColumnHeaders(table)).toHaveLength(2);
       expect(within(table).getAllByRole("rowheader")).toHaveLength(10);
     });
   });

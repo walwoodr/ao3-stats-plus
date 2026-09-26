@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { RatioChart } from "./RatioChart";
+import { leafColumnHeaders } from "./syncedDataTableTestSupport";
 
 // Testing task T7 (docs/plans/chart-synced-data-table.md §10): mirror of
 // TrendChart.test.tsx's rewrite for the ratio series - see that file's
@@ -98,9 +99,11 @@ describe("RatioChart", () => {
       render(<RatioChart title="Kudos-to-hits ratio" points={SPARSE_RATIO_POINTS} />);
 
       const table = screen.getByRole("table", { name: /kudos-to-hits ratio/i });
-      expect(within(table).getAllByRole("columnheader")).toHaveLength(
-        SPARSE_RATIO_POINTS.length + 1,
-      );
+      // Scoped to the day tier (+corner) via leafColumnHeaders - the 3-tier
+      // header's year/month grouping cells are ALSO real columnheaders
+      // (date-hierarchy-grouping.md §4/§6/T5), so an unfiltered count would
+      // no longer match this test's original "one column per point" intent.
+      expect(leafColumnHeaders(table)).toHaveLength(SPARSE_RATIO_POINTS.length + 1);
       expect(within(table).getAllByRole("rowheader")).toHaveLength(1);
     });
 
@@ -116,7 +119,7 @@ describe("RatioChart", () => {
 
       expect(screen.getByRole("img", { name: /kudos-to-hits ratio/i })).toBeInTheDocument();
       const table = screen.getByRole("table", { name: /kudos-to-hits ratio/i });
-      expect(within(table).getAllByRole("columnheader")).toHaveLength(2);
+      expect(leafColumnHeaders(table)).toHaveLength(2);
     });
   });
 
@@ -155,9 +158,7 @@ describe("RatioChart", () => {
       );
 
       const table = screen.getByRole("table", { name: /kudos-to-hits ratio/i });
-      expect(within(table).getAllByRole("columnheader")).toHaveLength(
-        SPARSE_RATIO_POINTS.length + 2,
-      );
+      expect(leafColumnHeaders(table)).toHaveLength(SPARSE_RATIO_POINTS.length + 2);
     });
 
     it("renders the synthetic column's cell as exactly 0, never derived", () => {
@@ -171,19 +172,20 @@ describe("RatioChart", () => {
       expect(cells[0].textContent).toBe("0");
     });
 
-    it("labels the synthetic column's header as an estimated baseline, never a raw ISO date", () => {
+    it("labels the synthetic column's header as an estimated baseline, never a raw ISO date (accessible name, D2)", () => {
       render(
         <RatioChart title="Kudos-to-hits ratio" points={SPARSE_RATIO_POINTS} leadIn={LEAD_IN} />,
       );
 
       const table = screen.getByRole("table", { name: /kudos-to-hits ratio/i });
-      const columnHeaders = within(table).getAllByRole("columnheader");
-      const syntheticHeader = columnHeaders[1];
+      const syntheticHeader = within(table).getByRole("columnheader", {
+        name: /before.*2014.*estimated baseline/i,
+      });
 
-      expect(syntheticHeader.textContent).toMatch(/before/i);
-      expect(syntheticHeader.textContent).toMatch(/2014/);
-      expect(syntheticHeader.textContent).toMatch(/estimated baseline/i);
-      expect(within(table).queryByText("2014-01-01")).not.toBeInTheDocument();
+      expect(syntheticHeader).toBeInTheDocument();
+      expect(
+        within(table).queryByRole("columnheader", { name: "2014-01-01" }),
+      ).not.toBeInTheDocument();
     });
 
     it("orders the synthetic column before the first real point", () => {
@@ -192,10 +194,10 @@ describe("RatioChart", () => {
       );
 
       const table = screen.getByRole("table", { name: /kudos-to-hits ratio/i });
-      const columnHeaders = within(table).getAllByRole("columnheader");
+      const columnHeaders = leafColumnHeaders(table);
 
-      expect(columnHeaders[1].textContent).toMatch(/before/i);
-      expect(columnHeaders[2].textContent).toMatch(SPARSE_RATIO_POINTS[0].capturedOn);
+      expect(columnHeaders[1].getAttribute("aria-label")).toMatch(/before/i);
+      expect(columnHeaders[2].getAttribute("aria-label")).toBe(SPARSE_RATIO_POINTS[0].capturedOn);
     });
   });
 
