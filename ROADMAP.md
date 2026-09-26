@@ -228,4 +228,36 @@ Raised by the user while reviewing the shipped feature (`docs/plans/chart-synced
 - **Axis-flip toggle.** Let the user swap which axis (time vs. metric/series) each chart plots against - i.e. flip the chart's orientation. Needs Discovery on what this actually means per chart type (`TrendChart`/`RatioChart` are single-series - flipping axes there is a different operation than for `MultiSeriesTrendChart`) and how it interacts with the synced-data-table's own row/column orientation (Decision D3: time-as-columns).
 - **Time-series point comparison.** Select a point (e.g. by clicking a date on the chart or a column in the table), then hover/select a second point to see a delta (`+47`/`-1`, colored by valence - green for a metric-appropriate improvement, red for decline) rendered next to the second point's value in the table. Needs Discovery on interaction model (click-to-pin vs. a dedicated compare mode), which metrics have a "good direction" (hits/kudos up = good, but does every metric have an obvious valence?), and how this composes with the existing per-work multi-select comparison feature (`WorkComparisonSection`) without confusing two different "compare" concepts.
 - **True chronological x-axis scale.** Currently a category (not real-time) axis by deliberate design (see `design-system/ao3-stats-plus/MASTER.md`'s Chart Guidance - "settled convention, do not reopen" per this project's own established practice). This item explicitly proposes reopening that convention: space between plotted points would reflect actual elapsed time between captures, not just ordinal position. Needs Discovery/Planning to work through the real consequences (irregular capture cadence produces uneven point spacing; the zero-basis/lead-in synthetic point's placement; existing sparse-series handling) before touching the settled convention.
-- **Visual date-hierarchy grouping (year/month/day) for both chart and table.** Every column/series sharing a year gets one visual indicator, everything sharing a month gets another, with the day rendered on its own - a nested/grouped header treatment. **User's explicit instruction: "do not proceed without presenting options and gathering input from me"** - this needs a dedicated design pass (multiple concrete visual options presented, e.g. via the `frontend-design`/`ui-ux-pro-max` skills) and direct user sign-off before any Planning or Testing work starts, not just an open Discovery question. Treat as needing an explicit design-options conversation as its own step, ahead of a normal Planning pass.
+- ~~Visual date-hierarchy grouping (year/month/day) for both chart and table.~~
+  **DESIGN CONFIRMED 2026-09-26** (design-options session held per the user's
+  standing instruction - three concrete treatments were mocked as an Artifact
+  against this app's real tokens and the account's actual hard case, a 2014/
+  2015 lead-in next to a dense July-August 2026 daily cluster; the user picked
+  a combination, then caught and corrected a flaw in the table mock before
+  signing off). **Ready for Planning** - not yet built. Confirmed design:
+  - **Chart x-axis**: year boundaries get a vertical dashed rule + year label,
+    drawn only where the year actually changes (sparse, doesn't compete with
+    the plot). Month groups get a horizontal span line with a month-
+    abbreviation label positioned above the day ticks, drawn for every month
+    present - including a single-point month, where the span simply collapses
+    to that one point (e.g. a lead-in that's the only capture in its month
+    still gets its own "Sep"/"Nov" label above it, not a blank).
+  - **Synced data table**: a full three-tier header - Year row -> Month row ->
+    Day row - applied consistently regardless of density. Critical correction
+    from the first draft: a year with only ONE date must still decompose all
+    three tiers (`2014 | Sep | 06`), never collapse the month tier to blank
+    (`2014 | &nbsp; | 09-06`, the flaw in the original mockup, corrected before
+    sign-off). A year's header cell spans exactly however many distinct
+    month-groups fall under it (1 for a single-date year, more for a denser
+    one) - never padded or collapsed for visual consistency.
+  - Applies to `TrendChart`, `RatioChart`, `MultiSeriesTrendChart`'s x-axis,
+    and `SyncedDataTable` in both orientations (the item 2 toggle from the
+    chart-axis-comparison-and-table-orientation-batch - this treatment needs
+    to work whether dates are the table's rows or its columns).
+  - Depends on/composes with the already-shipped `chartTimeAxis.ts` real
+    elapsed-time x-axis (item 4 of that same batch) and its
+    `selectDisplayedTicks`/`interval={0}` tick-selection fix (round 5,
+    commit `bb1dd7d`) - Planning should treat the year/month grouping marks
+    as an ADDITIONAL layer over that existing tick set, not a replacement
+    mechanism, and should re-check interaction with that round's hard-won
+    `MAX_REAL_AXIS_TICKS` real-tick cap.
