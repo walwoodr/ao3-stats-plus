@@ -1727,3 +1727,49 @@
   far-apart-lead-in drop; green after) - re-verified the single-lead-in case
   (round 4) and the Y-axis rounding fix (`026890f`) both still pass
   unmodified.
+- [2026-09-26] (stage: Implementation) **Test-authoring defect, not fixed
+  here per this stage's standing "don't edit tests to make them pass" rule**
+  (this project's own precedent for this exact situation - see `12e2c35`,
+  "test: fix 6 test-authoring defects Implementation flagged, not fixed").
+  `DateGroupingOverlay.test.tsx`'s "skips a month/year mark whose computed x
+  falls outside the declared plot domain" test (docs/plans/date-hierarchy-
+  grouping.md §10 T2/§5.2 bounds guard) cannot pass against a correct
+  implementation, confirmed via an isolated repro against the installed
+  recharts@3.10.0 source, not assumed: the test renders `<LineChart
+  data={chartData}>` where `chartData` is built from the FULL `rows` array
+  (including the 2014 lead-in) while trying to restrict the axis to a
+  `narrowDomain` that excludes it (`[JUL_1.xEpoch, AUG_1.xEpoch]`). Recharts'
+  `allowDataOverflow` defaults to `false`
+  (`state/selectors/axisSelectors.js`), and
+  `util/isDomainSpecifiedByUser.js`'s `parseNumericalUserDomain`/
+  `extendDomain` unconditionally UNION any explicitly-provided `domain` prop
+  with the real data's own extent whenever `allowDataOverflow` is not `true`
+  - so the requested narrower domain is silently widened back out to
+  include the lead-in's real epoch as the domain minimum. A debug repro
+  (isolated render + console dump of the resolved scale, same harness/
+  fixture as the test) confirms this directly: the 2014 lead-in's month-span
+  line renders at `x1=x2=65` (the plot's own left edge, i.e. the domain
+  minimum), not off-canvas - there is no way to make a chart's OWN full
+  `data` fall outside its OWN resolved axis domain without also passing
+  `allowDataOverflow={true}` on that `<XAxis>`, which neither the test's
+  harness nor any of the three real chart components do (nor should they -
+  that prop has broader rendering implications the plan never called for).
+  The plan's §0.2 claim that "d3 scales do NOT clamp" is correct and was
+  independently reconfirmed (the raw scale genuinely extrapolates outside
+  its OWN domain), but that's a separate fact from Recharts silently
+  widening the DECLARED domain to match the actual data before the scale is
+  even constructed - the test's premise conflates the two. 14/15 specs in
+  this file pass against `DateGroupingOverlay.tsx` as shipped; only this one
+  bounds-guard scenario is unconstructable via `<XAxis domain>` while `data`
+  contains the excluded row. The bounds guard itself IS implemented exactly
+  per plan §5.2 (skip any mark whose computed pixel falls outside
+  `[plotArea.x, plotArea.x + plotArea.width]`) and is exercised correctly by
+  every OTHER assertion in this file; only this one artificial-domain
+  construction can't actually exercise it. Needs a Testing-stage fix:
+  either drop this one assertion (the guard is genuinely defensive/
+  unreachable in real production, where every chart's declared domain
+  already always equals its own full data extent) or construct the narrowed
+  scenario a different way (e.g. a custom scale double/stub passed via
+  `<XAxis scale={...}>` that doesn't get data-extended, if that's even
+  expressible through Recharts' public API) - not Implementation's call to
+  make unilaterally by editing test intent.
