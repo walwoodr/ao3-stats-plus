@@ -1867,3 +1867,13 @@
   lookups, mirroring `cf43607`'s own established pattern for the day tier
   (class 3). Not done here per this stage's standing rule against editing
   tests to force a pass.
+- [2026-09-26] (stage: Implementation) Minor, cosmetic: 6 Testing-stage
+  files (`DateGroupingOverlay.test.tsx`, `MultiSeriesTrendChart.
+  dateGroupingWiring.test.tsx`, `RatioChart.dateGroupingWiring.test.tsx`,
+  `SyncedDataTableHeader.test.tsx`, `TrendChart.dateGroupingWiring.
+  test.tsx`, `TrendChart.test.tsx`) fail `npx prettier --check` - confirmed
+  pre-existing in the committed Testing-stage state (not introduced by this
+  Implementation pass; no local changes to these files at any point this
+  stage). Not fixed here per the same standing rule against editing test
+  files - a one-line `npx prettier --write` on these 6 files for a future
+  Testing/Maintenance pass.
