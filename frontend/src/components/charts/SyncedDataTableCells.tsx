@@ -36,6 +36,15 @@ function formatCellValue(cell: number | string | undefined): string {
 export interface DateHeaderCellProps {
   entry: DateAxisEntry;
   as: "columnheader" | "rowheader";
+  // Date-hierarchy-grouping.md §6/D2: the VISIBLE text (day-of-month, e.g.
+  // "06"), distinct from `entry.label` - which stays the accessible name
+  // (aria-label below) in full, e.g. "Before 2014 (estimated baseline)".
+  // Belt-and-suspenders for uneven scope=colgroup/rowgroup screen-reader
+  // support, and keeps the pin button's own accessible name meaningful.
+  // Optional, defaulting to `entry.label` - SyncedDataTableHeader.tsx (the
+  // only real caller once I7 lands) always supplies the real day-of-month;
+  // the default keeps this component's own type backward-compatible.
+  displayLabel?: string;
   activeDateKey: string | null;
   pinnedDateKey: string | null;
   onPinnedDateKeyChange?: (dateKey: string | null) => void;
@@ -51,6 +60,7 @@ export interface DateHeaderCellProps {
 export function DateHeaderCell({
   entry,
   as,
+  displayLabel = entry.label,
   activeDateKey,
   pinnedDateKey,
   onPinnedDateKeyChange,
@@ -95,13 +105,12 @@ export function DateHeaderCell({
           aria-pressed={isPinned}
           // "Compare from " lives in aria-label (accessible-name only), NOT
           // as DOM text - a visible/sr-only text child would show up in
-          // this button's own textContent, which would in turn pollute any
-          // EXACT textContent equality check on the surrounding header
-          // (several pre-existing, unrelated specs - e.g.
-          // WorkComparisonSection.bookmarksByWork.test.tsx - assert the
-          // column header's textContent equals the bare date/label). The
-          // "pinned comparison point" suffix, by contrast, stays a real
-          // sr-only DOM child (not aria-label) because
+          // this button's own textContent. The visible text is
+          // `displayLabel` (date-hierarchy-grouping.md §6/D2's day-of-month,
+          // e.g. "06"), distinct from the full `entry.label` carried in
+          // aria-label above - see this file's own DateHeaderCellProps
+          // comment. The "pinned comparison point" suffix, by contrast,
+          // stays a real sr-only DOM child (not aria-label) because
           // SyncedDataTable.pinDelta.test.tsx asserts on it via the
           // header's textContent directly, not the button's accessible
           // name.
@@ -109,13 +118,13 @@ export function DateHeaderCell({
           onClick={() => togglePin(entry.dateKey)}
           className="min-w-0 max-w-full truncate text-left"
         >
-          {entry.label}
+          {displayLabel}
           {isPinned && <span className="sr-only"> — pinned comparison point</span>}
         </button>
       ) : isRowHeader ? (
-        <span className="truncate">{entry.label}</span>
+        <span className="truncate">{displayLabel}</span>
       ) : (
-        entry.label
+        displayLabel
       )}
     </th>
   );
