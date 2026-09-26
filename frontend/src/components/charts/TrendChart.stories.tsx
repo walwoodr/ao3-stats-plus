@@ -103,3 +103,38 @@ export const HighlightedColumnState: Story = {
     ).not.toBeNull();
   },
 };
+
+// I8/I9 (docs/plans/date-hierarchy-grouping.md §1/§9): the plan's own
+// happy-path hard case - a 2014 estimated-baseline lead-in plus a dense
+// July-August 2026 cluster, spanning 2 years/3 months incl. a single-point
+// month (Aug) - real-Preview material for DateGroupingOverlay's month
+// span/year rule marks and the table's matching 3-tier header, feeding the
+// addon-a11y automated scan against this specific shape (not just the
+// simpler existing lead-in stories above).
+export const DateHierarchyHardCase: Story = {
+  args: {
+    title: "Total hits",
+    valueLabel: "Hits",
+    points: [
+      { capturedOn: "2026-07-01", value: 130536 },
+      { capturedOn: "2026-07-15", value: 130597 },
+      { capturedOn: "2026-08-10", value: 130911 },
+    ],
+    leadIn: { capturedOn: "2014-09-06", value: 0 },
+  },
+  play: async ({ canvasElement }) => {
+    await expect(
+      canvasElement.querySelector('[data-testid="date-grouping-overlay"]'),
+    ).not.toBeNull();
+    const monthLabels = Array.from(
+      canvasElement.querySelectorAll('[data-testid="month-span-label"]'),
+    ).map((el) => el.textContent);
+    expect(monthLabels).toEqual(["Sep", "Jul", "Aug"]);
+    expect(canvasElement.querySelectorAll('[data-testid="year-rule-line"]')).toHaveLength(1);
+
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole("table", { name: /total hits/i });
+    await expect(within(table).getByRole("columnheader", { name: "2014" })).toBeVisible();
+    await expect(within(table).getByRole("columnheader", { name: "2026" })).toBeVisible();
+  },
+};
