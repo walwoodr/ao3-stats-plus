@@ -16,12 +16,16 @@ export interface DateGroupingOverlayProps {
 }
 
 // Vertical offsets for the axis band below the plot, top -> bottom: month
-// span line + abbrev label, (day-number ticks, drawn by Recharts itself),
-// year labels (plan §5.3). Tuned against real Storybook/Preview rendering at
-// this project's fixed 240px chart height.
-const MONTH_LINE_OFFSET = 8;
-const MONTH_LABEL_OFFSET = 3;
-const YEAR_LABEL_OFFSET = 34;
+// span line + abbrev label, (day-number ticks, drawn by Recharts itself via
+// dateGroupingChartLayout.ts's DAY_TICK_MARGIN), year labels (plan §5.3).
+// Tuned together with dateGroupingChartLayout.ts's EXTRA_BAND_HEIGHT/
+// DAY_TICK_MARGIN against a REAL Chromium screenshot of the populated
+// dashboard (2026-09-26 I9 Preview pass) - an initial guess left the day-
+// tick and year-label rows only ~10px apart baseline-to-baseline (visually
+// touching); these three values now give each row a clear ~18-20px gap.
+const MONTH_LINE_OFFSET = 10;
+const MONTH_LABEL_OFFSET = 4;
+const YEAR_LABEL_OFFSET = 50;
 
 // Additive, independent SVG overlay (plan §0/§5) - a sibling of
 // ActivePointOverlay inside each chart's <LineChart>. Reads the same public
