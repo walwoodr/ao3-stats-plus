@@ -152,9 +152,7 @@ describe("TrendChart", () => {
       render(<TrendChart title="Total hits" valueLabel="Hits" points={SPARSE_POINTS} />);
 
       const table = screen.getByRole("table", { name: /total hits/i });
-      expect(
-        within(table).getByRole("columnheader", { name: "2026-02-20" }),
-      ).toBeInTheDocument();
+      expect(within(table).getByRole("columnheader", { name: "2026-02-20" })).toBeInTheDocument();
       expect(
         within(table).queryByRole("columnheader", { name: "2026-01-20" }),
       ).not.toBeInTheDocument();
@@ -252,7 +250,12 @@ describe("TrendChart", () => {
       );
 
       const table = screen.getByRole("table", { name: /total hits/i });
-      const dataRow = within(table).getAllByRole("row")[1];
+      // tbody-scoped rather than an absolute row index into the whole
+      // table: the 3-tier header (date-hierarchy-grouping.md §4) makes
+      // datesAsColumns' <thead> always have 3 <tr> (year/month/day), so
+      // `within(table).getAllByRole("row")[1]` no longer lands on the first
+      // real data row.
+      const dataRow = within(table.querySelector("tbody") as HTMLElement).getAllByRole("row")[0];
       const cells = within(dataRow).getAllByRole("cell");
       expect(cells[0].textContent).toBe("0");
     });

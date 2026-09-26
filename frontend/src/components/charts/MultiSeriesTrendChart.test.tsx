@@ -208,9 +208,13 @@ describe("MultiSeriesTrendChart", () => {
       render(<MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A, WORK_B]} />);
 
       const table = screen.getByRole("table", { name: /hits/i });
-      const rows = within(table).getAllByRole("row");
-      // Work B's row (index 2: header row, Work A row, Work B row).
-      const workBRow = rows[2];
+      // tbody-scoped rather than an absolute row index into the whole
+      // table: the 3-tier header (date-hierarchy-grouping.md §4) makes
+      // datesAsColumns' <thead> always have 3 <tr> (year/month/day), so a
+      // whole-table row index no longer lands on the intended tbody row.
+      const rows = within(table.querySelector("tbody") as HTMLElement).getAllByRole("row");
+      // Work B's row (index 1: Work A row, Work B row).
+      const workBRow = rows[1];
 
       expect(within(workBRow).getByText("—")).toBeInTheDocument();
       expect(within(workBRow).getByText("5")).toBeInTheDocument();

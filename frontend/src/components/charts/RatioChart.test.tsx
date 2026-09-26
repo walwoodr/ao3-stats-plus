@@ -167,7 +167,12 @@ describe("RatioChart", () => {
       );
 
       const table = screen.getByRole("table", { name: /kudos-to-hits ratio/i });
-      const dataRow = within(table).getAllByRole("row")[1];
+      // tbody-scoped rather than an absolute row index into the whole
+      // table: the 3-tier header (date-hierarchy-grouping.md §4) makes
+      // datesAsColumns' <thead> always have 3 <tr> (year/month/day), so
+      // `within(table).getAllByRole("row")[1]` no longer lands on the first
+      // real data row.
+      const dataRow = within(table.querySelector("tbody") as HTMLElement).getAllByRole("row")[0];
       const cells = within(dataRow).getAllByRole("cell");
       expect(cells[0].textContent).toBe("0");
     });

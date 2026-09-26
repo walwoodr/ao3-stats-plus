@@ -7,6 +7,7 @@ import { useTokenFromUrl } from "../store/useTokenFromUrl";
 import { useTokenStore } from "../store/useTokenStore";
 import { useWorkComparisonStore } from "../store/useWorkComparisonStore";
 import { useStatsForUser } from "../queries/useStatsForUser";
+import { leafColumnHeaders } from "../components/charts/syncedDataTableTestSupport";
 
 // Account-level metric toggle (docs/plans/additional-metric-trend-charts.md
 // §3.0, Testing task T-T2): the aggregate trend region becomes a single
@@ -139,10 +140,15 @@ describe("DashboardPage: account-level metric toggle", () => {
     await user.click(screen.getByRole("tab", { name: "Subscribers" }));
 
     const table = screen.getByRole("table", { name: /subscribers/i });
-    const columnHeaders = within(table).getAllByRole("columnheader");
+    // leafColumnHeaders scopes to the day tier + corner only (date-
+    // hierarchy-grouping.md §4/§10 T5) - the 3-tier header's year/month
+    // grouping cells are ALSO real columnheaders, and the "before" wording
+    // now lives in the accessible name (aria-label), not visible text
+    // (D1's bare day-of-month display text).
+    const columnHeaders = leafColumnHeaders(table);
     // corner cell + the synthetic leadIn column + one per real point.
     expect(columnHeaders).toHaveLength(TWO_POINT_SERIES.length + 2);
-    expect(columnHeaders[1].textContent).toMatch(/before/i);
+    expect(columnHeaders[1].getAttribute("aria-label")).toMatch(/before/i);
     const cells = within(table).getAllByRole("cell");
     expect(cells[0].textContent).toBe("0");
   });

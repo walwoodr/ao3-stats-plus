@@ -9,6 +9,7 @@ import { useTokenFromUrl } from "../store/useTokenFromUrl";
 import { useTokenStore } from "../store/useTokenStore";
 import { useWorkComparisonStore } from "../store/useWorkComparisonStore";
 import { useStatsForUser, type PerWorkSeries } from "../queries/useStatsForUser";
+import { leafColumnHeaders } from "../components/charts/syncedDataTableTestSupport";
 
 // graphql-request throws ClientError for a real GraphQL-level rejection from
 // the server (e.g. a backend-confirmed bad token), as opposed to a plain
@@ -288,19 +289,25 @@ describe("DashboardPage", () => {
       // the aria-hidden figure, not the old sr-only per-point marker spans
       // that used to sit inside it - docs/plans/chart-synced-data-table.md
       // §2.4).
+      // Scoped to leafColumnHeaders (day tier + corner only, date-hierarchy-
+      // grouping.md §4/§10 T5): the 3-tier header's year/month grouping
+      // cells are ALSO real columnheaders, so an unfiltered count/index no
+      // longer matches this test's original "one column per point" intent.
+      // The "before" wording lives in the accessible name (aria-label) now,
+      // not the visible textContent (D1's bare day-of-month display text).
       const hitsTable = screen.getByRole("table", { name: /total hits/i });
-      const hitsColumnHeaders = within(hitsTable).getAllByRole("columnheader");
+      const hitsColumnHeaders = leafColumnHeaders(hitsTable);
       // corner + one synthetic leadIn column + real points.
       expect(hitsColumnHeaders).toHaveLength(TWO_POINT_SERIES.length + 2);
-      expect(hitsColumnHeaders[1].textContent).toMatch(/before/i);
+      expect(hitsColumnHeaders[1].getAttribute("aria-label")).toMatch(/before/i);
       expect(within(hitsTable).getAllByRole("cell")[0].textContent).toBe("0");
 
       await user.click(screen.getByRole("tab", { name: "Kudos" }));
 
       const kudosTable = screen.getByRole("table", { name: /total kudos/i });
-      const kudosColumnHeaders = within(kudosTable).getAllByRole("columnheader");
+      const kudosColumnHeaders = leafColumnHeaders(kudosTable);
       expect(kudosColumnHeaders).toHaveLength(TWO_POINT_SERIES.length + 2);
-      expect(kudosColumnHeaders[1].textContent).toMatch(/before/i);
+      expect(kudosColumnHeaders[1].getAttribute("aria-label")).toMatch(/before/i);
       expect(within(kudosTable).getAllByRole("cell")[0].textContent).toBe("0");
     });
 
@@ -355,11 +362,15 @@ describe("DashboardPage", () => {
       // leadIn for Work A (no publishedOn -> falls back to the
       // earliestPostYear baseline) alongside its 2 real points.
       const comparisonHitsTable = screen.getByRole("table", { name: /^hits$/i });
-      const columnHeaders = within(comparisonHitsTable).getAllByRole("columnheader");
+      // leafColumnHeaders scopes to the day tier + corner only (see the
+      // comment on the previous test in this describe block).
+      const columnHeaders = leafColumnHeaders(comparisonHitsTable);
       // corner + one synthetic leadIn column + Work A's 2 real points.
       expect(columnHeaders).toHaveLength(4);
       expect(
-        columnHeaders.some((header) => /estimated baseline/i.test(header.textContent ?? "")),
+        columnHeaders.some((header) =>
+          /estimated baseline/i.test(header.getAttribute("aria-label") ?? ""),
+        ),
       ).toBe(true);
     });
 
@@ -373,8 +384,10 @@ describe("DashboardPage", () => {
 
       expect(screen.queryByText(/only have one|not enough history yet/i)).not.toBeInTheDocument();
       const hitsTable = screen.getByRole("table", { name: /total hits/i });
-      // corner + one synthetic + one real point is a drawable two-point trend.
-      expect(within(hitsTable).getAllByRole("columnheader")).toHaveLength(3);
+      // corner + one synthetic + one real point is a drawable two-point
+      // trend - leafColumnHeaders scopes to the day tier + corner only (see
+      // the earlier comment in this describe block).
+      expect(leafColumnHeaders(hitsTable)).toHaveLength(3);
     });
   });
 
@@ -432,8 +445,11 @@ describe("DashboardPage", () => {
 
       expect(screen.getByText(/only have one|not enough history yet/i)).toBeInTheDocument();
       const hitsTable = screen.getByRole("table", { name: /total hits/i });
-      // corner + one real point only - no leadIn column.
-      expect(within(hitsTable).getAllByRole("columnheader")).toHaveLength(2);
+      // corner + one real point only - no leadIn column. leafColumnHeaders
+      // scopes to the day tier + corner only (the year/month grouping cells
+      // - always present even for a single date, dateHierarchy.ts's "never
+      // collapsed" rule - are ALSO real columnheaders otherwise).
+      expect(leafColumnHeaders(hitsTable)).toHaveLength(2);
       expect(within(hitsTable).queryByText(/estimated baseline/i)).not.toBeInTheDocument();
     });
   });

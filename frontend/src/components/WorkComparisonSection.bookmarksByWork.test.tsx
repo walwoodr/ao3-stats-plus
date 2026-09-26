@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { WorkComparisonSection } from "./WorkComparisonSection";
 import { useWorkComparisonStore } from "../store/useWorkComparisonStore";
 import type { PerWorkSeries } from "../queries/useStatsForUser";
+import { leafColumnHeaders } from "./charts/syncedDataTableTestSupport";
 
 // Bookmarks "By Work" sub-tab (docs/plans/additional-metric-trend-charts.md
 // §3.4 Option 3, Testing task T-T7): for every currently-selected work, IN
@@ -185,9 +186,17 @@ describe("WorkComparisonSection: Bookmarks By Work", () => {
     await goToBookmarksByWork(user);
 
     const table = screen.getByRole("table", { name: "Work One" });
-    const columnHeaders = within(table)
-      .getAllByRole("columnheader")
-      .map((header) => header.textContent);
+    // Scoped to leafColumnHeaders (day tier + corner only, date-hierarchy-
+    // grouping.md §4/§10 T5): the 3-tier header's year/month grouping cells
+    // are ALSO real columnheaders, so an unfiltered getAllByRole count/order
+    // would no longer match this test's original "one column per date"
+    // intent. Matched via accessible name (aria-label), not visible text -
+    // D1 (§2.2) now shows bare day-of-month visually, but each date header's
+    // full date stays the accessible name (§6); the corner cell has no
+    // aria-label, so it falls back to its own (sr-only) textContent.
+    const columnHeaders = leafColumnHeaders(table).map(
+      (header) => header.getAttribute("aria-label") ?? header.textContent,
+    );
     // Corner cell (sr-only "Work") + Total's zero-basis leadIn column + one
     // per captured date (see the leadIn test below for why only Total's
     // leadIn contributes a column here). Maintenance item 3 (post-ship bug

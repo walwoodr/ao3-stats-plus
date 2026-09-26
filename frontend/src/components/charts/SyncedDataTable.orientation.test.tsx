@@ -306,9 +306,14 @@ describe("SyncedDataTable: sync interaction still keys off dateKey under datesAs
     );
 
     const table = screen.getByRole("table", { name: /hits/i });
+    // Matched via accessible name (aria-label), not visible textContent -
+    // D1 (date-hierarchy-grouping.md §2.2/§6) now shows bare day-of-month
+    // ("08") as this row header's visible text, but its full date stays the
+    // accessible name, which is what this test actually needs to identify
+    // the specific date row.
     const dateRowHeader = within(table)
       .getAllByRole("rowheader")
-      .find((el) => el.textContent?.includes("2026-01-08"));
+      .find((el) => el.getAttribute("aria-label") === "2026-01-08");
     expect(dateRowHeader).toBeDefined();
     if (dateRowHeader) {
       // fireEvent.mouseEnter (not a raw element.dispatchEvent) - confirmed

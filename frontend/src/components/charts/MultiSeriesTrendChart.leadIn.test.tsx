@@ -247,11 +247,15 @@ describe("MultiSeriesTrendChart: the visible synced table gains zero-basis colum
     );
 
     const table = screen.getByRole("table", { name: /hits/i });
-    const rows = within(table).getAllByRole("row");
-    // header row, Work A's row, Work B's row (column order: zero-basis
-    // column first, per §5.2's "never surface a raw ISO date" ordering).
-    const workARow = rows[1];
-    const workBRow = rows[2];
+    // tbody-scoped rather than an absolute row index into the whole table:
+    // the 3-tier header (date-hierarchy-grouping.md §4) makes
+    // datesAsColumns' <thead> always have 3 <tr> (year/month/day), so a
+    // whole-table row index no longer lands on the intended tbody row.
+    const rows = within(table.querySelector("tbody") as HTMLElement).getAllByRole("row");
+    // Work A's row, Work B's row (column order: zero-basis column first,
+    // per §5.2's "never surface a raw ISO date" ordering).
+    const workARow = rows[0];
+    const workBRow = rows[1];
     const workACells = within(workARow).getAllByRole("cell");
     const workBCells = within(workBRow).getAllByRole("cell");
 
