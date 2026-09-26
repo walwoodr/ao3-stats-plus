@@ -8,6 +8,7 @@ import { buildMultiSeriesTableModel } from "../../lib/syncedTableModel";
 import {
   computeYDomain,
   estimateYAxisWidth,
+  formatDayTick,
   leadInEpoch,
   selectDisplayedTicks,
   toEpoch,
@@ -19,8 +20,14 @@ import { SyncedDataTable } from "./SyncedDataTable";
 import { ChartDisclosure } from "./ChartDisclosure";
 import { PinnedComparisonBar } from "./PinnedComparisonBar";
 import { ActivePointOverlay, type ActivePoint } from "./ActivePointOverlay";
+import { DateGroupingOverlay } from "./DateGroupingOverlay";
 import { createLeadInXAxisTick } from "./LeadInXAxisTick";
 import { createLeadInDot, createSeriesDot } from "./multiSeriesDots";
+import {
+  CHART_CONTAINER_HEIGHT,
+  DAY_TICK_MARGIN,
+  X_AXIS_BAND_HEIGHT,
+} from "./dateGroupingChartLayout";
 import type { TrendPoint } from "./TrendChart";
 
 // Per-work zero-basis dates (docs/plans/per-work-zero-basis-dates.md):
@@ -247,11 +254,10 @@ export function MultiSeriesTrendChart({
 
   // Only a real capture date's tick gets text at all - a zero-basis-only
   // slot renders a marker instead (see LeadInXAxisTick.tsx), so this never
-  // needs to consult zeroBasisLabels for its own rendering.
-  const tickFormatter = (xEpoch: number): string => {
-    const row = chartData.find((r) => r.xEpoch === xEpoch);
-    return row ? row.capturedOn : "";
-  };
+  // needs to consult zeroBasisLabels for its own rendering. D1: bare
+  // day-of-month, not the full ISO date - month/year context now lives in
+  // DateGroupingOverlay's own span/rule labels.
+  const tickFormatter = (xEpoch: number): string => formatDayTick(xEpoch);
 
   // Passed to <XAxis tickFormatter>, NOT to the custom tick renderer's own
   // `tickFormatter` above - see LeadInXAxisTick.tsx's top-of-file comment
@@ -349,7 +355,7 @@ export function MultiSeriesTrendChart({
       <ChartDisclosure>
         <figure role="img" aria-labelledby={headingId}>
           <div aria-hidden="true">
-            <ResponsiveContainer width="100%" height={240}>
+            <ResponsiveContainer width="100%" height={CHART_CONTAINER_HEIGHT}>
               <LineChart
                 data={chartData}
                 accessibilityLayer={false}
@@ -369,7 +375,12 @@ export function MultiSeriesTrendChart({
                   ticks={displayedTicks}
                   // interval={0}: bypasses Recharts' own tick filtering
                   // entirely - see chartTimeAxis.ts's selectDisplayedTicks.
+                  // height/tickMargin bumped (dateGroupingChartLayout) to
+                  // reserve the month/year band - the plot rect itself is
+                  // unchanged.
                   interval={0}
+                  height={X_AXIS_BAND_HEIGHT}
+                  tickMargin={DAY_TICK_MARGIN}
                   tickFormatter={axisTickFormatter}
                   tick={createLeadInXAxisTick({
                     fill: colors.inkSoft,
@@ -426,6 +437,9 @@ export function MultiSeriesTrendChart({
                     />
                   );
                 })}
+                {/* Rendered BEFORE ActivePointOverlay (plan §5.4) - see
+                    TrendChart's identical comment. */}
+                <DateGroupingOverlay rows={chartData} />
                 <ActivePointOverlay
                   activePoints={activePoints}
                   pinnedPoints={pinnedPoints}

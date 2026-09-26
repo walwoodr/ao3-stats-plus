@@ -7,7 +7,7 @@ import { buildRatioTableModel } from "../../lib/syncedTableModel";
 import {
   computeYDomain,
   estimateYAxisWidth,
-  formatDateTick,
+  formatDayTick,
   leadInEpoch,
   selectDisplayedTicks,
   toEpoch,
@@ -18,7 +18,13 @@ import { SyncedDataTable } from "./SyncedDataTable";
 import { ChartDisclosure } from "./ChartDisclosure";
 import { PinnedComparisonBar } from "./PinnedComparisonBar";
 import { ActivePointOverlay, type ActivePoint } from "./ActivePointOverlay";
+import { DateGroupingOverlay } from "./DateGroupingOverlay";
 import { createLeadInXAxisTick } from "./LeadInXAxisTick";
+import {
+  CHART_CONTAINER_HEIGHT,
+  DAY_TICK_MARGIN,
+  X_AXIS_BAND_HEIGHT,
+} from "./dateGroupingChartLayout";
 
 export interface RatioPoint {
   capturedOn: string;
@@ -112,8 +118,8 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
 
   // Only a real point's tick gets text at all - the lead-in slot renders a
   // marker instead (see LeadInXAxisTick.tsx), so this never needs to format
-  // a lead-in's date.
-  const formatTick = (xEpoch: number): string => formatDateTick(xEpoch);
+  // a lead-in's date. D1: bare day-of-month, not the full ISO date.
+  const formatTick = (xEpoch: number): string => formatDayTick(xEpoch);
 
   // Passed to <XAxis tickFormatter>, NOT to the custom tick renderer's own
   // `formatTick` above - see TrendChart's identical comment/
@@ -215,7 +221,7 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
           aria-describedby={description ? descriptionId : undefined}
         >
           <div aria-hidden="true">
-            <ResponsiveContainer width="100%" height={240}>
+            <ResponsiveContainer width="100%" height={CHART_CONTAINER_HEIGHT}>
               <LineChart
                 data={chartData}
                 accessibilityLayer={false}
@@ -236,8 +242,12 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
                   // interval={0}: see TrendChart's identical comment -
                   // bypasses Recharts' own tick-selection/filtering
                   // entirely, verified against the installed recharts@3.10.0
-                  // source (chartTimeAxis.ts's selectDisplayedTicks).
+                  // source (chartTimeAxis.ts's selectDisplayedTicks). height/
+                  // tickMargin bumped (dateGroupingChartLayout) to reserve
+                  // the month/year band - the plot rect itself is unchanged.
                   interval={0}
+                  height={X_AXIS_BAND_HEIGHT}
+                  tickMargin={DAY_TICK_MARGIN}
                   tickFormatter={axisTickFormatter}
                   tick={createLeadInXAxisTick({
                     fill: colors.inkSoft,
@@ -322,6 +332,9 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
                     }}
                   />
                 )}
+                {/* Rendered BEFORE ActivePointOverlay (plan §5.4) - see
+                    TrendChart's identical comment. */}
+                <DateGroupingOverlay rows={chartData} />
                 <ActivePointOverlay
                   activePoints={activePoints}
                   pinnedPoints={pinnedPoints}

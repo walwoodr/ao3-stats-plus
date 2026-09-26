@@ -7,7 +7,7 @@ import { buildTrendTableModel } from "../../lib/syncedTableModel";
 import {
   computeYDomain,
   estimateYAxisWidth,
-  formatDateTick,
+  formatDayTick,
   leadInEpoch,
   selectDisplayedTicks,
   toEpoch,
@@ -18,7 +18,13 @@ import { SyncedDataTable } from "./SyncedDataTable";
 import { ChartDisclosure } from "./ChartDisclosure";
 import { PinnedComparisonBar } from "./PinnedComparisonBar";
 import { ActivePointOverlay, type ActivePoint } from "./ActivePointOverlay";
+import { DateGroupingOverlay } from "./DateGroupingOverlay";
 import { createLeadInXAxisTick } from "./LeadInXAxisTick";
+import {
+  CHART_CONTAINER_HEIGHT,
+  DAY_TICK_MARGIN,
+  X_AXIS_BAND_HEIGHT,
+} from "./dateGroupingChartLayout";
 
 export interface TrendPoint {
   capturedOn: string;
@@ -113,8 +119,9 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
 
   // Only a real point's tick gets text at all - the lead-in slot renders a
   // marker instead (see LeadInXAxisTick.tsx), so this never needs to format
-  // a lead-in's date.
-  const formatTick = (xEpoch: number): string => formatDateTick(xEpoch);
+  // a lead-in's date. D1: bare day-of-month, not the full ISO date - month/
+  // year context now lives in DateGroupingOverlay's own span/rule labels.
+  const formatTick = (xEpoch: number): string => formatDayTick(xEpoch);
 
   // Passed to <XAxis tickFormatter>, NOT to the custom tick renderer's own
   // `formatTick` above - this is the string Recharts' internal tick-overlap-
@@ -220,7 +227,7 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
           aria-describedby={description ? descriptionId : undefined}
         >
           <div aria-hidden="true">
-            <ResponsiveContainer width="100%" height={240}>
+            <ResponsiveContainer width="100%" height={CHART_CONTAINER_HEIGHT}>
               <LineChart
                 data={chartData}
                 accessibilityLayer={false}
@@ -243,8 +250,12 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
                   // recharts@3.10.0 source - see chartTimeAxis.ts's
                   // selectDisplayedTicks comment) - every value this
                   // component curates into `ticks` above renders, no more,
-                  // no less.
+                  // no less. height/tickMargin bumped (dateGroupingChartLayout)
+                  // to reserve the month/year band below the day ticks - the
+                  // plot rect itself is unchanged (see that module's comment).
                   interval={0}
+                  height={X_AXIS_BAND_HEIGHT}
+                  tickMargin={DAY_TICK_MARGIN}
                   tickFormatter={axisTickFormatter}
                   tick={createLeadInXAxisTick({
                     fill: colors.inkSoft,
@@ -329,6 +340,10 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
                     }}
                   />
                 )}
+                {/* Rendered BEFORE ActivePointOverlay (plan §5.4) so the
+                    decorative month/year marks sit beneath the active/pinned
+                    guide lines, not on top of them. */}
+                <DateGroupingOverlay rows={chartData} />
                 <ActivePointOverlay
                   activePoints={activePoints}
                   pinnedPoints={pinnedPoints}

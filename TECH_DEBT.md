@@ -1773,3 +1773,39 @@
   `<XAxis scale={...}>` that doesn't get data-extended, if that's even
   expressible through Recharts' public API) - not Implementation's call to
   make unilaterally by editing test intent.
+- [2026-09-26] (stage: Implementation) **9 test-authoring defects across 5
+  regression-fence files, not fixed here per the same standing rule** (same
+  project precedent as the entry directly above - `12e2c35`/`aeec41b`/
+  `116469d`). Wiring I5's D1 day-tick text change (`formatDateTick` ->
+  `formatDayTick` on the three charts' real ticks, docs/plans/date-hierarchy-
+  grouping.md §2.2) into `TrendChart.tsx`/`RatioChart.tsx`/
+  `MultiSeriesTrendChart.tsx` turns 9 PRE-EXISTING tests red across 5 files
+  that Testing's T5 rebaseline pass (`cf43607`) did NOT touch:
+  `TrendChart.leadInAxisMarker.test.tsx` (2), `RatioChart.leadInAxisMarker.
+  test.tsx` (2), `MultiSeriesTrendChart.leadInTickClipping.test.tsx` (2),
+  `MultiSeriesTrendChart.leadInTickIndexCollapse.test.tsx` (2), and
+  `MultiSeriesTrendChart.leadInTickProximityDrop.test.tsx` (1). Every one of
+  these 9 failures is the exact same root cause: each file hardcodes the
+  real ticks' rendered text as the full ISO capturedOn date (e.g.
+  `expect(labels).toEqual(["2026-07-30", "2026-07-31", "2026-08-02"])`),
+  which D1 legitimately changes to bare day-of-month (`["30", "31", "02"]`)
+  - these are round-5 tick-MACHINERY regression fences (marker-vs-text,
+  collision filtering, proximity-drop), not tick-TEXT fences, but each one
+  ALSO happens to assert on the literal tick text as part of proving the
+  machinery still works. The plan's own T6 claimed "assert the existing
+  timeAxis/leadInAxisMarker specs still pass untouched... verified directly"
+  - that verification necessarily predates D1 actually being wired in (it
+  couldn't have been re-checked against the real post-D1 render), so the
+  claim doesn't hold once D1 lands, even though the underlying MACHINERY
+  claim (`selectDisplayedTicks`/`interval={0}`/the lead-in marker path
+  genuinely untouched) is independently confirmed true by this same
+  Implementation pass (see the git-diff proof in this session's final
+  report). Confirmed by direct run: all 9 fail with exactly this shape (full
+  ISO expected, day-of-month received); every OTHER assertion in these same
+  5 files (marker presence/absence, `text-anchor`, tick counts) still
+  passes. Mechanical fix, exactly mirroring what `cf43607` already did for
+  the sibling `TrendChart.test.tsx`/`RatioChart.test.tsx`/
+  `MultiSeriesTrendChart.test.tsx` files in the same rebaseline pass: switch
+  each hardcoded full-ISO tick-text literal in these 5 files to its
+  day-of-month equivalent. Not done here per this stage's standing rule
+  against editing tests to force a pass.

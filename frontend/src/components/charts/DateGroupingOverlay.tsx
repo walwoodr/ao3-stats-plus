@@ -37,6 +37,10 @@ export function DateGroupingOverlay({ rows }: DateGroupingOverlayProps) {
   const xScale = useXAxisScale();
 
   if (!plotArea || !xScale) return null;
+  // Rebound to a new const so its narrowed (non-undefined) type is trusted
+  // inside `pixelFor` below - TS can't otherwise prove a captured outer
+  // variable stays narrowed inside a function declared after the guard.
+  const scale = xScale;
 
   const epochByCapturedOn = new Map<string, number>();
   rows.forEach((row) => {
@@ -58,7 +62,7 @@ export function DateGroupingOverlay({ rows }: DateGroupingOverlayProps) {
   function pixelFor(dateKey: string): number | null {
     const epoch = epochByCapturedOn.get(dateKey);
     if (epoch == null) return null;
-    const x = xScale(epoch);
+    const x = scale(epoch);
     return typeof x === "number" ? x : null;
   }
 
