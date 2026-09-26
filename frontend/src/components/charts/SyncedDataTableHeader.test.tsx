@@ -110,8 +110,8 @@ describe("SyncedDataTableHeader: datesAsColumns - three-tier thead (T3)", () => 
       orientation: "datesAsColumns",
     });
 
-    const monthCells = Array.from(container.querySelectorAll('th[scope="colgroup"]')).filter(
-      (el) => ["Sep", "Jul", "Aug"].includes(el.textContent ?? ""),
+    const monthCells = Array.from(container.querySelectorAll('th[scope="colgroup"]')).filter((el) =>
+      ["Sep", "Jul", "Aug"].includes(el.textContent ?? ""),
     );
     expect(monthCells.map((el) => el.textContent)).toEqual(["Sep", "Jul", "Aug"]);
     expect(monthCells[0]).toHaveAttribute("colSpan", "1"); // Sep -> 1 day (lead-in).
@@ -185,8 +185,9 @@ describe("SyncedDataTableHeader: datesAsColumns - three-tier thead (T3)", () => 
       </table>,
     );
 
-    const button = within(container.querySelector('th[data-date-key="2026-07-01"]') as HTMLElement)
-      .getByRole("button");
+    const button = within(
+      container.querySelector('th[data-date-key="2026-07-01"]') as HTMLElement,
+    ).getByRole("button");
     button.click();
 
     expect(togglePin).toHaveBeenCalledWith("2026-07-01");

@@ -88,9 +88,7 @@ describe("TrendChart: DateGroupingOverlay wired into the chart (§5.4)", () => {
       <TrendChart title="Total hits" valueLabel="Hits" points={POINTS} />,
     );
 
-    expect(
-      container.querySelector('g[data-testid="date-grouping-overlay"]'),
-    ).not.toBeNull();
+    expect(container.querySelector('g[data-testid="date-grouping-overlay"]')).not.toBeNull();
   });
 
   it("still renders the overlay (no crash) for a single-point history", () => {
@@ -98,9 +96,7 @@ describe("TrendChart: DateGroupingOverlay wired into the chart (§5.4)", () => {
       <TrendChart title="Total hits" valueLabel="Hits" points={[POINTS[0]]} />,
     );
 
-    expect(
-      container.querySelector('g[data-testid="date-grouping-overlay"]'),
-    ).not.toBeNull();
+    expect(container.querySelector('g[data-testid="date-grouping-overlay"]')).not.toBeNull();
   });
 });
 

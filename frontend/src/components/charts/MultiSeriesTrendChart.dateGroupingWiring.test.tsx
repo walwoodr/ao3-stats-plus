@@ -85,9 +85,7 @@ describe("MultiSeriesTrendChart: DateGroupingOverlay wired into the chart (§5.4
       <MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[WORK_A]} />,
     );
 
-    expect(
-      container.querySelector('g[data-testid="date-grouping-overlay"]'),
-    ).not.toBeNull();
+    expect(container.querySelector('g[data-testid="date-grouping-overlay"]')).not.toBeNull();
   });
 });
 

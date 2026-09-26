@@ -74,13 +74,9 @@ describe("RatioChart: DateGroupingOverlay wired into the chart (§5.4)", () => {
   installRechartsSizePolyfill();
 
   it("renders the date-grouping-overlay group as a child of the aria-hidden chart", () => {
-    const { container } = render(
-      <RatioChart title="Kudos-to-hits ratio" points={POINTS} />,
-    );
+    const { container } = render(<RatioChart title="Kudos-to-hits ratio" points={POINTS} />);
 
-    expect(
-      container.querySelector('g[data-testid="date-grouping-overlay"]'),
-    ).not.toBeNull();
+    expect(container.querySelector('g[data-testid="date-grouping-overlay"]')).not.toBeNull();
   });
 });
 
@@ -88,9 +84,7 @@ describe("RatioChart: real day ticks print bare day-of-month, not full ISO (D1)"
   installRechartsSizePolyfill();
 
   it("renders a real point's x-axis tick as its zero-padded day-of-month", () => {
-    const { container } = render(
-      <RatioChart title="Kudos-to-hits ratio" points={POINTS} />,
-    );
+    const { container } = render(<RatioChart title="Kudos-to-hits ratio" points={POINTS} />);
 
     const tickTexts = xAxisTickTexts(container);
     expect(tickTexts).toContain("06");
@@ -98,9 +92,7 @@ describe("RatioChart: real day ticks print bare day-of-month, not full ISO (D1)"
   });
 
   it("never prints a full ISO date anywhere on the x-axis", () => {
-    const { container } = render(
-      <RatioChart title="Kudos-to-hits ratio" points={POINTS} />,
-    );
+    const { container } = render(<RatioChart title="Kudos-to-hits ratio" points={POINTS} />);
 
     const tickTexts = xAxisTickTexts(container);
     expect(tickTexts.some((text) => /\d{4}-\d{2}-\d{2}/.test(text))).toBe(false);
