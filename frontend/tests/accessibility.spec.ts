@@ -226,6 +226,52 @@ test.describe("accessibility - automated axe scans", () => {
     await expect(table.getByRole("rowheader").first()).toBeVisible();
   });
 
+  // Testing task T7 (docs/plans/date-hierarchy-grouping.md §10, §4/§6):
+  // the new 3-tier (Year -> Month -> Day) table header adds genuinely new
+  // ACCESSIBLE content (real th[scope=colgroup] year/month cells, per §6's
+  // "genuine header content, not decorative" design), distinct from the
+  // purely decorative aria-hidden chart overlay. Red today: the "Total
+  // hits" chart's table (POPULATED_STATS_RESPONSE gives it a 2025 lead-in
+  // alongside 2026 real captures, per DashboardPage's earliestPostYear
+  // logic - a genuine two-year, multi-tier case) still renders today's
+  // single-row thead, so no th[scope=colgroup] exists yet and the day
+  // header's visible text is still the full ISO/worded label, not the
+  // bare day-of-month this test also checks for.
+  test("the populated dashboard's 3-tier date header exposes colgroup scope semantics, keeps the day tier's full accessible name, and introduces no new summary-focusable-descendant regression", async ({
+    page,
+  }) => {
+    await mockStatsForUser(page, POPULATED_STATS_RESPONSE);
+    await page.goto("/u/testauthor?token=tok_valid123");
+    await expect(page.getByRole("img", { name: /total hits/i })).toBeVisible();
+
+    const totalHitsDisclosure = page
+      .locator("details")
+      .filter({ has: page.getByRole("table", { name: /total hits/i }) });
+    const table = totalHitsDisclosure.getByRole("table", { name: /total hits/i });
+
+    // Year tier: a real th[scope=colgroup] grouping cell for the 2025
+    // lead-in year (distinct from the unchanged day tier's scope=col).
+    await expect(table.locator('th[scope="colgroup"]').first()).toBeVisible();
+
+    // Belt-and-suspenders (§6/D2): the day tier's ACCESSIBLE name stays the
+    // full worded lead-in label even though its VISIBLE text is now just
+    // the bare day-of-month.
+    const dayHeader = table.getByRole("columnheader", { name: /before 2025.*estimated baseline/i });
+    await expect(dayHeader).toBeVisible();
+    await expect(dayHeader).toHaveText(/^\d{2}$/);
+
+    // No new WCAG 4.1.2 regression: the year/month grouping <th> cells are
+    // non-interactive, so the disclosure's <summary> still has zero
+    // focusable descendants (axe's own scan below also covers this, but
+    // this asserts the specific structural property directly).
+    await expect(
+      totalHitsDisclosure.locator("summary :is(button, a, input, select, textarea, [tabindex])"),
+    ).toHaveCount(0);
+
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations).toEqual([]);
+  });
+
   test("the token-mismatch error state has no detectable a11y violations", async ({ page }) => {
     await mockStatsForUser(page, TOKEN_MISMATCH_RESPONSE);
     await page.goto("/u/testauthor?token=tok_wrong");
