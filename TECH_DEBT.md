@@ -1727,7 +1727,7 @@
   far-apart-lead-in drop; green after) - re-verified the single-lead-in case
   (round 4) and the Y-axis rounding fix (`026890f`) both still pass
   unmodified.
-- [2026-09-26] (stage: Implementation) **Test-authoring defect, not fixed
+- ~~[2026-09-26] (stage: Implementation) **Test-authoring defect, not fixed
   here per this stage's standing "don't edit tests to make them pass" rule**
   (this project's own precedent for this exact situation - see `12e2c35`,
   "test: fix 6 test-authoring defects Implementation flagged, not fixed").
@@ -1772,8 +1772,21 @@
   scenario a different way (e.g. a custom scale double/stub passed via
   `<XAxis scale={...}>` that doesn't get data-extended, if that's even
   expressible through Recharts' public API) - not Implementation's call to
-  make unilaterally by editing test intent.
-- [2026-09-26] (stage: Implementation) **9 test-authoring defects across 5
+  make unilaterally by editing test intent.~~ — **RESOLVED 2026-09-26
+  (stage: Testing)**: fixed via the entry's own suggested second option
+  (construct the narrowed-domain scenario a different way), not by dropping
+  the assertion. Added `allowDataOverflow` to the shared `renderOverlay`
+  test harness's `<XAxis>` in `DateGroupingOverlay.test.tsx` - this stops
+  Recharts from unconditionally re-widening a declared `domain` back out to
+  the full data extent (the exact mechanism this entry root-caused), so the
+  test's `narrowDomain` now stays genuinely narrower than `rows` and the
+  lead-in's pixel position genuinely extrapolates outside `plotArea`,
+  actually exercising the bounds guard. No assertion text changed - only
+  the domain-construction mechanism in the shared harness, which every
+  other test in the file also uses unaffected (their own domains already
+  equal the full data extent, so `allowDataOverflow` is a no-op for them).
+  Confirmed: all 15 specs in the file pass, including this one.
+- ~~[2026-09-26] (stage: Implementation) **9 test-authoring defects across 5
   regression-fence files, not fixed here per the same standing rule** (same
   project precedent as the entry directly above - `12e2c35`/`aeec41b`/
   `116469d`). Wiring I5's D1 day-tick text change (`formatDateTick` ->
@@ -1808,8 +1821,15 @@
   `MultiSeriesTrendChart.test.tsx` files in the same rebaseline pass: switch
   each hardcoded full-ISO tick-text literal in these 5 files to its
   day-of-month equivalent. Not done here per this stage's standing rule
-  against editing tests to force a pass.
-- [2026-09-26] (stage: Implementation) **11 more test-authoring defects
+  against editing tests to force a pass.~~ — **RESOLVED 2026-09-26 (stage:
+  Testing)**: all 9 literals switched from full ISO to day-of-month
+  (`TrendChart.leadInAxisMarker.test.tsx` 2, `RatioChart.leadInAxisMarker.
+  test.tsx` 2, `MultiSeriesTrendChart.leadInTickClipping.test.tsx` 2,
+  `MultiSeriesTrendChart.leadInTickIndexCollapse.test.tsx` 2,
+  `MultiSeriesTrendChart.leadInTickProximityDrop.test.tsx` 1), exactly the
+  mechanical fix this entry specified. Confirmed all 11 tests across these
+  5 files pass (the other 2 were already green and stayed unmodified).
+- ~~[2026-09-26] (stage: Implementation) **11 more test-authoring defects
   across 8 files, same standing rule as the two entries directly above -
   not fixed here.** Wiring I7's 3-tier date-axis header (`SyncedDataTable
   Header.tsx`/`DateAxisRowCells`, docs/plans/date-hierarchy-grouping.md §4)
@@ -1866,8 +1886,24 @@
   (class 2), and switch full-text matches to accessible-name (`aria-label`)
   lookups, mirroring `cf43607`'s own established pattern for the day tier
   (class 3). Not done here per this stage's standing rule against editing
-  tests to force a pass.
-- [2026-09-26] (stage: Implementation) Minor, cosmetic: 6 Testing-stage
+  tests to force a pass.~~ — **RESOLVED 2026-09-26 (stage: Testing)**: all
+  11 fixed exactly per this entry's own class breakdown. Class 1 (unfiltered
+  role-count collisions): `WorkComparisonSection.bookmarksByWork.test.tsx`,
+  `DashboardPage.test.tsx` (4 tests), `DashboardPage.metricToggle.test.tsx`
+  now use `leafColumnHeaders` from `syncedDataTableTestSupport.ts`. Class 2
+  (thead-row-count-dependent index): `TrendChart.test.tsx`, `RatioChart.
+  test.tsx`, `MultiSeriesTrendChart.test.tsx`, `MultiSeriesTrendChart.
+  leadIn.test.tsx` switched to a `<tbody>`-scoped `within(table.
+  querySelector("tbody")).getAllByRole("row")` lookup rather than an add-2
+  index offset - judged more robust per this entry's own "use your
+  judgment" call. Class 3 (visible-text broken by D1's day-only display
+  text): `SyncedDataTable.orientation.test.tsx` and `WorkComparisonSection.
+  bookmarksByWork.test.tsx` both switched to matching the cell's accessible
+  name (`aria-label`) rather than visible text, per this entry's stated
+  preference (the plan's own accessibility design keeps the full date there
+  specifically for this reason). Confirmed: all 35 tests across the
+  affected files pass; full suite (1338 tests) green.
+- ~~[2026-09-26] (stage: Implementation) Minor, cosmetic: 6 Testing-stage
   files (`DateGroupingOverlay.test.tsx`, `MultiSeriesTrendChart.
   dateGroupingWiring.test.tsx`, `RatioChart.dateGroupingWiring.test.tsx`,
   `SyncedDataTableHeader.test.tsx`, `TrendChart.dateGroupingWiring.
@@ -1876,4 +1912,12 @@
   Implementation pass; no local changes to these files at any point this
   stage). Not fixed here per the same standing rule against editing test
   files - a one-line `npx prettier --write` on these 6 files for a future
-  Testing/Maintenance pass.
+  Testing/Maintenance pass.~~ — **RESOLVED 2026-09-26 (stage: Testing)**:
+  ran `npx prettier --write` on all 6 files. Diffed each against its
+  pre-fix state to confirm only whitespace/line-wrapping changed - no
+  assertion text, literals, or test names differ. (Two of the six,
+  `DateGroupingOverlay.test.tsx` and `TrendChart.test.tsx`, also received
+  substantive assertion edits in this same pass for the other 2026-09-26
+  entries above - the prettier pass on those two also reformatted that new
+  code, but did not alter its meaning.) `npx prettier --check .` across the
+  whole frontend is now clean.
