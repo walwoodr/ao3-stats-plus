@@ -79,7 +79,8 @@ describe("RatioChart: the lead-in's X-axis tick is a marker, never long text (st
     );
 
     const labels = xAxisTickLabelTexts(container);
-    expect(labels).toEqual(["2026-07-30", "2026-07-31", "2026-08-02"]);
+    // D1's formatDayTick renders bare day-of-month, not the full ISO date.
+    expect(labels).toEqual(["30", "31", "02"]);
     labels.forEach((label) => {
       expect(label).not.toContain("Published");
       expect(label).not.toBe("2014");
@@ -116,7 +117,8 @@ describe("RatioChart: the lead-in's X-axis tick is a marker, never long text (st
 
     const { container } = render(<RatioChart title="Kudos-to-hits" points={points} />);
 
-    expect(xAxisTickLabelTexts(container)).toEqual(["2026-07-30", "2026-08-02"]);
+    // D1's formatDayTick renders bare day-of-month, not the full ISO date.
+    expect(xAxisTickLabelTexts(container)).toEqual(["30", "02"]);
     expect(xAxisTickMarkers(container)).toHaveLength(0);
   });
 });

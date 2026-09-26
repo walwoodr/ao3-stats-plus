@@ -102,9 +102,10 @@ describe("MultiSeriesTrendChart: the lead-in's X-axis tick is a marker, never th
     );
 
     const labels = xAxisTickLabelTexts(container);
-    // Every rendered text label is a real capture date - the lead-in's own
-    // label never appears among them, long or otherwise.
-    expect(labels).toEqual(["2025-01-15", "2025-09-01", "2026-08-05"]);
+    // Every rendered text label is a real capture date's day-of-month tick
+    // (D1's formatDayTick) - the lead-in's own label never appears among
+    // them, long or otherwise.
+    expect(labels).toEqual(["15", "01", "05"]);
     labels.forEach((label) => expect(label).not.toContain("Published"));
 
     // Every rendered real-point tick keeps the default centered anchor -
@@ -133,7 +134,8 @@ describe("MultiSeriesTrendChart: the lead-in's X-axis tick is a marker, never th
       <MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[work]} />,
     );
 
-    expect(xAxisTickLabelTexts(container)).toEqual(["2026-08-02", "2026-08-05"]);
+    // D1's formatDayTick renders bare day-of-month, not the full ISO date.
+    expect(xAxisTickLabelTexts(container)).toEqual(["02", "05"]);
     expect(xAxisTickMarkers(container)).toHaveLength(0);
     const firstLabel = Array.from(
       container.querySelectorAll(".recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value"),

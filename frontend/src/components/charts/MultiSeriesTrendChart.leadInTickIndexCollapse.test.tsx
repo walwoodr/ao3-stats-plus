@@ -150,7 +150,8 @@ describe("MultiSeriesTrendChart: a 2-tick chart (lead-in + one real point) never
     // filtered render pass. Now nothing is conditionally anchored by index
     // at all, so this is unconditionally "middle".
     const labels = xAxisTickLabelTexts(container);
-    expect(labels).toEqual(["2026-08-05"]);
+    // D1's formatDayTick renders bare day-of-month, not the full ISO date.
+    expect(labels).toEqual(["05"]);
     const realLabel = container.querySelector(
       ".recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value",
     );
@@ -179,7 +180,8 @@ describe("MultiSeriesTrendChart: a 2-tick chart (lead-in + one real point) never
       <MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[work]} />,
     );
 
-    expect(xAxisTickLabelTexts(container)).toEqual(["2026-08-05"]);
+    // D1's formatDayTick renders bare day-of-month, not the full ISO date.
+    expect(xAxisTickLabelTexts(container)).toEqual(["05"]);
     const realLabel = container.querySelector(
       ".recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value",
     );

@@ -131,7 +131,8 @@ describe("MultiSeriesTrendChart: two far-apart publish-date lead-ins both surviv
     // text ticks - the bug this round fixes is specific to the lead-in
     // slots, not the real points that sit next to them.
     const labels = xAxisTickLabelTexts(container);
-    expect(labels).toContain("2026-08-01");
-    expect(labels).toContain("2025-11-15");
+    // D1's formatDayTick renders bare day-of-month, not the full ISO date.
+    expect(labels).toContain("01");
+    expect(labels).toContain("15");
   });
 });

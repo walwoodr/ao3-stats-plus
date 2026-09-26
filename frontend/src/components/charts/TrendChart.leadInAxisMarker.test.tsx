@@ -87,9 +87,10 @@ describe("TrendChart: the account-level lead-in's X-axis tick is a marker, never
     );
 
     const labels = xAxisTickLabelTexts(container);
-    // Every rendered text label is a real point's own date - no lead-in
+    // Every rendered text label is a real point's own day-of-month tick
+    // (D1's formatDayTick, date-hierarchy-grouping.md §2.2) - no lead-in
     // text (long or short) ever appears among them.
-    expect(labels).toEqual(["2026-07-30", "2026-07-31", "2026-08-02"]);
+    expect(labels).toEqual(["30", "31", "02"]);
     labels.forEach((label) => {
       expect(label).not.toContain("Published");
       expect(label).not.toBe("2014");
@@ -131,7 +132,8 @@ describe("TrendChart: the account-level lead-in's X-axis tick is a marker, never
       <TrendChart title="Total hits" valueLabel="Hits" points={points} />,
     );
 
-    expect(xAxisTickLabelTexts(container)).toEqual(["2026-07-30", "2026-08-02"]);
+    // D1's formatDayTick renders bare day-of-month, not the full ISO date.
+    expect(xAxisTickLabelTexts(container)).toEqual(["30", "02"]);
     expect(xAxisTickMarkers(container)).toHaveLength(0);
   });
 });
