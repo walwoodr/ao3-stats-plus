@@ -88,7 +88,22 @@ function renderOverlay(rows: DateGroupingOverlayRow[], domain?: [number, number]
     <ResponsiveContainer width="100%" height={240}>
       <LineChart data={chartData}>
         <CartesianGrid />
-        <XAxis dataKey="xEpoch" type="number" scale="time" domain={resolvedDomain} />
+        {/* allowDataOverflow keeps the declared domain exact rather than
+            Recharts silently widening it to the full data extent
+            (util/isDomainSpecifiedByUser.js's extendDomain, confirmed via
+            source read) - needed so the bounds-guard test below can
+            actually construct a domain narrower than `rows`, matching how
+            a real caller could restrict `domain` independent of the full
+            row set the overlay itself always reads. Positions still track
+            the real scale (§0.2) for every other test; this only stops the
+            domain from being re-widened. */}
+        <XAxis
+          dataKey="xEpoch"
+          type="number"
+          scale="time"
+          domain={resolvedDomain}
+          allowDataOverflow
+        />
         <YAxis domain={[0, 20]} />
         {/* A real <Line> is needed for Recharts to fully initialize its
             scale context in jsdom - see ActivePointOverlay.test.tsx's
@@ -120,7 +135,9 @@ describe("DateGroupingOverlay: aria-hidden decorative marker group (§6)", () =>
     const { container } = renderOverlay(HAPPY_PATH_ROWS);
 
     await waitFor(() => {
-      const group = container.querySelector('g[aria-hidden="true"][data-testid="date-grouping-overlay"]');
+      const group = container.querySelector(
+        'g[aria-hidden="true"][data-testid="date-grouping-overlay"]',
+      );
       expect(group).not.toBeNull();
       expect(group?.querySelector('[data-testid="month-span-line"]')).not.toBeNull();
     });
@@ -143,9 +160,9 @@ describe("DateGroupingOverlay: month span marks (§5.2, every month present)", (
     const { container } = renderOverlay(HAPPY_PATH_ROWS);
 
     await waitFor(() => {
-      const labels = Array.from(
-        container.querySelectorAll('[data-testid="month-span-label"]'),
-      ).map((el) => el.textContent);
+      const labels = Array.from(container.querySelectorAll('[data-testid="month-span-label"]')).map(
+        (el) => el.textContent,
+      );
       expect(labels).toEqual(["Sep", "Jul", "Aug"]);
     });
   });
@@ -154,9 +171,9 @@ describe("DateGroupingOverlay: month span marks (§5.2, every month present)", (
     const { container } = renderOverlay(HAPPY_PATH_ROWS);
 
     await waitFor(() => {
-      const labels = Array.from(
-        container.querySelectorAll('[data-testid="month-span-label"]'),
-      ).map((el) => el.textContent);
+      const labels = Array.from(container.querySelectorAll('[data-testid="month-span-label"]')).map(
+        (el) => el.textContent,
+      );
       // Sep (lead-in-only) and Aug (single real point) both single-point
       // months in this fixture - both must still have produced a label.
       expect(labels).toContain("Sep");
