@@ -3,7 +3,6 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } fro
 import type { MouseHandlerDataParam } from "recharts";
 import { useChartColors } from "../../lib/useChartColors";
 import { formatNumber } from "../../lib/formatNumber";
-import { renderMarkerShape } from "../../lib/markerPaths";
 import { SERIES_STYLE_SLOTS } from "../../lib/seriesStyles";
 import { buildMultiSeriesTableModel } from "../../lib/syncedTableModel";
 import {
@@ -21,6 +20,7 @@ import { ChartDisclosure } from "./ChartDisclosure";
 import { PinnedComparisonBar } from "./PinnedComparisonBar";
 import { ActivePointOverlay, type ActivePoint } from "./ActivePointOverlay";
 import { createLeadInXAxisTick } from "./LeadInXAxisTick";
+import { createLeadInDot, createSeriesDot } from "./multiSeriesDots";
 import type { TrendPoint } from "./TrendChart";
 
 // Per-work zero-basis dates (docs/plans/per-work-zero-basis-dates.md):
@@ -399,29 +399,12 @@ export function MultiSeriesTrendChart({
                       activeDot={false}
                       stroke={color}
                       strokeWidth={2}
-                      dot={(dotProps: {
-                        cx?: number;
-                        cy?: number;
-                        payload?: ChartRow;
-                        index?: number;
-                      }) => {
-                        const { cx, cy, payload, index } = dotProps;
-                        const value = payload ? payload[key] : null;
-                        if (value == null || cx == null || cy == null) {
-                          return <g key={`${key}-dot-${index}`} />;
-                        }
-                        return (
-                          <g key={`${key}-dot-${index}`}>
-                            {renderMarkerShape(slot.shape, { cx, cy, size: 4, color })}
-                          </g>
-                        );
-                      }}
+                      dot={createSeriesDot({ dataKey: key, shape: slot.shape, color })}
                     />
                   );
                 })}
                 {series.map((s) => {
                   if (!s.leadIn) return null;
-                  const leadIn = s.leadIn;
                   const key = leadKey(s.workId);
                   return (
                     <Line
@@ -435,30 +418,11 @@ export function MultiSeriesTrendChart({
                       strokeDasharray="4 4"
                       stroke={colors.inkSoft}
                       strokeWidth={1.5}
-                      dot={(dotProps: {
-                        cx?: number;
-                        cy?: number;
-                        payload?: ChartRow;
-                        index?: number;
-                      }) => {
-                        const { cx, cy, payload, index } = dotProps;
-                        // Only the zero-basis slot itself gets a dot - the
-                        // first-real slot this line also carries (to close the
-                        // dashed segment) already has its own dot from the
-                        // main "work-*" line above, in the work's own color.
-                        if (payload?.capturedOn !== leadIn.capturedOn || cx == null || cy == null) {
-                          return <g key={`${key}-dot-${index}`} />;
-                        }
-                        return (
-                          <circle
-                            key={`${key}-dot-${index}`}
-                            cx={cx}
-                            cy={cy}
-                            r={4}
-                            fill={colors.inkSoft}
-                          />
-                        );
-                      }}
+                      dot={createLeadInDot({
+                        dataKey: key,
+                        leadInCapturedOn: s.leadIn.capturedOn,
+                        color: colors.inkSoft,
+                      })}
                     />
                   );
                 })}
