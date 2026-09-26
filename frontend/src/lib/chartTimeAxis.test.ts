@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeYDomain,
   formatDateTick,
+  formatDayTick,
   formatLeadInTick,
   leadInEpoch,
   toEpoch,
@@ -54,6 +55,40 @@ describe("formatLeadInTick: year-only tick text for the estimated baseline", () 
   // overstate the estimate's precision.
   it("formats a lead-in epoch as year-only, not the full date", () => {
     expect(formatLeadInTick(toEpoch("2014-06-15"))).toBe("2014");
+  });
+});
+
+// Testing task T8 (docs/plans/date-hierarchy-grouping.md §10, §2.2, D1):
+// formatDayTick does not exist yet - every test below fails at the import
+// (a real red for this whole file, not just this block). D1's chart day-
+// tick text change ("06" not "2026-08-06") switches the three charts'
+// real-tick `formatTick` from formatDateTick to this new function; month/
+// year context is carried by DateGroupingOverlay's own labels instead.
+describe("formatDayTick: bare day-of-month tick text (D1)", () => {
+  it("formats a real point's epoch to its zero-padded day-of-month only", () => {
+    expect(formatDayTick(toEpoch("2026-08-06"))).toBe("06");
+  });
+
+  it("zero-pads single-digit days", () => {
+    expect(formatDayTick(toEpoch("2026-08-01"))).toBe("01");
+  });
+
+  it("does not zero-pad (stays two digits) for a double-digit day", () => {
+    expect(formatDayTick(toEpoch("2026-08-23"))).toBe("23");
+  });
+
+  it("omits month/year entirely - two different months' same day-of-month format identically", () => {
+    expect(formatDayTick(toEpoch("2026-07-15"))).toBe(formatDayTick(toEpoch("2026-08-15")));
+  });
+
+  // §8 error states: formatDateTick/formatLeadInTick both already tolerate
+  // a NaN epoch (from toEpoch's own "return NaN, never throw" contract)
+  // without throwing - formatDayTick must degrade the same way, per this
+  // module's established defense-in-depth precedent, rather than crash the
+  // whole chart on a malformed upstream date.
+  it("does not throw for a NaN epoch (malformed upstream date), degrading gracefully instead", () => {
+    expect(() => formatDayTick(NaN)).not.toThrow();
+    expect(typeof formatDayTick(NaN)).toBe("string");
   });
 });
 
