@@ -1,3 +1,4 @@
+import type { Ref } from "react";
 import { buildDateHierarchy, type DayEntry, type YearGroup } from "../../lib/dateHierarchy";
 import type { DateAxisEntry, Orientation, SeriesAxisEntry } from "../../lib/tableOrientation";
 import {
@@ -27,6 +28,10 @@ export interface SyncedDataTableHeaderProps {
   onPinnedDateKeyChange?: (dateKey: string | null) => void;
   notifyActiveDateKeyChange: (dateKey: string | null) => void;
   togglePin: (dateKey: string) => void;
+  // SyncedDataTable.tsx's auto-scroll math needs the corner cell's rendered
+  // width (`stickyCorner.offsetWidth`) - optional, since Testing's own
+  // contract for this component doesn't exercise it directly.
+  cornerRef?: Ref<HTMLTableCellElement>;
 }
 
 const CORNER_CLASS = `${HEADER_CELL_BASE} sticky left-0 z-10 bg-card text-ink-soft ${STICKY_COLUMN_SHADOW}`;
@@ -41,6 +46,7 @@ export function SyncedDataTableHeader({
   onPinnedDateKeyChange,
   notifyActiveDateKeyChange,
   togglePin,
+  cornerRef,
 }: SyncedDataTableHeaderProps) {
   const hierarchy = buildDateHierarchy(dateAxis);
 
@@ -51,7 +57,7 @@ export function SyncedDataTableHeader({
     return (
       <thead>
         <tr>
-          <th scope="col" colSpan={3} className={CORNER_CLASS}>
+          <th ref={cornerRef} scope="col" colSpan={3} className={CORNER_CLASS}>
             <span className="sr-only">{rowHeaderLabel}</span>
           </th>
           {seriesAxis.map((entry) => (
@@ -68,7 +74,7 @@ export function SyncedDataTableHeader({
   return (
     <thead>
       <tr>
-        <th scope="col" rowSpan={3} className={CORNER_CLASS}>
+        <th ref={cornerRef} scope="col" rowSpan={3} className={CORNER_CLASS}>
           <span className="sr-only">{rowHeaderLabel}</span>
         </th>
         {hierarchy.map((year) => (

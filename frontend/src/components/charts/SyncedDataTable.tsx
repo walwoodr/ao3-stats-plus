@@ -7,19 +7,15 @@ import {
   type Orientation,
   type SeriesAxisEntry,
 } from "../../lib/tableOrientation";
+import { buildDateHierarchy } from "../../lib/dateHierarchy";
 import {
   animateScrollLeft,
   computeTargetScrollLeft,
   prefersReducedMotion,
   type ColumnLayout,
 } from "../../lib/scrollColumnIntoView";
-import {
-  DataCell,
-  DateHeaderCell,
-  HEADER_CELL_BASE,
-  SeriesHeaderCell,
-  STICKY_COLUMN_SHADOW,
-} from "./SyncedDataTableCells";
+import { DataCell, SeriesHeaderCell } from "./SyncedDataTableCells";
+import { DateAxisRowCells, SyncedDataTableHeader } from "./SyncedDataTableHeader";
 import { TableOrientationToggle } from "./TableOrientationToggle";
 
 export interface SyncedDataTableProps {
@@ -164,6 +160,26 @@ export function SyncedDataTable({
   const rowSlots: AxisSlot[] = isDatesAsColumns
     ? seriesSlots(normalized.seriesAxis)
     : dateSlots(normalized.dateAxis);
+  // The shared Year->Month->Day model (docs/plans/date-hierarchy-grouping.md
+  // §3) drives BOTH the thead (SyncedDataTableHeader) and, in datesAsRows,
+  // each tbody row's leading date-tier cells (DateAxisRowCells) - a single
+  // source of truth for the grouping, not two divergent implementations.
+  const dateHierarchy = buildDateHierarchy(normalized.dateAxis);
+  // In datesAsRows, EVERY rowSlot is a date slot (rowSlots is built from
+  // dateSlots(...) above) - each one's position among just the date slots
+  // already equals the hierarchy's own flattened day-row index (barring the
+  // accepted duplicate-dateKey model-level edge case dateHierarchy.ts's
+  // dedup rule documents, §7). Computed functionally (no mutable counter,
+  // per this codebase's render-purity lint rule) rather than incremented
+  // inside the JSX .map() below.
+  const rowSlotsWithDateIndex = rowSlots.reduce<{ rowSlot: AxisSlot; dateRowIndex: number }[]>(
+    (acc, rowSlot) => {
+      const previousDateIndex = acc.length > 0 ? acc[acc.length - 1].dateRowIndex : -1;
+      const dateRowIndex = rowSlot.kind === "date" ? previousDateIndex + 1 : previousDateIndex;
+      return [...acc, { rowSlot, dateRowIndex }];
+    },
+    [],
+  );
 
   function slotKey(slot: AxisSlot): string {
     return slot.kind === "date" ? slot.entry.dateKey : slot.entry.seriesKey;
@@ -214,50 +230,25 @@ export function SyncedDataTable({
           aria-label={`${title} data table, scrollable`}
         >
           <table aria-label={title} className="w-full border-collapse">
-            <thead>
-              <tr>
-                <th
-                  ref={stickyCornerRef}
-                  scope="col"
-                  className={`${HEADER_CELL_BASE} sticky left-0 z-10 bg-card text-ink-soft ${STICKY_COLUMN_SHADOW}`}
-                >
-                  {/* Plain rowHeaderLabel, no suffix - the pin button's
-                    "Compare from " text lives in aria-label now
-                    (SyncedDataTableCells.tsx), not DOM text/textContent, so
-                    it no longer risks concatenating with this corner's text
-                    into an accidental substring collision (e.g. the earlier
-                    "Work" + "Compare" reading as "...work c..." to some
-                    other case-insensitive lookup) - and several pre-existing
-                    specs (e.g. WorkComparisonSection.bookmarksByWork.test.
-                    tsx) assert this corner cell's textContent equals
-                    rowHeaderLabel exactly. */}
-                  <span className="sr-only">{rowHeaderLabel}</span>
-                </th>
-                {columnSlots.map((slot) =>
-                  slot.kind === "date" ? (
-                    <DateHeaderCell
-                      key={slotKey(slot)}
-                      entry={slot.entry}
-                      as="columnheader"
-                      activeDateKey={activeDateKey}
-                      pinnedDateKey={pinnedDateKey}
-                      onPinnedDateKeyChange={onPinnedDateKeyChange}
-                      notifyActiveDateKeyChange={notifyActiveDateKeyChange}
-                      togglePin={togglePin}
-                    />
-                  ) : (
-                    <SeriesHeaderCell key={slotKey(slot)} entry={slot.entry} as="columnheader" />
-                  ),
-                )}
-              </tr>
-            </thead>
+            <SyncedDataTableHeader
+              rowHeaderLabel={rowHeaderLabel}
+              dateAxis={normalized.dateAxis}
+              seriesAxis={normalized.seriesAxis}
+              orientation={orientation}
+              activeDateKey={activeDateKey}
+              pinnedDateKey={pinnedDateKey}
+              onPinnedDateKeyChange={onPinnedDateKeyChange}
+              notifyActiveDateKeyChange={notifyActiveDateKeyChange}
+              togglePin={togglePin}
+              cornerRef={stickyCornerRef}
+            />
             <tbody>
-              {rowSlots.map((rowSlot) => (
+              {rowSlotsWithDateIndex.map(({ rowSlot, dateRowIndex }) => (
                 <tr key={slotKey(rowSlot)}>
                   {rowSlot.kind === "date" ? (
-                    <DateHeaderCell
-                      entry={rowSlot.entry}
-                      as="rowheader"
+                    <DateAxisRowCells
+                      hierarchy={dateHierarchy}
+                      rowIndex={dateRowIndex}
                       activeDateKey={activeDateKey}
                       pinnedDateKey={pinnedDateKey}
                       onPinnedDateKeyChange={onPinnedDateKeyChange}

@@ -1809,3 +1809,61 @@
   each hardcoded full-ISO tick-text literal in these 5 files to its
   day-of-month equivalent. Not done here per this stage's standing rule
   against editing tests to force a pass.
+- [2026-09-26] (stage: Implementation) **11 more test-authoring defects
+  across 8 files, same standing rule as the two entries directly above -
+  not fixed here.** Wiring I7's 3-tier date-axis header (`SyncedDataTable
+  Header.tsx`/`DateAxisRowCells`, docs/plans/date-hierarchy-grouping.md §4)
+  into `SyncedDataTable.tsx` breaks 11 PRE-EXISTING tests outside (and, in
+  4 cases, even INSIDE) the 5 files Testing's own T5 rebaseline (`cf43607`)
+  targeted - confirmed individually, root-caused, not assumed. Three
+  distinct, well-understood classes, all stemming from the plan's own
+  locked design (§4/§6):
+
+  1. **Unfiltered `getAllByRole("columnheader"|"rowheader")` counts/indices
+     inflated by the new `scope=colgroup`/`scope=rowgroup` grouping cells**
+     (the exact same HTML-AAM role collision `cf43607` already built
+     `leafColumnHeaders`/`leafRowHeaders` in `syncedDataTableTestSupport.ts`
+     to work around - just not applied to these call sites):
+     `WorkComparisonSection.bookmarksByWork.test.tsx` ("each work's chart
+     exposes its own visible table..."), `DashboardPage.test.tsx` (3 tests:
+     "builds a 0/0 leadIn...", "passes a leadIn to the per-work comparison
+     charts...", "renders the charts... for a single real snapshot...",
+     "suppresses the leadIn when the synthetic date wouldn't sort..." - 4
+     tests total in this file), `DashboardPage.metricToggle.test.tsx` ("the
+     Subscribers chart carries the same account-level zero-basis
+     leadIn...").
+  2. **`within(table).getAllByRole("row")[N]` index-based "first tbody row"
+     lookups, broken because datesAsColumns' `<thead>` now always has 3
+     `<tr>` (year/month/day) instead of 1** - every such lookup is off by 2:
+     `TrendChart.test.tsx` ("gives the synthetic column's cell a value of
+     exactly 0" - NOT touched by `cf43607` despite being in one of its 5
+     target files), `RatioChart.test.tsx` ("renders the synthetic column's
+     cell as exactly 0, never derived" - same gap), `MultiSeriesTrendChart.
+     test.tsx` ("renders an explicit '—' for a work with no point..."),
+     `MultiSeriesTrendChart.leadIn.test.tsx` ("shows 0 in the zero-basis
+     column's cell...").
+  3. **Visible `textContent`/`getByText` matching against the full ISO
+     date or worded label, broken by D1's day-of-month display text** (a
+     table-side sibling of the chart-tick-text gap two entries above):
+     `SyncedDataTable.orientation.test.tsx` ("calls onActiveDateKeyChange
+     (dateKey) when a date ROW header is hovered" - looks up the row header
+     via `el.textContent?.includes("2026-01-08")`, which the day-only
+     visible text "08" never satisfies) and `WorkComparisonSection.
+     bookmarksByWork.test.tsx`'s same failing test above ALSO fails this way
+     independently (`columnHeaders.map(h => h.textContent)` exact-array-
+     equality against full ISO dates).
+
+  Every failure was reproduced and individually attributed via a real
+  `npx vitest run -t "<test name>"` isolation, not inferred from the class
+  description alone. `SyncedDataTable.tsx`'s own sync/pin/delta/auto-scroll
+  wiring is otherwise unchanged (same handlers, same `dateKey`-keyed logic,
+  now just routed through `SyncedDataTableHeader`/`DateAxisRowCells` instead
+  of inline JSX) - none of these 11 reflect an actual behavior regression,
+  only surface-syntax assumptions the 3-tier header genuinely invalidates.
+  Mechanical fix for all three classes: adopt `leafColumnHeaders`/
+  `leafRowHeaders` (class 1), add 2 to any thead-row-count-dependent index or
+  switch to a `<tbody>`-scoped `within(...).getAllByRole("row")` call
+  (class 2), and switch full-text matches to accessible-name (`aria-label`)
+  lookups, mirroring `cf43607`'s own established pattern for the day tier
+  (class 3). Not done here per this stage's standing rule against editing
+  tests to force a pass.
