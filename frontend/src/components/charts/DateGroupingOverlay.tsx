@@ -2,6 +2,7 @@ import { usePlotArea, useXAxisScale } from "recharts";
 import { useChartColors } from "../../lib/useChartColors";
 import { buildDateHierarchy, type YearGroup } from "../../lib/dateHierarchy";
 import type { DateAxisEntry } from "../../lib/tableOrientation";
+import { computeYearLabelPlacements, type RawYearLabelMark } from "../../lib/yearLabelPlacement";
 
 export interface DateGroupingOverlayRow {
   capturedOn: string;
@@ -72,7 +73,7 @@ export function DateGroupingOverlay({ rows }: DateGroupingOverlayProps) {
 
   const monthMarks: { key: string; x1: number; x2: number; label: string }[] = [];
   const yearRuleMarks: { key: string; x: number }[] = [];
-  const yearLabelMarks: { key: string; x: number; label: string }[] = [];
+  const rawYearLabelMarks: RawYearLabelMark[] = [];
 
   hierarchy.forEach((yearGroup, yearIndex) => {
     yearGroup.months.forEach((monthGroup) => {
@@ -94,7 +95,7 @@ export function DateGroupingOverlay({ rows }: DateGroupingOverlayProps) {
     const yearFirstDateKey = yearGroup.months[0]?.days[0]?.dateKey;
     const yearFirstX = yearFirstDateKey ? pixelFor(yearFirstDateKey) : null;
     if (yearFirstX != null && inBounds(yearFirstX)) {
-      yearLabelMarks.push({ key: yearGroup.year, x: yearFirstX, label: yearGroup.year });
+      rawYearLabelMarks.push({ key: yearGroup.year, x: yearFirstX, label: yearGroup.year });
     }
 
     if (yearIndex > 0) {
@@ -112,6 +113,16 @@ export function DateGroupingOverlay({ rows }: DateGroupingOverlayProps) {
         }
       }
     }
+  });
+
+  // Resolves right-edge text overflow and lead-in/first-real-year label
+  // collisions (yearLabelPlacement.ts) - rawYearLabelMarks above only
+  // carries each label's real in-domain ANCHOR point; this is where that
+  // anchor gets turned into a final on-screen text-anchor/position that
+  // never renders off-canvas or on top of a neighboring year's label.
+  const yearLabelMarks = computeYearLabelPlacements(rawYearLabelMarks, {
+    minX: plotMinX,
+    maxX: plotMaxX,
   });
 
   return (
@@ -159,7 +170,7 @@ export function DateGroupingOverlay({ rows }: DateGroupingOverlayProps) {
           data-testid="year-label"
           x={mark.x}
           y={plotArea.y + plotArea.height + YEAR_LABEL_OFFSET}
-          textAnchor="start"
+          textAnchor={mark.textAnchor}
           fill={colors.inkSoft}
           fontFamily="var(--font-mono)"
           fontSize={11}

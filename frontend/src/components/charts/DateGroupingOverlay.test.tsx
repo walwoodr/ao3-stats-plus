@@ -2,7 +2,21 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { render, waitFor } from "@testing-library/react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { DateGroupingOverlay, type DateGroupingOverlayRow } from "./DateGroupingOverlay";
-import { toEpoch } from "../../lib/chartTimeAxis";
+import { leadInEpoch, toEpoch } from "../../lib/chartTimeAxis";
+
+// Duplicated (not imported) from yearLabelPlacement.ts's own char-width
+// estimate - mirrors this project's established precedent (see
+// MultiSeriesTrendChart.leadInTickIndexCollapse.test.tsx's own duplicated
+// APPROX_MONO_CHAR_WIDTH_PX) of keeping a regression test's ground-truth
+// computation independent of the production module under test, rather than
+// importing the exact formula and therefore only testing it against itself.
+const YEAR_LABEL_CHAR_WIDTH_PX = 6.7;
+function estimatedExtent(anchorX: number, textAnchor: string | null, label: string) {
+  const width = label.length * YEAR_LABEL_CHAR_WIDTH_PX;
+  return textAnchor === "end"
+    ? { left: anchorX - width, right: anchorX }
+    : { left: anchorX, right: anchorX + width };
+}
 
 // Testing task T2 (docs/plans/date-hierarchy-grouping.md §10, §5):
 // DateGroupingOverlay.tsx does not exist yet - every test below fails at
@@ -305,6 +319,95 @@ describe("DateGroupingOverlay: bounds guard (§5.2, defense against extrapolatio
         container.querySelectorAll('[data-testid="month-span-label"]'),
       ).map((el) => el.textContent);
       expect(monthLabels).not.toContain("Sep");
+    });
+  });
+});
+
+describe("DateGroupingOverlay: year-label right-edge overflow (regression, Review Finding 1)", () => {
+  installRechartsLayoutPolyfill();
+
+  it("keeps a year label's full text extent within the plot's actual right edge, rather than letting it render past it off-canvas", async () => {
+    // Exact reproduction of the adversarial reviewer's own construction:
+    // two points in different years, the later year's only point landing at
+    // the domain max - which resolves to the plot's own right edge pixel.
+    const rows: DateGroupingOverlayRow[] = [
+      { capturedOn: "2024-06-15", xEpoch: toEpoch("2024-06-15") },
+      { capturedOn: "2025-06-15", xEpoch: toEpoch("2025-06-15") },
+    ];
+    const { container } = renderOverlay(rows);
+
+    await waitFor(() => {
+      const gridLine = container.querySelector(".recharts-cartesian-grid-horizontal line");
+      expect(gridLine).not.toBeNull();
+      const plotMinX = Number(gridLine!.getAttribute("x1"));
+      const plotMaxX = Number(gridLine!.getAttribute("x2"));
+
+      const laterLabel = Array.from(container.querySelectorAll('[data-testid="year-label"]')).find(
+        (el) => el.textContent === "2025",
+      );
+      expect(laterLabel).toBeDefined();
+
+      const anchorX = Number(laterLabel!.getAttribute("x"));
+      const textAnchor = laterLabel!.getAttribute("text-anchor");
+      const { left, right } = estimatedExtent(anchorX, textAnchor, "2025");
+
+      // The regression: asserting on the ANCHOR position alone (the old
+      // bounds guard's own check) would pass even when the label overflows
+      // - the actual rendered text extent must stay on-canvas.
+      expect(right).toBeLessThanOrEqual(plotMaxX);
+      expect(left).toBeGreaterThanOrEqual(plotMinX);
+    });
+  });
+});
+
+describe("DateGroupingOverlay: lead-in/first-real-year label collision (regression, Review Finding 2)", () => {
+  installRechartsLayoutPolyfill();
+
+  it("never renders two year labels with overlapping/illegibly-close extents, for a lead-in whose synthetic x lands near the first real year's x", async () => {
+    // Exact reproduction of the adversarial reviewer's own construction: a
+    // lead-in placed via the real leadInEpoch clamp (14-90 days before the
+    // first real point) alongside real data spanning multiple years - the
+    // lead-in's TRUE (years-earlier) calendar year label ends up only a few
+    // px from the first real year's label on screen, even though the years
+    // themselves are far apart.
+    const realRows: DateGroupingOverlayRow[] = [
+      { capturedOn: "2020-01-10", xEpoch: toEpoch("2020-01-10") },
+      { capturedOn: "2023-05-01", xEpoch: toEpoch("2023-05-01") },
+      { capturedOn: "2026-08-10", xEpoch: toEpoch("2026-08-10") },
+    ];
+    const realEpochs = realRows.map((row) => row.xEpoch);
+    const leadInRow: DateGroupingOverlayRow = {
+      capturedOn: "2014-09-06",
+      xEpoch: leadInEpoch(realEpochs[0], { realEpochs }),
+    };
+    const rows = [leadInRow, ...realRows];
+
+    const { container } = renderOverlay(rows);
+
+    await waitFor(() => {
+      const labels = Array.from(container.querySelectorAll('[data-testid="year-label"]'));
+      expect(labels.length).toBeGreaterThan(0);
+
+      const extents = labels.map((el) => {
+        const anchorX = Number(el.getAttribute("x"));
+        const textAnchor = el.getAttribute("text-anchor");
+        return {
+          text: el.textContent,
+          ...estimatedExtent(anchorX, textAnchor, el.textContent ?? ""),
+        };
+      });
+      const sorted = [...extents].sort((a, b) => a.left - b.left);
+      for (let i = 0; i < sorted.length - 1; i += 1) {
+        expect(sorted[i + 1].left - sorted[i].right).toBeGreaterThanOrEqual(0);
+      }
+
+      // Every real year (2020/2023/2026) must still be represented -
+      // resolving the collision must never drop a REAL year's label, only
+      // the lead-in's.
+      const texts = labels.map((el) => el.textContent);
+      expect(texts).toContain("2020");
+      expect(texts).toContain("2023");
+      expect(texts).toContain("2026");
     });
   });
 });

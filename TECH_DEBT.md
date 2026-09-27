@@ -1921,3 +1921,39 @@
   entries above - the prettier pass on those two also reformatted that new
   code, but did not alter its meaning.) `npx prettier --check .` across the
   whole frontend is now clean.
+- [2026-09-27] (stage: Review (adversarial)) **Finding 2, latent
+  duplicate-`dateKey` header/body misalignment.** `SyncedDataTable.tsx`'s
+  `<tbody>` renders from `columnSlots`/`rowSlots` (built straight off
+  `normalized.dateAxis`/`normalized.seriesAxis`, no dedup), while its
+  `<thead>` (`SyncedDataTableHeader`, in `datesAsColumns`) and its
+  `datesAsRows` leading date-tier cells (`DateAxisRowCells`, keyed off
+  `dateHierarchy = buildDateHierarchy(normalized.dateAxis)`) both go through
+  `dateHierarchy.ts`'s dedup rule (`buildDateHierarchy`: "Duplicate
+  dateKeys dedup to a single DayEntry, first occurrence wins", §7). If
+  `normalized.dateAxis` ever contained a duplicate `dateKey` (e.g. a
+  lead-in whose synthetic date happens to literally coincide with a real
+  capture date), the header would render one fewer column/row than the
+  body actually renders, silently misaligning every subsequent
+  header-to-cell mapping. Currently unreachable in production:
+  `DashboardPage.tsx` enforces a strict lead-in guard (no duplicate
+  `dateKey` ever reaches `SyncedDataTable`), so this is a latent landmine
+  for a future caller, not a live bug. Deferred rather than fixed here
+  (would mean adding a dedup pass to `SyncedDataTable.tsx`'s own
+  `columnSlots`/`rowSlots` construction, out of scope for this cycle's
+  targeted DateGroupingOverlay fix) - candidate fix: dedup `dateSlots`
+  the same way `buildDateHierarchy` already does, or assert/guard against
+  a duplicate `dateKey` reaching this component at all.
+- [2026-09-27] (stage: Review (adversarial)) **Finding 3, O(n²)
+  `flattenDateAxisRows` in datesAsRows orientation.**
+  `SyncedDataTableHeader.tsx`'s `DateAxisRowCells` calls
+  `flattenDateAxisRows(hierarchy)` fresh on every render, and
+  `SyncedDataTable.tsx` mounts one `<DateAxisRowCells>` per date row inside
+  its `rowSlotsWithDateIndex.map(...)` - so for N date rows, the O(N) flatten
+  work reruns N times (O(N²) total) purely to look up `rows[rowIndex]` for
+  each row's own leading Year/Month/Day cells. Wasted work, not a
+  correctness bug - table sizes at this app's personal-tool scale (tens to
+  low hundreds of captures) make this unlikely to be user-visible. Deferred:
+  candidate fix is hoisting `flattenDateAxisRows(dateHierarchy)` once in
+  `SyncedDataTable.tsx` and passing the already-flattened `rows` array down
+  (or memoizing it), rather than recomputing per row - out of scope for this
+  cycle's targeted fix.

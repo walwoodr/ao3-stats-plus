@@ -138,3 +138,82 @@ export const DateHierarchyHardCase: Story = {
     await expect(within(table).getByRole("columnheader", { name: "2026" })).toBeVisible();
   },
 };
+
+// Review batch regression (2026-09-27, Finding 1): the DateHierarchyHardCase
+// story above happened to have well-separated year-label pixel positions for
+// its specific data shape - that green Preview was never evidence this class
+// of bug was fixed generally (per the adversarial reviewer's own analysis).
+// This story reproduces the actual failure mode directly: the later year's
+// only point sits at the domain max, i.e. the plot's own right edge - the
+// exact shape that overflowed the old fixed `textAnchor="start"` label off
+// the right of the canvas. Asserted with REAL Chromium layout
+// (getBoundingClientRect on the actually-rendered <text>), not a jsdom
+// estimate - this bug was specifically invisible in jsdom, which never lays
+// text out at all.
+export const YearLabelRightEdgeOverflowRegression: Story = {
+  args: {
+    title: "Total hits",
+    valueLabel: "Hits",
+    points: [
+      { capturedOn: "2024-06-15", value: 100 },
+      { capturedOn: "2025-06-15", value: 200 },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const svg = canvasElement.querySelector("svg.recharts-surface");
+    await expect(svg).not.toBeNull();
+    const svgRect = (svg as SVGSVGElement).getBoundingClientRect();
+
+    const laterLabel = Array.from(
+      canvasElement.querySelectorAll('[data-testid="year-label"]'),
+    ).find((el) => el.textContent === "2025");
+    await expect(laterLabel).not.toBeUndefined();
+
+    const labelRect = (laterLabel as SVGTextElement).getBoundingClientRect();
+    // A 1px tolerance for sub-pixel rounding - the real regression this
+    // guards was a label rendering many px past the edge, not a rounding
+    // sliver.
+    await expect(labelRect.right).toBeLessThanOrEqual(svgRect.right + 1);
+    await expect(labelRect.left).toBeGreaterThanOrEqual(svgRect.left - 1);
+  },
+};
+
+// Review batch regression (2026-09-27, Finding 2): a lead-in's synthetic,
+// clamped-near-first-real x-position (chartTimeAxis.leadInEpoch) puts its
+// own (years-earlier) year label only a few px from the first real year's
+// label on screen - near-guaranteed for any multi-year account with a
+// lead-in, not a rare edge case. The existing DateHierarchyHardCase story's
+// narrow ~2-month real-data domain never exercised this; a wider multi-year
+// real span (2020-2026, mirroring the adversarial reviewer's own
+// construction) does. Asserted with real Chromium layout, same rationale as
+// the story above.
+export const LeadInYearLabelCollisionRegression: Story = {
+  args: {
+    title: "Total hits",
+    valueLabel: "Hits",
+    points: [
+      { capturedOn: "2000-01-10", value: 100 },
+      { capturedOn: "2013-05-01", value: 200 },
+      { capturedOn: "2026-08-10", value: 300 },
+    ],
+    leadIn: { capturedOn: "1990-09-06", value: 0 },
+  },
+  play: async ({ canvasElement }) => {
+    const labels = Array.from(canvasElement.querySelectorAll('[data-testid="year-label"]'));
+    await expect(labels.length).toBeGreaterThan(0);
+
+    const rects = labels
+      .map((el) => ({ text: el.textContent, rect: (el as SVGTextElement).getBoundingClientRect() }))
+      .sort((a, b) => a.rect.left - b.rect.left);
+    for (let i = 0; i < rects.length - 1; i += 1) {
+      await expect(rects[i + 1].rect.left).toBeGreaterThanOrEqual(rects[i].rect.right - 1);
+    }
+
+    // Resolving the collision must never drop a REAL year's label, only the
+    // lead-in's own.
+    const texts = labels.map((el) => el.textContent);
+    await expect(texts).toContain("2000");
+    await expect(texts).toContain("2013");
+    await expect(texts).toContain("2026");
+  },
+};
