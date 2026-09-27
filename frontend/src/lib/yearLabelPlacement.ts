@@ -75,29 +75,47 @@ function placeWithExtent(mark: RawYearLabelMark, bounds: PlotBoundsX): PlacedWit
   return { key: mark.key, x: mark.x, label: mark.label, textAnchor, left, right };
 }
 
+function collides(earlier: PlacedWithExtent, later: PlacedWithExtent): boolean {
+  return earlier.right + MIN_YEAR_LABEL_GAP_PX > later.left;
+}
+
 // `marks` must already be in ascending x order (DateGroupingOverlay builds
 // them in chronological hierarchy order off a scale that's monotonic in x,
 // so this always holds for its real call site). Resolves right-edge
-// overflow per mark first, then drops the EARLIER of any two adjacent marks
-// whose resolved extents collide (overlap, or land within
-// MIN_YEAR_LABEL_GAP_PX) - the later year is kept, since it's the one about
-// to become "current" on screen, and the dropped earlier year is still
-// conveyed by the month-span row and the year-rule line immediately next to
-// it. A run of 3+ colliding marks collapses correctly via the same
-// adjacent-pair rule applied left-to-right (each survivor is re-compared
-// against the next raw mark, not against an already-dropped one).
+// overflow per mark first, then drops the EARLIER of any two colliding
+// marks (overlap, or land within MIN_YEAR_LABEL_GAP_PX) - the later year is
+// kept, since it's the one about to become "current" on screen, and the
+// dropped earlier year is still conveyed by the month-span row and the
+// year-rule line immediately next to it.
+//
+// Regression fix (2026-09-27, adversarial review batch #2): each candidate
+// is compared against the last already-KEPT mark's *actual* extent (via a
+// stack, popping on collision), not the raw next mark in the original
+// array. Comparing against the raw neighbor was the bug - when a middle
+// mark got dropped and the mark after it flipped textAnchor to "end" (which
+// moves its rendered extent leftward, since "end" text renders from
+// `x - width` instead of `x`), that flip's new leftward reach was never
+// re-checked against the earlier mark that survived, so two KEPT labels
+// could end up closer than MIN_YEAR_LABEL_GAP_PX despite each individual
+// adjacent-raw-pair check reporting no collision. The stack/pop approach
+// cascades correctly: popping the top of the stack re-exposes the
+// next-earlier kept mark to the same check against the current candidate,
+// so a chain of drops (not just one) is possible when a flip's extent
+// reaches back further than a single neighbor. See
+// yearLabelPlacement.test.ts's "never returns two marks closer than 8px
+// apart (general invariant, brute-force)" for the proof-by-exhaustive-sweep
+// that replaced the single-hardcoded-case test that let this slip through.
 export function computeYearLabelPlacements(
   marks: RawYearLabelMark[],
   bounds: PlotBoundsX,
 ): PlacedYearLabelMark[] {
   const placed = marks.map((mark) => placeWithExtent(mark, bounds));
   const kept: PlacedWithExtent[] = [];
-  for (let index = 0; index < placed.length; index += 1) {
-    const current = placed[index];
-    const next = placed[index + 1];
-    const collidesWithNext = next != null && current.right + MIN_YEAR_LABEL_GAP_PX > next.left;
-    if (collidesWithNext) continue;
-    kept.push(current);
+  for (const candidate of placed) {
+    while (kept.length > 0 && collides(kept[kept.length - 1], candidate)) {
+      kept.pop();
+    }
+    kept.push(candidate);
   }
   return kept.map(({ key, x, label, textAnchor }) => ({ key, x, label, textAnchor }));
 }

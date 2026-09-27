@@ -187,6 +187,13 @@ export const YearLabelRightEdgeOverflowRegression: Story = {
 // real span (2020-2026, mirroring the adversarial reviewer's own
 // construction) does. Asserted with real Chromium layout, same rationale as
 // the story above.
+//
+// The real guarantee this story checks is "no two rendered year labels ever
+// land closer than the module's 8px buffer" - not "the lead-in's label is
+// the one that gets dropped" (the algorithm drops whichever of a colliding
+// pair is earlier on screen, with no special-case awareness of "is this a
+// lead-in"; see the play function below for why this fixture's data happens
+// to make the lead-in the one dropped).
 export const LeadInYearLabelCollisionRegression: Story = {
   args: {
     title: "Total hits",
@@ -209,8 +216,14 @@ export const LeadInYearLabelCollisionRegression: Story = {
       await expect(rects[i + 1].rect.left).toBeGreaterThanOrEqual(rects[i].rect.right - 1);
     }
 
-    // Resolving the collision must never drop a REAL year's label, only the
-    // lead-in's own.
+    // The algorithm has no concept of "lead-in" vs. "real year" - it drops
+    // whichever of a colliding adjacent pair is earlier on screen, full
+    // stop (see yearLabelPlacement.ts's computeYearLabelPlacements). For a
+    // long-history account it will drop a real year's label too, not just
+    // the lead-in's, if that real year happens to be the earlier of a
+    // colliding pair. This fixture's lead-in (1990) just happens to be the
+    // leftmost mark, so it's the one dropped here - that's this specific
+    // fixture's shape, not a guarantee the algorithm makes generally.
     const texts = labels.map((el) => el.textContent);
     await expect(texts).toContain("2000");
     await expect(texts).toContain("2013");
