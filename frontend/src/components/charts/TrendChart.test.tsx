@@ -289,6 +289,28 @@ describe("TrendChart", () => {
       // corner + synthetic + one real point.
       expect(leafColumnHeaders(table)).toHaveLength(3);
     });
+
+    // Testing task T9 (docs/plans/date-range-slider-month-granularity.md
+    // §10): explicit regression guard for the account-level default-view
+    // change - DashboardPage.tsx stops PASSING a leadIn by default (D5),
+    // but TrendChart.tsx itself is untouched and must still render one in
+    // full whenever a caller DOES pass it - protecting both the deferred
+    // account-level slider's future re-inclusion path and the fact that
+    // the component's own capability was never removed, only its
+    // default-view caller's usage. This duplicates none of the coverage
+    // above in intent (that coverage already proves this - this test names
+    // the guarantee explicitly, tied to the plan that could have broken it).
+    it("still renders a leadIn column in full when one IS passed - TrendChart's own capability is unchanged by the account-level default-hide (T9 guard)", () => {
+      render(
+        <TrendChart title="Total hits" valueLabel="Hits" points={SPARSE_POINTS} leadIn={LEAD_IN} />,
+      );
+
+      const table = screen.getByRole("table", { name: /total hits/i });
+      expect(leafColumnHeaders(table)).toHaveLength(SPARSE_POINTS.length + 2);
+      expect(
+        within(table).getByRole("columnheader", { name: /before.*2014.*estimated baseline/i }),
+      ).toBeInTheDocument();
+    });
   });
 
   // No current caller mounts this with empty points and no leadIn
