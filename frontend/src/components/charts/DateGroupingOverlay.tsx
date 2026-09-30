@@ -29,23 +29,25 @@ export interface DateGroupingOverlayProps {
 // (LeadInXAxisTick.tsx, via its `verticalAnchor="start"`) is TOP-anchored,
 // where `y` marks the ink's TOP. Comparing those two `y` values directly
 // silently cancelled out roughly one ascent's worth of the intended gap.
-// Measured directly in real Chromium (not jsdom, not guessed) for this
-// project's 11px label text: ascent ~10px, descent ~3px (ink height ~13px)
-// above/below the baseline `y`. Confirmed the resulting defect two ways:
-// (a) the month label's descender space was landing ON the month span line
-// (the line visibly struck through the label text), and (b) the year
-// label's ascent was landing almost entirely inside the gap meant to
-// separate it from the day-tick row above (measured ~0.5px actual
+// Measured directly in real Chromium (not jsdom, not guessed), originally
+// against this project's then-11px label text: ascent ~10px, descent ~3px
+// (ink height ~13px) above/below the baseline `y`. Confirmed the resulting
+// defect two ways: (a) the month label's descender space was landing ON the
+// month span line (the line visibly struck through the label text), and
+// (b) the year label's ascent was landing almost entirely inside the gap
+// meant to separate it from the day-tick row above (measured ~0.5px actual
 // clearance vs. the ~18-20px the prior tuning pass believed it had
 // achieved) - this second one is the "legend row is about half a text-
 // height too high" defect reported directly against the live Preview.
 // Recomputed baseline-aware (not re-nudged by eye): each offset below now
 // accounts for the measured ascent/descent so the actual rendered INK
-// clears its neighbor by a real, verified margin. Re-confirmed via real
-// Chromium after landing (measured, not assumed): month label clears its
-// line by ~5px, the line clears the day-tick row by ~5.5px, and the year
-// label clears the day-tick row by ~18.5px (right at the originally-
-// intended ~18-20px target) - see TrendChart.stories.tsx's
+// clears its neighbor by a real, verified margin - re-verified again after
+// the mockup-parity fix below dropped these labels to 10px (ascent/descent
+// shrink proportionally, so the existing buffer only got safer). Measured
+// in real Chromium at the final (10px) state: month label clears its line
+// by ~5.9px, the line clears the day-tick row by ~5.5px, and the year label
+// clears the day-tick row by ~18.5px (right at the originally-intended
+// ~18-20px target) - see TrendChart.stories.tsx's
 // VerticalBandSpacingRegression story (real Chromium getBoundingClientRect,
 // mirroring the existing YearLabelRightEdgeOverflowRegression precedent).
 const MONTH_LINE_OFFSET = 20;
@@ -161,20 +163,39 @@ export function DateGroupingOverlay({ rows }: DateGroupingOverlayProps) {
             y2={plotArea.y + plotArea.height + MONTH_LINE_OFFSET}
             stroke={colors.inkSoft}
             strokeWidth={1}
+            strokeOpacity={0.55}
           />
+          {/* Maintenance fix (2026-09-29): font-family/weight/size and the
+              missing strokeOpacity above were drifted from the CONFIRMED
+              mockup (artifact-5cd6f918-1790432443-2416.html's `.month-label`
+              rule: font-sans, 600, 10px) - the plan's own §5.2 prose never
+              named a weight/family for this text and Implementation filled
+              that gap with the year label's mono styling instead of the
+              mockup's sans one. Restored to match the locked design exactly. */}
           <text
             data-testid="month-span-label"
             x={(mark.x1 + mark.x2) / 2}
             y={plotArea.y + plotArea.height + MONTH_LINE_OFFSET - MONTH_LABEL_OFFSET}
             textAnchor="middle"
             fill={colors.inkSoft}
-            fontFamily="var(--font-mono)"
-            fontSize={11}
+            fontFamily="var(--font-sans)"
+            fontWeight={600}
+            fontSize={10}
           >
             {mark.label}
           </text>
         </g>
       ))}
+      {/* Maintenance fix (2026-09-29): the year rule/label were drawn in
+          colors.inkSoft, matching the month tier's own muted treatment - but
+          the CONFIRMED mockup deliberately colors ONLY the year tier in
+          colors.accent (both the rule and its label), creating a visual
+          hierarchy between "year boundary" (the rarer, more structural mark)
+          and "month span" (the frequent, in-context one). The plan's §5.2
+          prose specified inkSoft for both, which is the drift's actual
+          source - restored to the mockup's locked, confirmed intent, which
+          takes precedence per ROADMAP.md's 2026-09-26 "DESIGN CONFIRMED"
+          entry. */}
       {yearRuleMarks.map((mark) => (
         <line
           key={mark.key}
@@ -183,9 +204,9 @@ export function DateGroupingOverlay({ rows }: DateGroupingOverlayProps) {
           x2={mark.x}
           y1={plotArea.y}
           y2={plotArea.y + plotArea.height}
-          stroke={colors.inkSoft}
+          stroke={colors.accent}
           strokeDasharray="4 4"
-          strokeOpacity={0.5}
+          strokeOpacity={0.55}
         />
       ))}
       {yearLabelMarks.map((mark) => (
@@ -195,9 +216,10 @@ export function DateGroupingOverlay({ rows }: DateGroupingOverlayProps) {
           x={mark.x}
           y={plotArea.y + plotArea.height + YEAR_LABEL_OFFSET}
           textAnchor={mark.textAnchor}
-          fill={colors.inkSoft}
+          fill={colors.accent}
           fontFamily="var(--font-mono)"
-          fontSize={11}
+          fontWeight={600}
+          fontSize={10}
         >
           {mark.label}
         </text>

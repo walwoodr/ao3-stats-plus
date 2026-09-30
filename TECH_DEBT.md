@@ -1957,3 +1957,45 @@
   `SyncedDataTable.tsx` and passing the already-flattened `rows` array down
   (or memoizing it), rather than recomputing per row - out of scope for this
   cycle's targeted fix.
+- [2026-09-29] (stage: Maintenance) **Table's year/month header cells don't
+  carry the mockup's year-tier accent color.** The confirmed design mockup
+  (`artifact-5cd6f918-1790432443-2416.html`) colors the table's Year header
+  row in `var(--color-accent)`/`font-weight:600`, distinct from the Month
+  row's muted `text-ink-soft`/`font-weight:500` - the same year-vs-month
+  visual hierarchy this same Maintenance pass restored to the chart overlay
+  (`DateGroupingOverlay.tsx`'s year rule/label). `SyncedDataTableHeader.tsx`
+  uses one shared `GROUP_CELL_BASE` class (`text-ink-soft`, no weight/color
+  distinction) for BOTH tiers. Traced this to `docs/plans/
+  date-hierarchy-grouping.md` §4 itself, which explicitly specifies
+  `text-ink-soft` for both year and month tier cells - a deliberate
+  Planning-stage simplification (or oversight) that diverged from the
+  earlier LOCKED mockup, not an Implementation error; Testing/Implementation
+  built and tested against that written plan section faithfully. Not changed
+  here: altering `GROUP_CELL_BASE`'s shared styling would touch an
+  established, tested contract on a different, lower-visibility surface than
+  the chart (where the report actually pointed), and a plausible reasonable
+  case exists for leaving it as-is (the table's cells already carry
+  unambiguous text - "2014" vs "Sep" - so color-coding is less load-bearing
+  there than on the chart's terser rule/label marks). Flagged for Planning
+  to make an explicit, documented call rather than quietly diverging further
+  - candidate fix: a second `YEAR_GROUP_CELL_CLASS` (`text-accent
+  font-semibold`) applied only to the year-tier `<th>`s in both orientations.
+- [2026-09-29] (stage: Maintenance) **Month label overlaps the Y-axis "0"
+  tick label for a lead-in/first point sitting at the domain minimum.**
+  Found incidentally while real-Chromium-verifying the vertical-spacing fix
+  above (`DateGroupingOverlay.tsx`'s month-span-label, centered at
+  `(x1+x2)/2` which collapses to the point's own x for a single-point
+  month): when that point sits at/near `plotArea.x` (a lead-in is very
+  commonly the chart's leftmost point), the centered month label text
+  visually collides with the Y-axis's own leftmost tick label (e.g. "0"),
+  rendering as "0Sep" with no gap - a real, user-visible defect but a
+  DIFFERENT root cause (horizontal x-position, not the reported vertical
+  baseline/"half text-height" issue) than either of this pass's two fixes.
+  `year-label`s already got an edge-safety treatment for exactly this class
+  of problem (`yearLabelPlacement.ts`'s right-edge overflow/collision guard,
+  `YearLabelRightEdgeOverflowRegression`/`LeadInYearLabelCollisionRegression`
+  in `TrendChart.stories.tsx`) - month labels have no equivalent. Deferred:
+  candidate fix is extending `yearLabelPlacement.ts` (or a sibling module)
+  to also place month labels away from the Y-axis width reserved at the
+  plot's left edge, mirroring the existing year-label collision logic -
+  out of scope for this cycle's targeted vertical-spacing/mockup-parity fix.
