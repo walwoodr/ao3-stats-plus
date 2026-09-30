@@ -7,20 +7,32 @@ import { DateRangeSlider, type DateRangeSliderProps } from "./DateRangeSlider";
 // DateRangeSlider wraps MUI `Slider` in range mode (decision B, resolved by
 // the user - see the plan's "Resolved design decisions"). @mui/material,
 // @emotion/react, and @emotion/styled are installed and used by other
-// already-shipped components in this codebase, so - unlike when this file
-// was first written - these tests are NOT expected to fail on import.
+// already-shipped components in this codebase, so these tests are NOT
+// expected to fail on import.
 //
+// docs/plans/date-range-slider-month-granularity.md (D1/D2, §3): the slider's
+// domain is re-encoded from whole-year integers to month indices
+// (`year * 12 + (month - 1)`) - props keep their SHAPE (`min`/`max`/
+// `value: [number, number]`, all still plain numbers), only the semantic
+// interpretation changes. `mi(year, month)` below duplicates the same
+// encoding lib/monthIndex.ts uses, kept local/self-contained rather than
+// importing the new lib (this file tests DateRangeSlider, not monthIndex.ts
+// itself - lib/monthIndex.test.ts owns that coverage directly).
+function mi(year: number, month: number): number {
+  return year * 12 + (month - 1);
+}
+
+const MIN = mi(2018, 1); // Jan 2018
+const MAX = mi(2026, 12); // Dec 2026
+
 // docs/plans/work-comparison-picker-refinements.md §3.2 REMOVES the old
 // `unionPointCount <= 2` null-return gate: the component now always
 // renders, and instead derives `disabled = unionPointCount <= 2` and passes
-// it straight to MUI's own `Slider` `disabled` prop. WorkComparisonSection
-// (not this component) now always mounts DateRangeSlider unconditionally -
-// see WorkComparisonSection.test.tsx/.regression.test.tsx (T11) for that
-// side of the change. The drag-fix regression tests below (onChange vs.
-// onChangeCommitted) are UNCHANGED and must keep passing unmodified -
-// disabling the control doesn't touch that split at all (a disabled MUI
-// Slider simply never fires either callback, so there's nothing for the
-// split to interact with).
+// it straight to MUI's own `Slider` `disabled` prop. The drag-fix regression
+// tests below (onChange vs. onChangeCommitted) are UNCHANGED IN INTENT -
+// disabling the control doesn't touch that split at all - but their
+// `getByRole` name matcher drops "(year)" along with every other query in
+// this file, per getAriaLabel's own change (§3).
 function ControlledDateRangeSlider(
   props: Omit<DateRangeSliderProps, "value" | "onChange"> & {
     initialValue: [number, number];
@@ -30,20 +42,18 @@ function ControlledDateRangeSlider(
   return <DateRangeSlider {...props} value={value} onChange={setValue} />;
 }
 
+function startThumb() {
+  return screen.getByRole("slider", { name: /^range start$/i });
+}
+function endThumb() {
+  return screen.getByRole("slider", { name: /^range end$/i });
+}
+
 describe("DateRangeSlider", () => {
-  // Requirement 3 (§3.2): the component is now ALWAYS rendered - the old
-  // `unionPointCount <= 2` null-return gate is removed and replaced by
-  // deriving `disabled` and handing it to MUI Slider's own `disabled` prop.
   describe("always rendered - disabled below the >2 union-points threshold", () => {
     it("renders (never returns null) when unionPointCount is 0", () => {
       const { container } = render(
-        <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2018, 2026]}
-          onChange={vi.fn()}
-          unionPointCount={0}
-        />,
+        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={0} />,
       );
 
       expect(container).not.toBeEmptyDOMElement();
@@ -52,13 +62,7 @@ describe("DateRangeSlider", () => {
 
     it("is disabled when unionPointCount is 0", () => {
       render(
-        <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2018, 2026]}
-          onChange={vi.fn()}
-          unionPointCount={0}
-        />,
+        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={0} />,
       );
 
       screen.getAllByRole("slider").forEach((thumb) => expect(thumb).toBeDisabled());
@@ -66,13 +70,7 @@ describe("DateRangeSlider", () => {
 
     it("is disabled when unionPointCount is exactly 2 (boundary - not '>2')", () => {
       render(
-        <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2018, 2026]}
-          onChange={vi.fn()}
-          unionPointCount={2}
-        />,
+        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={2} />,
       );
 
       screen.getAllByRole("slider").forEach((thumb) => expect(thumb).toBeDisabled());
@@ -80,13 +78,7 @@ describe("DateRangeSlider", () => {
 
     it("is enabled (not disabled) when unionPointCount is exactly 3 (boundary - '>2' means >= 3)", () => {
       render(
-        <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2018, 2026]}
-          onChange={vi.fn()}
-          unionPointCount={3}
-        />,
+        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={3} />,
       );
 
       expect(screen.getAllByRole("slider")).toHaveLength(2);
@@ -95,65 +87,39 @@ describe("DateRangeSlider", () => {
   });
 
   describe("disabled-state visual/data treatment (§3.2/§3.3)", () => {
-    it("still shows the passed-in value range in the visible readout while disabled", () => {
+    it("still shows the passed-in value range as 'MMM YYYY – MMM YYYY' in the visible readout while disabled", () => {
       render(
-        <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2018, 2026]}
-          onChange={vi.fn()}
-          unionPointCount={1}
-        />,
+        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={1} />,
       );
 
-      expect(screen.getByText(/2018\s*[–-]\s*2026/)).toBeInTheDocument();
+      expect(screen.getByText(/Jan 2018\s*[–-]\s*Dec 2026/)).toBeInTheDocument();
     });
 
     it("keeps the 'Date range' heading visible while disabled, so the control's purpose stays clear", () => {
       render(
-        <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2018, 2026]}
-          onChange={vi.fn()}
-          unionPointCount={0}
-        />,
+        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={0} />,
       );
 
       expect(screen.getByText("Date range")).toBeInTheDocument();
     });
 
-    it("still exposes correct min/max bounds on the disabled thumbs (aria-valuemin/aria-valuemax)", () => {
+    it("still exposes correct min/max bounds on the disabled thumbs (aria-valuemin/aria-valuemax as month indices)", () => {
       render(
-        <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2018, 2026]}
-          onChange={vi.fn()}
-          unionPointCount={0}
-        />,
+        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={0} />,
       );
 
-      const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
-      expect(startThumb).toHaveAttribute("aria-valuemin", "2018");
-      expect(startThumb).toHaveAttribute("aria-valuemax", "2026");
+      expect(startThumb()).toHaveAttribute("aria-valuemin", String(MIN));
+      expect(startThumb()).toHaveAttribute("aria-valuemax", String(MAX));
     });
 
     it("does not call onChange in response to a keyboard step while disabled (interaction genuinely suppressed)", async () => {
       const user = userEvent.setup();
       const onChange = vi.fn();
       render(
-        <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2018, 2026]}
-          onChange={onChange}
-          unionPointCount={0}
-        />,
+        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={onChange} unionPointCount={0} />,
       );
 
-      const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
-      startThumb.focus();
+      startThumb().focus();
       await user.keyboard("{ArrowRight}");
 
       expect(onChange).not.toHaveBeenCalled();
@@ -163,199 +129,156 @@ describe("DateRangeSlider", () => {
   describe("rendered (>2 union points)", () => {
     it("renders two thumbs with role=slider", () => {
       render(
-        <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2018, 2026]}
-          onChange={vi.fn()}
-          unionPointCount={5}
-        />,
+        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={5} />,
       );
 
       expect(screen.getAllByRole("slider")).toHaveLength(2);
     });
 
-    it("labels the start thumb 'Range start (year)' via getAriaLabel", () => {
+    it("labels the start thumb 'Range start' via getAriaLabel (no '(year)' suffix - month/year is in the value text)", () => {
       render(
-        <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2018, 2026]}
-          onChange={vi.fn()}
-          unionPointCount={5}
-        />,
+        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={5} />,
       );
 
-      expect(screen.getByRole("slider", { name: /range start \(year\)/i })).toBeInTheDocument();
+      expect(startThumb()).toBeInTheDocument();
     });
 
-    it("labels the end thumb 'Range end (year)' via getAriaLabel", () => {
+    it("labels the end thumb 'Range end' via getAriaLabel", () => {
       render(
-        <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2018, 2026]}
-          onChange={vi.fn()}
-          unionPointCount={5}
-        />,
+        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={5} />,
       );
 
-      expect(screen.getByRole("slider", { name: /range end \(year\)/i })).toBeInTheDocument();
+      expect(endThumb()).toBeInTheDocument();
     });
 
-    it("supplies a spoken aria-valuetext for each thumb via getAriaValueText (e.g. the plain year)", () => {
+    it("supplies a full 'Month YYYY' aria-valuetext for each thumb via getAriaValueText->formatMonthIndex(..., 'long')", () => {
       render(
         <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2019, 2024]}
+          min={MIN}
+          max={MAX}
+          value={[mi(2019, 3), mi(2024, 11)]}
           onChange={vi.fn()}
           unionPointCount={5}
         />,
       );
 
-      const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
-      const endThumb = screen.getByRole("slider", { name: /range end \(year\)/i });
-
-      expect(startThumb).toHaveAttribute("aria-valuetext", "2019");
-      expect(endThumb).toHaveAttribute("aria-valuetext", "2024");
+      expect(startThumb()).toHaveAttribute("aria-valuetext", "March 2019");
+      expect(endThumb()).toHaveAttribute("aria-valuetext", "November 2024");
     });
 
-    it("shows a visible mono-font readout of the current window", () => {
+    it("shows a visible mono-font readout of the current window as 'MMM YYYY – MMM YYYY'", () => {
       render(
-        <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2018, 2026]}
-          onChange={vi.fn()}
-          unionPointCount={5}
-        />,
+        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={5} />,
       );
 
-      expect(screen.getByText(/2018\s*[–-]\s*2026/)).toBeInTheDocument();
+      expect(screen.getByText(/Jan 2018\s*[–-]\s*Dec 2026/)).toBeInTheDocument();
     });
 
     it("updates the visible readout when the value prop changes", () => {
       const { rerender } = render(
-        <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2018, 2026]}
-          onChange={vi.fn()}
-          unionPointCount={5}
-        />,
+        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={5} />,
       );
 
       rerender(
         <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2020, 2022]}
+          min={MIN}
+          max={MAX}
+          value={[mi(2020, 6), mi(2022, 2)]}
           onChange={vi.fn()}
           unionPointCount={5}
         />,
       );
 
-      expect(screen.getByText(/2020\s*[–-]\s*2022/)).toBeInTheDocument();
-      expect(screen.queryByText(/2018\s*[–-]\s*2026/)).not.toBeInTheDocument();
+      expect(screen.getByText(/Jun 2020\s*[–-]\s*Feb 2022/)).toBeInTheDocument();
+      expect(screen.queryByText(/Jan 2018\s*[–-]\s*Dec 2026/)).not.toBeInTheDocument();
     });
 
-    it("increases the start thumb's year via the ArrowRight key", async () => {
-      const user = userEvent.setup();
-      render(
-        <ControlledDateRangeSlider
-          min={2018}
-          max={2026}
-          initialValue={[2018, 2026]}
+    it("shows a short 'MMM YYYY' value-label tooltip via valueLabelFormat", () => {
+      const { container } = render(
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[mi(2019, 3), mi(2024, 11)]}
+          onChange={vi.fn()}
           unionPointCount={5}
         />,
       );
 
-      const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
-      startThumb.focus();
+      const labelTexts = Array.from(container.querySelectorAll(".MuiSlider-valueLabelLabel")).map(
+        (el) => el.textContent,
+      );
+      expect(labelTexts).toContain("Mar 2019");
+      expect(labelTexts).toContain("Nov 2024");
+    });
+
+    it("replaces the boolean `marks` with explicit unlabeled year-boundary marks (one per January in range)", () => {
+      const { container } = render(
+        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={5} />,
+      );
+
+      // 2018..2026 inclusive = 9 Januaries.
+      expect(container.querySelectorAll(".MuiSlider-mark")).toHaveLength(9);
+    });
+
+    it("increases the start thumb's value by exactly one MONTH via the ArrowRight key", async () => {
+      const user = userEvent.setup();
+      render(
+        <ControlledDateRangeSlider min={MIN} max={MAX} initialValue={[MIN, MAX]} unionPointCount={5} />,
+      );
+
+      startThumb().focus();
       await user.keyboard("{ArrowRight}");
 
-      expect(screen.getByRole("slider", { name: /range start \(year\)/i })).toHaveAttribute(
-        "aria-valuenow",
-        "2019",
-      );
+      expect(startThumb()).toHaveAttribute("aria-valuenow", String(MIN + 1));
     });
 
-    it("decreases the end thumb's year via the ArrowLeft key", async () => {
+    it("decreases the end thumb's value by exactly one MONTH via the ArrowLeft key", async () => {
       const user = userEvent.setup();
       render(
-        <ControlledDateRangeSlider
-          min={2018}
-          max={2026}
-          initialValue={[2018, 2026]}
-          unionPointCount={5}
-        />,
+        <ControlledDateRangeSlider min={MIN} max={MAX} initialValue={[MIN, MAX]} unionPointCount={5} />,
       );
 
-      const endThumb = screen.getByRole("slider", { name: /range end \(year\)/i });
-      endThumb.focus();
+      endThumb().focus();
       await user.keyboard("{ArrowLeft}");
 
-      expect(screen.getByRole("slider", { name: /range end \(year\)/i })).toHaveAttribute(
-        "aria-valuenow",
-        "2025",
-      );
+      expect(endThumb()).toHaveAttribute("aria-valuenow", String(MAX - 1));
     });
 
     it("clamps crossover - the start thumb cannot be pushed past the end thumb's value", async () => {
       const user = userEvent.setup();
+      const bothAtSameMonth = mi(2025, 6);
       render(
         <ControlledDateRangeSlider
-          min={2018}
-          max={2026}
-          initialValue={[2025, 2025]}
+          min={MIN}
+          max={MAX}
+          initialValue={[bothAtSameMonth, bothAtSameMonth]}
           unionPointCount={5}
         />,
       );
 
-      const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
-      startThumb.focus();
+      startThumb().focus();
       await user.keyboard("{ArrowRight}");
 
-      const startValue = Number(
-        screen.getByRole("slider", { name: /range start \(year\)/i }).getAttribute("aria-valuenow"),
-      );
-      const endValue = Number(
-        screen.getByRole("slider", { name: /range end \(year\)/i }).getAttribute("aria-valuenow"),
-      );
+      const startValue = Number(startThumb().getAttribute("aria-valuenow"));
+      const endValue = Number(endThumb().getAttribute("aria-valuenow"));
       expect(startValue).toBeLessThanOrEqual(endValue);
     });
 
     it("clamps the end thumb to min/max domain bounds", async () => {
       const user = userEvent.setup();
       render(
-        <ControlledDateRangeSlider
-          min={2018}
-          max={2026}
-          initialValue={[2018, 2026]}
-          unionPointCount={5}
-        />,
+        <ControlledDateRangeSlider min={MIN} max={MAX} initialValue={[MIN, MAX]} unionPointCount={5} />,
       );
 
-      const endThumb = screen.getByRole("slider", { name: /range end \(year\)/i });
-      endThumb.focus();
+      endThumb().focus();
       await user.keyboard("{ArrowRight}");
 
-      expect(screen.getByRole("slider", { name: /range end \(year\)/i })).toHaveAttribute(
-        "aria-valuenow",
-        "2026",
-      );
+      expect(endThumb()).toHaveAttribute("aria-valuenow", String(MAX));
     });
 
     it("keeps each thumb keyboard-focusable (tabIndex 0)", () => {
       render(
-        <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2018, 2026]}
-          onChange={vi.fn()}
-          unionPointCount={5}
-        />,
+        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={5} />,
       );
 
       screen.getAllByRole("slider").forEach((thumb) => {
@@ -374,29 +297,14 @@ describe("DateRangeSlider", () => {
   // continuous `onChange` (local-only, keeps the thumb/readout visually
   // live during a drag) from `onChangeCommitted` (fires once - on drag
   // release, on a completed keyboard step, or on a plain rail click -
-  // verified directly against the installed MUI source, node_modules/
-  // @mui/material/Slider/useSlider.js) which is what now drives the
-  // expensive `onChange` prop callback the parent uses to update the
-  // store/filter the graphs.
-  //
-  // Separately investigated and RULED OUT as the cause of the user's
-  // report: whether a real mouse drag ever reaches MUI's value-commit path
-  // at all. Live e2e instrumentation (document-level pointermove listeners
-  // reading event.buttons) showed Playwright/CDP's very FIRST synthetic
-  // pointermove after page.mouse.down() reports buttons:0 (not yet
-  // reflecting the just-pressed button - all SUBSEQUENT synthetic moves
-  // correctly report buttons:1). MUI's useSlider.js has an explicit,
-  // legitimate guard for this real-world edge case ("cancel move in case
-  // some other element consumed a pointerup event and it was not fired") -
-  // `if (nativeEvent.type === 'pointermove' && nativeEvent.buttons === 0)
-  // { handleTouchEnd(nativeEvent); return; }` - which the CDP artifact
-  // trips on the very first move, ending the "drag" (and tearing down
-  // MUI's own document listeners) before any real movement is ever
-  // recorded. A real human's OS-reported mouse-button state does not have
-  // this first-event race, so this is judged to be a Playwright/CDP
-  // input-synthesis limitation, not a production bug - these tests
-  // therefore set `buttons: 1` explicitly on every synthesized
-  // pointermove, matching what a real held mouse button reports.
+  // verified directly against the installed MUI source) which is what
+  // drives the expensive `onChange` prop callback the parent uses to
+  // update the store/filter the graphs. This split is UNCHANGED by the
+  // month-granularity work (docs/plans/date-range-slider-month-
+  // granularity.md §3) - only the value semantics moved, not the
+  // interaction wiring - so these tests must keep passing unmodified in
+  // BEHAVIOR (their aria-label queries are updated to match getAriaLabel's
+  // new "(year)"-less text, same as every other query in this file).
   describe("decoupling live drag feedback from the expensive onChange prop (regression)", () => {
     function fireDrag(thumb: HTMLElement, clientX: number) {
       fireEvent.pointerDown(thumb, { pointerId: 1, clientX, isPrimary: true, buttons: 1 });
@@ -406,17 +314,10 @@ describe("DateRangeSlider", () => {
     it("does NOT call the onChange prop while a drag is still in progress (only MUI's own onChange fired, not onChangeCommitted)", () => {
       const onChange = vi.fn();
       render(
-        <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2018, 2026]}
-          onChange={onChange}
-          unionPointCount={5}
-        />,
+        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={onChange} unionPointCount={5} />,
       );
 
-      const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
-      fireDrag(startThumb, 0);
+      fireDrag(startThumb(), 0);
 
       expect(onChange).not.toHaveBeenCalled();
 
@@ -426,17 +327,10 @@ describe("DateRangeSlider", () => {
     it("calls the onChange prop once the drag is released (onChangeCommitted)", () => {
       const onChange = vi.fn();
       render(
-        <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2018, 2026]}
-          onChange={onChange}
-          unionPointCount={5}
-        />,
+        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={onChange} unionPointCount={5} />,
       );
 
-      const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
-      fireDrag(startThumb, 0);
+      fireDrag(startThumb(), 0);
       fireEvent.pointerUp(document, { pointerId: 1 });
 
       expect(onChange).toHaveBeenCalledTimes(1);
@@ -444,22 +338,12 @@ describe("DateRangeSlider", () => {
 
     it("still keeps the visible readout live-updating DURING the drag, even though the onChange prop hasn't committed yet", () => {
       render(
-        <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2018, 2026]}
-          onChange={vi.fn()}
-          unionPointCount={5}
-        />,
+        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={5} />,
       );
 
-      const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
-      fireDrag(startThumb, 0);
+      fireDrag(startThumb(), 0);
 
-      expect(screen.getByRole("slider", { name: /range start \(year\)/i })).not.toHaveAttribute(
-        "aria-valuenow",
-        "2018",
-      );
+      expect(startThumb()).not.toHaveAttribute("aria-valuenow", String(MIN));
 
       fireEvent.pointerUp(document, { pointerId: 1 });
     });
@@ -468,20 +352,14 @@ describe("DateRangeSlider", () => {
       const user = userEvent.setup();
       const onChange = vi.fn();
       render(
-        <DateRangeSlider
-          min={2018}
-          max={2026}
-          value={[2018, 2026]}
-          onChange={onChange}
-          unionPointCount={5}
-        />,
+        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={onChange} unionPointCount={5} />,
       );
 
-      screen.getByRole("slider", { name: /range start \(year\)/i }).focus();
+      startThumb().focus();
       await user.keyboard("{ArrowRight}");
 
       expect(onChange).toHaveBeenCalledTimes(1);
-      expect(onChange).toHaveBeenCalledWith([2019, 2026]);
+      expect(onChange).toHaveBeenCalledWith([MIN + 1, MAX]);
     });
   });
 });
