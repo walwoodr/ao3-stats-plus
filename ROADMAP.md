@@ -261,3 +261,9 @@ Raised by the user while reviewing the shipped feature (`docs/plans/chart-synced
     as an ADDITIONAL layer over that existing tick set, not a replacement
     mechanism, and should re-check interaction with that round's hard-won
     `MAX_REAL_AXIS_TICKS` real-tick cap.
+
+## v2 candidates (confirmed 2026-09-29, deferred from the date-range-slider month-granularity plan)
+
+Raised by the user while scoping `docs/plans/date-range-slider-month-granularity.md` (which discovered that `DateRangeSlider` today has exactly one production consumer, `WorkComparisonSection`, and that the account-level dashboard charts have no interactive date filter at all). Explicitly deferred — NOT part of that plan's scope.
+
+- **Full DateRangeSlider on the account-level dashboard charts.** Give the account-level Total hits / Total kudos / Subscribers views (`DashboardPage.tsx`, currently three `TrendChart` instances — note `RatioChart` is not actually rendered in production anywhere, only in tests/stories) their own interactive `DateRangeSlider`, the same month-granular control `WorkComparisonSection` uses. This would let the user widen the account-level view back out to include the synthetic zero-basis lead-in marker, which the month-granularity plan now excludes from the account-level DEFAULT view (see that plan's §10). Origin: `docs/plans/date-range-slider-month-granularity.md`. Needs Discovery/Planning on: where the slider sits relative to the existing account-level `MetricToggle`; whether account-level range state persists per-username like the per-work slider does (`useWorkComparisonStore`) or stays ephemeral like the account-level metric toggle; and how re-including the lead-in on demand composes with D1's `computeYDomain` lead-in-present branch (already shipped) so the signature lead-in marker (`design-system/ao3-stats-plus/MASTER.md`, "The signature element") is restored to the main dashboard when the user widens back to it.
