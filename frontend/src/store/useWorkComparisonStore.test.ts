@@ -274,4 +274,120 @@ describe("useWorkComparisonStore", () => {
       expect(freshStore.getState().getSelectedMetric("persisted_author")).toBe("comments");
     });
   });
+
+  // docs/plans/date-range-slider-month-granularity.md D2 ("Persisted year-
+  // range from before this change") + §"useWorkComparisonStore.ts changes":
+  // `range` moves from year semantics to month-index semantics, so a
+  // pre-v1 persisted range (e.g. {start: 2018, end: 2026}, written before
+  // this change shipped) would otherwise be silently MISREAD as a month-
+  // index window (year ~168) rather than years. The persisted `version`
+  // bumps from the implicit 0 to 1, with a `migrate` that NULLS any pre-v1
+  // `range` on every byUsername entry - dropping it is safe (ephemeral view
+  // state; the user simply lands on the new real-capture default) - while
+  // leaving `selectedWorkIds`/`selectedMetric` untouched.
+  describe("persist version bump + migration of pre-v1 year ranges (T5)", () => {
+    const STORAGE_KEY = "ao3-stats-plus-work-comparison-store";
+
+    function writeRawPersistedBlob(state: unknown, version?: number) {
+      const blob: { state: unknown; version?: number } = { state };
+      if (version !== undefined) blob.version = version;
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(blob));
+    }
+
+    it("nulls a pre-v1 persisted range (implicit version 0, no version key at all) on rehydrate", async () => {
+      writeRawPersistedBlob({
+        byUsername: {
+          someauthor: {
+            selectedWorkIds: [1, 2],
+            range: { start: 2018, end: 2026 },
+            selectedMetric: "kudos",
+          },
+        },
+      });
+
+      vi.resetModules();
+      const { useWorkComparisonStore: freshStore } = await import("./useWorkComparisonStore");
+      await freshStore.persist.rehydrate();
+
+      expect(freshStore.getState().getRange("someauthor")).toBeNull();
+    });
+
+    it("preserves selectedWorkIds/selectedMetric for the same username while nulling its pre-v1 range", async () => {
+      writeRawPersistedBlob({
+        byUsername: {
+          someauthor: {
+            selectedWorkIds: [1, 2],
+            range: { start: 2018, end: 2026 },
+            selectedMetric: "kudos",
+          },
+        },
+      });
+
+      vi.resetModules();
+      const { useWorkComparisonStore: freshStore } = await import("./useWorkComparisonStore");
+      await freshStore.persist.rehydrate();
+
+      expect(freshStore.getState().getSelection("someauthor")).toEqual([1, 2]);
+      expect(freshStore.getState().getSelectedMetric("someauthor")).toBe("kudos");
+    });
+
+    it("nulls a pre-v1 range independently across every byUsername entry, not just the first", async () => {
+      writeRawPersistedBlob({
+        byUsername: {
+          authorA: { selectedWorkIds: [1], range: { start: 2018, end: 2026 }, selectedMetric: null },
+          authorB: { selectedWorkIds: [2], range: { start: 2010, end: 2020 }, selectedMetric: null },
+        },
+      });
+
+      vi.resetModules();
+      const { useWorkComparisonStore: freshStore } = await import("./useWorkComparisonStore");
+      await freshStore.persist.rehydrate();
+
+      expect(freshStore.getState().getRange("authorA")).toBeNull();
+      expect(freshStore.getState().getRange("authorB")).toBeNull();
+    });
+
+    it("leaves a byUsername entry with an already-null range untouched (no throw)", async () => {
+      writeRawPersistedBlob({
+        byUsername: {
+          someauthor: { selectedWorkIds: [1], range: null, selectedMetric: null },
+        },
+      });
+
+      vi.resetModules();
+      const { useWorkComparisonStore: freshStore } = await import("./useWorkComparisonStore");
+      await expect(freshStore.persist.rehydrate()).resolves.not.toThrow();
+      expect(freshStore.getState().getRange("someauthor")).toBeNull();
+      expect(freshStore.getState().getSelection("someauthor")).toEqual([1]);
+    });
+
+    it("does NOT null a range already written at the current (v1) version - only pre-v1 data migrates", async () => {
+      writeRawPersistedBlob(
+        {
+          byUsername: {
+            someauthor: {
+              selectedWorkIds: [1],
+              range: { start: 24240, end: 24300 }, // a real v1 month-index window
+              selectedMetric: null,
+            },
+          },
+        },
+        1,
+      );
+
+      vi.resetModules();
+      const { useWorkComparisonStore: freshStore } = await import("./useWorkComparisonStore");
+      await freshStore.persist.rehydrate();
+
+      expect(freshStore.getState().getRange("someauthor")).toEqual({ start: 24240, end: 24300 });
+    });
+
+    it("persists new writes at the current version (readable by a byte-for-byte re-import, not just this in-memory session)", async () => {
+      useWorkComparisonStore.getState().setRange("someauthor", { start: 24240, end: 24300 });
+
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      const parsed = JSON.parse(raw ?? "{}") as { version?: number };
+      expect(parsed.version).toBe(1);
+    });
+  });
 });
