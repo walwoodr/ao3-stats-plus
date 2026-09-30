@@ -1,3 +1,4 @@
+import { monthIndexOf } from "./monthIndex";
 import type { PerWorkPoint, PerWorkSeries } from "../queries/useStatsForUser";
 
 // Pure selection/window transforms that WorkComparisonSection wires up to
@@ -84,7 +85,11 @@ export function shouldShowRangeSlider(unionDates: string[]): boolean {
   return unionDates.length > 2;
 }
 
-export interface YearWindow {
+// Month-index window (docs/plans/date-range-slider-month-granularity.md,
+// D1) - start/end are month indices (`year * 12 + (month - 1)`, from
+// lib/monthIndex.ts), not raw years. Renamed from YearWindow so the type
+// name doesn't misleadingly imply year granularity.
+export interface MonthWindow {
   start: number;
   end: number;
 }
@@ -94,21 +99,22 @@ export interface YearWindow {
 // "Range state invariants" defensive re-clamp from the plan's Error
 // states, independent of whatever clamping MUI's Slider does at the
 // interaction level.
-export function clampWindow(window: YearWindow, bounds: YearWindow): YearWindow {
+export function clampWindow(window: MonthWindow, bounds: MonthWindow): MonthWindow {
   const start = Math.min(Math.max(window.start, bounds.start), bounds.end);
   const clampedEnd = Math.min(Math.max(window.end, bounds.start), bounds.end);
   const end = Math.max(start, clampedEnd);
   return { start, end };
 }
 
-// Filters a work's points to those whose capturedOn year falls within
-// [start, end] inclusive - the chart re-lays-out remaining points on the
-// categorical axis afterward (connectNulls={false}, so gaps stay gaps).
-// Never mutates the input array; returns [] (not a throw) for a work with
-// no points.
-export function filterPointsInWindow(points: PerWorkPoint[], window: YearWindow): PerWorkPoint[] {
+// Filters a work's points to those whose capturedOn month index falls
+// within [start, end] inclusive - the chart re-lays-out remaining points on
+// the categorical axis afterward (connectNulls={false}, so gaps stay
+// gaps). Never mutates the input array; returns [] (not a throw) for a
+// work with no points, and excludes (rather than throwing on) a malformed
+// capturedOn, since monthIndexOf degrades to NaN for those.
+export function filterPointsInWindow(points: PerWorkPoint[], window: MonthWindow): PerWorkPoint[] {
   return points.filter((point) => {
-    const year = Number(point.capturedOn.slice(0, 4));
-    return year >= window.start && year <= window.end;
+    const monthIndex = monthIndexOf(point.capturedOn);
+    return monthIndex >= window.start && monthIndex <= window.end;
   });
 }
