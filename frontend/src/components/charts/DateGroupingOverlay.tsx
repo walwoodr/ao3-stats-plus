@@ -19,14 +19,38 @@ export interface DateGroupingOverlayProps {
 // Vertical offsets for the axis band below the plot, top -> bottom: month
 // span line + abbrev label, (day-number ticks, drawn by Recharts itself via
 // dateGroupingChartLayout.ts's DAY_TICK_MARGIN), year labels (plan §5.3).
-// Tuned together with dateGroupingChartLayout.ts's EXTRA_BAND_HEIGHT/
-// DAY_TICK_MARGIN against a REAL Chromium screenshot of the populated
-// dashboard (2026-09-26 I9 Preview pass) - an initial guess left the day-
-// tick and year-label rows only ~10px apart baseline-to-baseline (visually
-// touching); these three values now give each row a clear ~18-20px gap.
-const MONTH_LINE_OFFSET = 10;
-const MONTH_LABEL_OFFSET = 4;
-const YEAR_LABEL_OFFSET = 50;
+//
+// Maintenance fix (2026-09-29, post-ship Preview finding): the 2026-09-26
+// tuning above compared each row's raw SVG `y` coordinate ("baseline-to-
+// baseline") and assumed that delta WAS the visible gap. It wasn't. These
+// `<text>` elements use the SVG default (alphabetic) baseline - `y` marks
+// the BASELINE, and the glyph ink renders mostly ABOVE it (ascent) with a
+// little below (descent) - whereas Recharts' own day-tick text
+// (LeadInXAxisTick.tsx, via its `verticalAnchor="start"`) is TOP-anchored,
+// where `y` marks the ink's TOP. Comparing those two `y` values directly
+// silently cancelled out roughly one ascent's worth of the intended gap.
+// Measured directly in real Chromium (not jsdom, not guessed) for this
+// project's 11px label text: ascent ~10px, descent ~3px (ink height ~13px)
+// above/below the baseline `y`. Confirmed the resulting defect two ways:
+// (a) the month label's descender space was landing ON the month span line
+// (the line visibly struck through the label text), and (b) the year
+// label's ascent was landing almost entirely inside the gap meant to
+// separate it from the day-tick row above (measured ~0.5px actual
+// clearance vs. the ~18-20px the prior tuning pass believed it had
+// achieved) - this second one is the "legend row is about half a text-
+// height too high" defect reported directly against the live Preview.
+// Recomputed baseline-aware (not re-nudged by eye): each offset below now
+// accounts for the measured ascent/descent so the actual rendered INK
+// clears its neighbor by a real, verified margin. Re-confirmed via real
+// Chromium after landing (measured, not assumed): month label clears its
+// line by ~5px, the line clears the day-tick row by ~5.5px, and the year
+// label clears the day-tick row by ~18.5px (right at the originally-
+// intended ~18-20px target) - see TrendChart.stories.tsx's
+// VerticalBandSpacingRegression story (real Chromium getBoundingClientRect,
+// mirroring the existing YearLabelRightEdgeOverflowRegression precedent).
+const MONTH_LINE_OFFSET = 20;
+const MONTH_LABEL_OFFSET = 8;
+const YEAR_LABEL_OFFSET = 68;
 
 // Additive, independent SVG overlay (plan §0/§5) - a sibling of
 // ActivePointOverlay inside each chart's <LineChart>. Reads the same public

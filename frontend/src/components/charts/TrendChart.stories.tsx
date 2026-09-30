@@ -230,3 +230,57 @@ export const LeadInYearLabelCollisionRegression: Story = {
     await expect(texts).toContain("2026");
   },
 };
+
+// Maintenance fix (2026-09-29, live-Preview finding): the "legend row below
+// the chart is about half a text-height too high" report. Root cause -
+// DateGroupingOverlay's month/year <text> marks use the SVG default
+// (alphabetic) baseline, where `y` is the BASELINE and ink renders mostly
+// ABOVE it, while Recharts' own day-tick text is TOP-anchored (`y` is the
+// ink's top) - the 2026-09-26 tuning pass (d93d86d) compared raw `y` deltas
+// across those two different conventions and believed it had a clear
+// ~18-20px gap when the real rendered ink gap was ~0.5px (year label
+// crowding the day-tick row) and the month label's descender was landing ON
+// its own span line (visibly struck through). Asserted with REAL Chromium
+// layout (getBoundingClientRect), same rationale as the two regression
+// stories above - this class of bug is invisible in jsdom, which never lays
+// text out at all.
+export const VerticalBandSpacingRegression: Story = {
+  args: {
+    title: "Total hits",
+    valueLabel: "Hits",
+    points: [
+      { capturedOn: "2026-07-01", value: 130536 },
+      { capturedOn: "2026-07-15", value: 130597 },
+      { capturedOn: "2026-08-10", value: 130911 },
+    ],
+    leadIn: { capturedOn: "2014-09-06", value: 0 },
+  },
+  play: async ({ canvasElement }) => {
+    const monthLabel = canvasElement.querySelector('[data-testid="month-span-label"]');
+    const monthLine = canvasElement.querySelector('[data-testid="month-span-line"]');
+    const dayTick = Array.from(
+      canvasElement.querySelectorAll(".recharts-cartesian-axis-tick-value"),
+    ).find((el) => el.textContent === "01");
+    const yearLabel = Array.from(canvasElement.querySelectorAll('[data-testid="year-label"]')).find(
+      (el) => el.textContent === "2026",
+    );
+    await expect(monthLabel).not.toBeNull();
+    await expect(monthLine).not.toBeNull();
+    await expect(dayTick).not.toBeUndefined();
+    await expect(yearLabel).not.toBeUndefined();
+
+    const monthLabelRect = (monthLabel as SVGTextElement).getBoundingClientRect();
+    const monthLineRect = (monthLine as SVGLineElement).getBoundingClientRect();
+    const dayTickRect = (dayTick as SVGTextElement).getBoundingClientRect();
+    const yearLabelRect = (yearLabel as SVGTextElement).getBoundingClientRect();
+
+    // The month label's own ink must clear its span line, not overlap it -
+    // the exact defect a screenshot caught (the line struck through "Jul").
+    await expect(monthLabelRect.bottom).toBeLessThanOrEqual(monthLineRect.top);
+    // The year label must sit a REAL gap below the day-tick row, not ~0px -
+    // a generous-but-meaningful 10px floor (well short of the intended
+    // ~18-20px, so this fails loudly on any regression toward the old
+    // baseline-mismatch bug without being pixel-brittle).
+    await expect(yearLabelRect.top - dayTickRect.bottom).toBeGreaterThanOrEqual(10);
+  },
+};
