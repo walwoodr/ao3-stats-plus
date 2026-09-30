@@ -20,6 +20,16 @@ import type { PerWorkSeries } from "../queries/useStatsForUser";
 // toggle, not its sub-tab content.
 const USERNAME = "testauthor";
 
+// docs/plans/date-range-slider-month-granularity.md D1: month-index
+// encoding (`year * 12 + (month - 1)`), matching lib/monthIndex.ts.
+function mi(year: number, month: number): number {
+  return year * 12 + (month - 1);
+}
+
+function widenRange() {
+  useWorkComparisonStore.getState().setRange(USERNAME, { start: mi(1990, 1), end: mi(2099, 12) });
+}
+
 function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWorkSeries {
   return {
     title: `Work ${overrides.ao3WorkId}`,
@@ -211,11 +221,13 @@ describe("WorkComparisonSection: per-work metric toggle", () => {
     await selectWorkViaCombobox(user, "Work Two");
     await user.click(screen.getByRole("tab", { name: "Comments" }));
 
-    const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
-    startThumb.focus();
-    for (let year = 2020; year < 2021; year++) {
-      await user.keyboard("{ArrowRight}");
-    }
+    // Narrow start past Work One's 2020-01-01 point (12 months on, rather
+    // than looping 12 ArrowRight month-steps through the keyboard -
+    // DateRangeSlider.test.tsx already covers that interaction mechanism
+    // directly).
+    useWorkComparisonStore
+      .getState()
+      .setRange(USERNAME, { start: mi(2021, 1), end: mi(2022, 12) });
 
     const table = screen.getByRole("table", { name: /^comments$/i });
     // 2020's comments:1 point for Work One should be filtered out of the
@@ -254,6 +266,9 @@ describe("WorkComparisonSection: per-work metric toggle", () => {
         ],
       }),
     ];
+    // Lead-in is hidden by default (D2, LOCKED) - widen the stored range
+    // first so this test can observe it on the non-sparse Comments chart.
+    widenRange();
     renderSection({ perWorkSeries: works, earliestPostYear: null });
 
     await user.click(screen.getByRole("tab", { name: "Comments" }));

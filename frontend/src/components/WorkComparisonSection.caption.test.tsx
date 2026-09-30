@@ -6,16 +6,25 @@ import { useWorkComparisonStore } from "../store/useWorkComparisonStore";
 import type { PerWorkSeries } from "../queries/useStatsForUser";
 
 // Testing task 8 (docs/plans/per-work-zero-basis-dates.md, section 7): a
-// short visible caption renders beneath the chart pair (Hits, Kudos) reading
-// "Dashed segments show the period before your first captured stats for a
-// work." whenever >=1 currently selected/visible work has a rendered
-// lead-in, and is hidden entirely when zero lead-ins are currently
-// rendered. Assertions are unchanged by the picker/state-store redesign
-// (docs/plans/work-comparison-picker-redesign.md T9(e)) - only the
-// selection interaction mechanism (checkbox -> combobox) and the
-// now-required `username` prop / store reset are new here.
+// short visible caption renders beneath the chart pair whenever >=1
+// currently selected/visible work has a rendered lead-in, and is hidden
+// entirely when zero lead-ins are currently rendered.
+//
+// docs/plans/date-range-slider-month-granularity.md D2 (LOCKED): the default
+// range is now the real-capture span, which sits at/after every work's own
+// lead-in month - so no lead-in is rendered by default, and the caption is
+// therefore hidden by default too. Every test that wants the caption VISIBLE
+// widens the stored range first via `widenRange`.
 const CAPTION_TEXT = /dashed segments show the period before your first captured stats for a work/i;
 const USERNAME = "testauthor";
+
+function mi(year: number, month: number): number {
+  return year * 12 + (month - 1);
+}
+
+function widenRange() {
+  useWorkComparisonStore.getState().setRange(USERNAME, { start: mi(1990, 1), end: mi(2099, 12) });
+}
 
 function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWorkSeries {
   return {
@@ -47,31 +56,47 @@ beforeEach(() => {
   useWorkComparisonStore.setState({ byUsername: {} });
 });
 
-describe("WorkComparisonSection: visible lead-in caption", () => {
-  it("renders the caption when the default single selected work has a rendered leadIn", () => {
+describe("WorkComparisonSection: visible lead-in caption hidden by default (D2)", () => {
+  it("does not render the caption on first load even when the default single selected work HAS a leadIn (hidden by default, not absent)", () => {
     const works: PerWorkSeries[] = [
       work({
         ao3WorkId: 1,
         title: "Work One",
         publishedOn: "2020-01-01",
         points: [
-          {
-            capturedOn: "2026-01-01",
-            hits: 1,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
+          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
 
     renderSection({ perWorkSeries: works, earliestPostYear: null });
 
-    expect(screen.getByText(CAPTION_TEXT)).toBeInTheDocument();
+    expect(screen.queryByText(CAPTION_TEXT)).not.toBeInTheDocument();
   });
 
+  it("shows the caption once the stored range is widened to include the lead-in month", () => {
+    const works: PerWorkSeries[] = [
+      work({
+        ao3WorkId: 1,
+        title: "Work One",
+        publishedOn: "2020-01-01",
+        points: [
+          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+        ],
+      }),
+    ];
+
+    const { rerender } = renderSection({ perWorkSeries: works, earliestPostYear: null });
+    expect(screen.queryByText(CAPTION_TEXT)).not.toBeInTheDocument();
+
+    widenRange();
+    rerender(<WorkComparisonSection perWorkSeries={works} earliestPostYear={null} username={USERNAME} />);
+
+    expect(screen.getByText(CAPTION_TEXT)).toBeInTheDocument();
+  });
+});
+
+describe("WorkComparisonSection: visible lead-in caption (widened range)", () => {
   it("does not render the caption when no selected work has a leadIn (no publishedOn, no earliestPostYear)", () => {
     const works: PerWorkSeries[] = [
       work({
@@ -79,18 +104,12 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
         title: "Work One",
         publishedOn: null,
         points: [
-          {
-            capturedOn: "2026-01-01",
-            hits: 1,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
+          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
 
+    widenRange();
     renderSection({ perWorkSeries: works, earliestPostYear: null });
 
     expect(screen.queryByText(CAPTION_TEXT)).not.toBeInTheDocument();
@@ -104,14 +123,7 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
         title: "Work One",
         publishedOn: null,
         points: [
-          {
-            capturedOn: "2026-01-01",
-            hits: 1,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
+          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
       work({
@@ -119,18 +131,12 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
         title: "Work Two",
         publishedOn: "2020-01-01",
         points: [
-          {
-            capturedOn: "2026-01-01",
-            hits: 2,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
+          { capturedOn: "2026-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
 
+    widenRange();
     renderSection({ perWorkSeries: works, earliestPostYear: null });
     expect(screen.queryByText(CAPTION_TEXT)).not.toBeInTheDocument();
 
@@ -147,14 +153,7 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
         title: "Work One",
         publishedOn: "2020-01-01",
         points: [
-          {
-            capturedOn: "2026-01-01",
-            hits: 1,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
+          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
       work({
@@ -162,18 +161,12 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
         title: "Work Two",
         publishedOn: null,
         points: [
-          {
-            capturedOn: "2026-01-01",
-            hits: 2,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
+          { capturedOn: "2026-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
 
+    widenRange();
     renderSection({ perWorkSeries: works, earliestPostYear: null });
     expect(screen.getByText(CAPTION_TEXT)).toBeInTheDocument();
 
@@ -182,59 +175,30 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
     expect(screen.queryByText(CAPTION_TEXT)).not.toBeInTheDocument();
   });
 
-  // Corner case (plan section 4): zooming the slider past every currently
-  // selected work's publish year drops every leadIn as a display-window
-  // consequence - the caption must follow suit and disappear, even though
-  // the underlying data still technically has a zero-basis for each work.
-  it("hides the caption once the slider window is narrowed past every selected work's publish year", async () => {
-    const user = userEvent.setup();
+  // Corner case §4: zooming the slider past every currently selected work's
+  // publish month drops every leadIn as a display-window consequence - the
+  // caption must follow suit and disappear.
+  it("hides the caption once the slider window is narrowed past every selected work's publish month", () => {
     const works: PerWorkSeries[] = [
       work({
         ao3WorkId: 1,
         title: "Work One",
         publishedOn: "2010-01-01",
         points: [
-          {
-            capturedOn: "2015-01-01",
-            hits: 1,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
-          {
-            capturedOn: "2018-01-01",
-            hits: 2,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
-          {
-            capturedOn: "2020-01-01",
-            hits: 3,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
+          { capturedOn: "2015-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2018-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2020-01-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
 
+    // Narrow past the work's Jan 2010 publish month.
+    useWorkComparisonStore
+      .getState()
+      .setRange(USERNAME, { start: mi(2019, 1), end: mi(2020, 12) });
     renderSection({ perWorkSeries: works, earliestPostYear: null });
-    expect(screen.getByText(CAPTION_TEXT)).toBeInTheDocument();
 
-    // 3 own points already clear the >2 union-points slider gate. Domain
-    // start is the earliest union captured date (2015) - narrow past the
-    // work's 2010 publish year.
-    const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
-    startThumb.focus();
-    for (let year = 2015; year < 2019; year++) {
-      await user.keyboard("{ArrowRight}");
-    }
-    expect(screen.getByText(/2019\s*[–-]/)).toBeInTheDocument();
-
+    expect(screen.getByText(/^Jan 2019\s*[–-]/)).toBeInTheDocument();
     expect(screen.queryByText(CAPTION_TEXT)).not.toBeInTheDocument();
   });
 
@@ -245,18 +209,12 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
         title: "Work One",
         publishedOn: "2020-01-01",
         points: [
-          {
-            capturedOn: "2026-01-01",
-            hits: 1,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
+          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
 
+    widenRange();
     renderSection({ perWorkSeries: works, earliestPostYear: null });
 
     expect(screen.getAllByText(CAPTION_TEXT)).toHaveLength(1);
@@ -270,18 +228,12 @@ describe("WorkComparisonSection: visible lead-in caption", () => {
         title: "Work One",
         publishedOn: "2020-01-01",
         points: [
-          {
-            capturedOn: "2026-01-01",
-            hits: 1,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
+          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
 
+    widenRange();
     renderSection({ perWorkSeries: works, earliestPostYear: null });
     await selectWorkViaCombobox(user, "Work One");
 

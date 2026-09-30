@@ -476,11 +476,18 @@ describe("WorkComparisonSection", () => {
       expect(useWorkComparisonStore.getState().getRange(USERNAME)).toBeNull();
     });
 
-    it("shows the full earliestPostYear-to-current-year domain on the disabled slider's readout", () => {
-      const currentYear = new Date().getFullYear();
+    // docs/plans/date-range-slider-month-granularity.md D2/Corner cases
+    // ("<=2 distinct union dates"): the disabled slider's readout is now the
+    // trivial real-capture span (defaultWindow), NOT the full
+    // earliestPostYear-to-current-month domain - `effectiveRange` is never
+    // null, so even the disabled/gated state shows a real (if degenerate)
+    // window rather than the full drag-bounds span.
+    it("shows the trivial real-capture-span default (not the full domain) on the disabled slider's readout", () => {
       renderSection({ perWorkSeries: TWO_WORKS, earliestPostYear: 2015 });
 
-      expect(screen.getByText(new RegExp(`2015\\s*[–-]\\s*${currentYear}`))).toBeInTheDocument();
+      // Default selection is Work One alone (2 points, both in Jan 2026) -
+      // its own real-capture span collapses to a single month.
+      expect(screen.getByText(/^Jan 2026\s*[–-]\s*Jan 2026$/)).toBeInTheDocument();
     });
   });
 

@@ -10,10 +10,18 @@ import type { SeriesDatum } from "./charts/MultiSeriesTrendChart";
 // WorkComparisonSection computes each selected work's zero-basis date and
 // passes it as `leadIn` on the SeriesDatum built for MultiSeriesTrendChart
 // (mocked here to observe exactly what's passed, independent of
-// MultiSeriesTrendChart's own rendering). Assertions are unchanged by the
-// picker/state-store redesign (docs/plans/work-comparison-picker-redesign.md
-// T9(e)) - only the selection interaction mechanism (checkbox -> combobox)
-// and the now-required `username` prop / store reset are new here.
+// MultiSeriesTrendChart's own rendering).
+//
+// docs/plans/date-range-slider-month-granularity.md D2 (LOCKED): the default
+// range on first load is now the real-capture span (earliest..latest REAL
+// captured month), which brackets every real point but sits AT OR AFTER
+// every work's own lead-in month - so a lead-in is HIDDEN by default and
+// only appears once the window is explicitly widened below it. Every test
+// below that wants to observe a *rendered* leadIn therefore widens the
+// stored range first via `widenRange` (a direct store write - equivalent in
+// effect to dragging the start thumb down, but avoids looping dozens of
+// month-steps through the keyboard to cross a multi-year span, which
+// DateRangeSlider.test.tsx already covers as its own concern).
 vi.mock("./charts/MultiSeriesTrendChart", () => ({
   MultiSeriesTrendChart: ({ title, series }: { title: string; series: SeriesDatum[] }) => (
     <pre data-testid={`captured-series-${title}`}>
@@ -23,6 +31,17 @@ vi.mock("./charts/MultiSeriesTrendChart", () => ({
 }));
 
 const USERNAME = "testauthor";
+
+function mi(year: number, month: number): number {
+  return year * 12 + (month - 1);
+}
+
+// Clamped down to the live domain by WorkComparisonSection's own re-clamp
+// logic regardless of exactly how far these sentinels reach - see
+// comparisonSelection.ts's clampWindow.
+function widenRange() {
+  useWorkComparisonStore.getState().setRange(USERNAME, { start: mi(1990, 1), end: mi(2099, 12) });
+}
 
 interface CapturedLeadIn {
   capturedOn: string;
@@ -68,7 +87,63 @@ beforeEach(() => {
   useWorkComparisonStore.setState({ byUsername: {} });
 });
 
-describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
+describe("WorkComparisonSection: lead-in hidden by default, shown once widened (D2, LOCKED)", () => {
+  it("hides every selected work's leadIn on first load (default = real-capture span, no persisted range)", async () => {
+    const user = userEvent.setup();
+    const works: PerWorkSeries[] = [
+      work({
+        ao3WorkId: 1,
+        title: "Work One",
+        publishedOn: "2020-06-01",
+        points: [
+          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+        ],
+      }),
+      work({
+        ao3WorkId: 2,
+        title: "Work Two",
+        publishedOn: null,
+        points: [
+          { capturedOn: "2026-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+        ],
+      }),
+    ];
+
+    renderSection({ perWorkSeries: works, earliestPostYear: 2019 });
+    await selectWorkViaCombobox(user, "Work Two");
+
+    const leadIns = capturedLeadIns();
+    expect(leadIns[1]).toBeNull();
+    expect(leadIns[2]).toBeNull();
+  });
+
+  it("shows the leadIn once the stored range is widened to start before the lead-in month", () => {
+    const works: PerWorkSeries[] = [
+      work({
+        ao3WorkId: 1,
+        title: "Work One",
+        publishedOn: "2020-06-01",
+        points: [
+          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+        ],
+      }),
+    ];
+
+    const { rerender } = renderSection({ perWorkSeries: works, earliestPostYear: 2019 });
+    expect(capturedLeadIns()[1]).toBeNull();
+
+    widenRange();
+    rerender(<WorkComparisonSection perWorkSeries={works} earliestPostYear={2019} username={USERNAME} />);
+
+    expect(capturedLeadIns()[1]).toEqual({
+      capturedOn: "2020-06-01",
+      label: "Published 2020-06-01",
+      isPublishDate: true,
+    });
+  });
+});
+
+describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened range)", () => {
   it("uses a work's own publishedOn as its leadIn, labeled 'Published <date>'", async () => {
     const user = userEvent.setup();
     const works: PerWorkSeries[] = [
@@ -77,14 +152,7 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
         title: "Work One",
         publishedOn: "2020-06-01",
         points: [
-          {
-            capturedOn: "2026-01-01",
-            hits: 1,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
+          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
       work({
@@ -92,18 +160,12 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
         title: "Work Two",
         publishedOn: null,
         points: [
-          {
-            capturedOn: "2026-01-01",
-            hits: 2,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
+          { capturedOn: "2026-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
 
+    widenRange();
     renderSection({ perWorkSeries: works, earliestPostYear: 2019 });
     await selectWorkViaCombobox(user, "Work Two");
 
@@ -123,14 +185,7 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
         title: "Work One",
         publishedOn: "2020-06-01",
         points: [
-          {
-            capturedOn: "2026-01-01",
-            hits: 1,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
+          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
       work({
@@ -138,18 +193,12 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
         title: "Work Two",
         publishedOn: null,
         points: [
-          {
-            capturedOn: "2026-01-01",
-            hits: 2,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
+          { capturedOn: "2026-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
 
+    widenRange();
     renderSection({ perWorkSeries: works, earliestPostYear: 2019 });
     await selectWorkViaCombobox(user, "Work Two");
 
@@ -169,14 +218,7 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
         title: "Work One",
         publishedOn: null,
         points: [
-          {
-            capturedOn: "2026-01-01",
-            hits: 1,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
+          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
       work({
@@ -184,18 +226,12 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
         title: "Work Two",
         publishedOn: null,
         points: [
-          {
-            capturedOn: "2026-01-01",
-            hits: 2,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
+          { capturedOn: "2026-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
 
+    widenRange();
     renderSection({ perWorkSeries: works, earliestPostYear: 2018 });
     await selectWorkViaCombobox(user, "Work Two");
 
@@ -216,14 +252,7 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
         title: "Work One",
         publishedOn: "2020-06-01",
         points: [
-          {
-            capturedOn: "2026-01-01",
-            hits: 1,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
+          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
       work({
@@ -231,18 +260,12 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
         title: "Work Two",
         publishedOn: null,
         points: [
-          {
-            capturedOn: "2026-01-01",
-            hits: 2,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
+          { capturedOn: "2026-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
 
+    widenRange();
     renderSection({ perWorkSeries: works, earliestPostYear: null });
     await selectWorkViaCombobox(user, "Work Two");
 
@@ -266,14 +289,7 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
           title: "Work One",
           publishedOn: "2020-01-01",
           points: [
-            {
-              capturedOn: "2026-01-01",
-              hits: 1,
-              kudos: 1,
-              comments: 0,
-              bookmarks: 0,
-              subscriptions: 0,
-            },
+            { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
           ],
         }),
         work({
@@ -282,18 +298,12 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
           // Same-day publish/capture - the degenerate corner case.
           publishedOn: "2026-01-01",
           points: [
-            {
-              capturedOn: "2026-01-01",
-              hits: 2,
-              kudos: 1,
-              comments: 0,
-              bookmarks: 0,
-              subscriptions: 0,
-            },
+            { capturedOn: "2026-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
           ],
         }),
       ];
 
+      widenRange();
       renderSection({ perWorkSeries: works, earliestPostYear: 2019 });
       await selectWorkViaCombobox(user, "Work Two");
 
@@ -303,36 +313,15 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
     });
   });
 
-  describe("guard: date-range slider window vs a work's publish year", () => {
+  describe("guard: date-range slider window vs a work's publish month", () => {
     const EARLY: PerWorkSeries = work({
       ao3WorkId: 1,
       title: "Work Early",
       publishedOn: "2010-01-01",
       points: [
-        {
-          capturedOn: "2015-01-01",
-          hits: 1,
-          kudos: 1,
-          comments: 0,
-          bookmarks: 0,
-          subscriptions: 0,
-        },
-        {
-          capturedOn: "2018-01-01",
-          hits: 2,
-          kudos: 1,
-          comments: 0,
-          bookmarks: 0,
-          subscriptions: 0,
-        },
-        {
-          capturedOn: "2020-01-01",
-          hits: 3,
-          kudos: 1,
-          comments: 0,
-          bookmarks: 0,
-          subscriptions: 0,
-        },
+        { capturedOn: "2015-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+        { capturedOn: "2018-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+        { capturedOn: "2020-01-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
       ],
     });
     const LATE: PerWorkSeries = work({
@@ -340,35 +329,15 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
       title: "Work Late",
       publishedOn: "2019-03-01",
       points: [
-        {
-          capturedOn: "2019-06-01",
-          hits: 10,
-          kudos: 1,
-          comments: 0,
-          bookmarks: 0,
-          subscriptions: 0,
-        },
-        {
-          capturedOn: "2020-01-01",
-          hits: 20,
-          kudos: 2,
-          comments: 0,
-          bookmarks: 0,
-          subscriptions: 0,
-        },
-        {
-          capturedOn: "2021-01-01",
-          hits: 30,
-          kudos: 3,
-          comments: 0,
-          bookmarks: 0,
-          subscriptions: 0,
-        },
+        { capturedOn: "2019-06-01", hits: 10, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+        { capturedOn: "2020-01-01", hits: 20, kudos: 2, comments: 0, bookmarks: 0, subscriptions: 0 },
+        { capturedOn: "2021-01-01", hits: 30, kudos: 3, comments: 0, bookmarks: 0, subscriptions: 0 },
       ],
     });
 
-    it("keeps every selected work's leadIn present at the default full-range view", async () => {
+    it("keeps every selected work's leadIn present once the window is widened to cover both", async () => {
       const user = userEvent.setup();
+      widenRange();
       renderSection({ perWorkSeries: [EARLY, LATE], earliestPostYear: null });
       await selectWorkViaCombobox(user, "Work Late");
 
@@ -377,72 +346,47 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation", () => {
       expect(leadIns[2]).not.toBeNull();
     });
 
-    it("drops a work's leadIn once the slider's narrowed start year passes its publish year, while a later-published work's leadIn remains", async () => {
+    it("drops a work's leadIn once the slider's narrowed start passes its publish month, while a later-published work's leadIn remains", async () => {
       const user = userEvent.setup();
+      // Start narrowed to March 2019: past Work Early's Jan 2010 publish
+      // month, not past Work Late's March 2019 one (inclusive boundary).
+      useWorkComparisonStore
+        .getState()
+        .setRange(USERNAME, { start: mi(2019, 3), end: mi(2021, 12) });
       renderSection({ perWorkSeries: [EARLY, LATE], earliestPostYear: null });
       await selectWorkViaCombobox(user, "Work Late");
 
-      // Domain start is the earliest union captured date (2015, since
-      // earliestPostYear is null here) - narrow it up to 2019, past Work
-      // Early's 2010 publish year but not past Work Late's 2019 one.
-      const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
-      startThumb.focus();
-      for (let year = 2015; year < 2019; year++) {
-        await user.keyboard("{ArrowRight}");
-      }
-      // Anchored (not a bare /2019.../ substring match) - the mocked
-      // MultiSeriesTrendChart's own debug <pre> dump (used by
-      // capturedLeadIns() below) legitimately contains "2019-03-01" once
-      // Work Late's real leadIn survives this narrowed window, which would
-      // otherwise collide with a loose substring match on this element too.
-      expect(screen.getByText(/^2019\s*[–-]\s*2026$/)).toBeInTheDocument();
+      expect(screen.getByText(/^Mar 2019\s*[–-]/)).toBeInTheDocument();
 
       const leadIns = capturedLeadIns();
       expect(leadIns[1]).toBeNull();
       expect(leadIns[2]).not.toBeNull();
     });
 
-    it("omits a work's leadIn once the narrowed window filters out all of its own visible points, independent of the year gate", async () => {
+    it("omits a work's leadIn once the narrowed window filters out all of its own visible points, independent of the month gate", async () => {
       const user = userEvent.setup();
       const VANISHES: PerWorkSeries = work({
         ao3WorkId: 3,
         title: "Work Vanishes",
-        // Publish year (2020) alone would clear the >= start(2019) gate -
-        // isolating that it's the "zero visible points" condition, not the
-        // year gate, that suppresses this one.
+        // Publish month (Jan 2020) alone would clear the >= start(Mar 2019)
+        // gate - isolating that it's the "zero visible points" condition,
+        // not the month gate, that suppresses this one.
         publishedOn: "2020-01-01",
         points: [
-          {
-            capturedOn: "2015-01-01",
-            hits: 1,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
-          {
-            capturedOn: "2016-01-01",
-            hits: 2,
-            kudos: 1,
-            comments: 0,
-            bookmarks: 0,
-            subscriptions: 0,
-          },
+          { capturedOn: "2015-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2016-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       });
 
+      useWorkComparisonStore
+        .getState()
+        .setRange(USERNAME, { start: mi(2019, 3), end: mi(2021, 12) });
       renderSection({ perWorkSeries: [EARLY, LATE, VANISHES], earliestPostYear: null });
       await selectWorkViaCombobox(user, "Work Late");
       await selectWorkViaCombobox(user, "Work Vanishes");
 
-      const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
-      startThumb.focus();
-      for (let year = 2015; year < 2019; year++) {
-        await user.keyboard("{ArrowRight}");
-      }
-
       const leadIns = capturedLeadIns();
-      expect(leadIns[1]).toBeNull(); // Work Early: dropped by the start-year gate
+      expect(leadIns[1]).toBeNull(); // Work Early: dropped by the start-month gate
       expect(leadIns[2]).not.toBeNull(); // Work Late: the positive control - still present
       expect(leadIns[3]).toBeNull(); // Work Vanishes: zero visible points after filtering
     });

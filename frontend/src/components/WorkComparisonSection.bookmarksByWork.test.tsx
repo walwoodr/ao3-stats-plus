@@ -16,6 +16,12 @@ import { leafColumnHeaders } from "./charts/syncedDataTableTestSupport";
 // total/public/private data as By Type (.bookmarksByType.test.tsx, T-T6).
 const USERNAME = "testauthor";
 
+// docs/plans/date-range-slider-month-granularity.md D1: month-index
+// encoding (`year * 12 + (month - 1)`), matching lib/monthIndex.ts.
+function mi(year: number, month: number): number {
+  return year * 12 + (month - 1);
+}
+
 function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWorkSeries {
   return {
     title: `Work ${overrides.ao3WorkId}`,
@@ -181,6 +187,12 @@ describe("WorkComparisonSection: Bookmarks By Work", () => {
   // work-type column shape this test used to check.
   it("each work's chart exposes its own visible table with Total/Public/Private rows across the captured dates", async () => {
     const user = userEvent.setup();
+    // Lead-in is hidden by default (docs/plans/date-range-slider-month-
+    // granularity.md D2, LOCKED) - widen the stored range so the leadIn
+    // column this test asserts on is actually present.
+    useWorkComparisonStore
+      .getState()
+      .setRange(USERNAME, { start: mi(1990, 1), end: mi(2099, 12) });
     renderSection({ perWorkSeries: [ENRICHED_WORK], earliestPostYear: null });
 
     await goToBookmarksByWork(user);
@@ -247,6 +259,9 @@ describe("WorkComparisonSection: Bookmarks By Work", () => {
   // get one (their first enrichment point isn't the work's first capture).
   it("Total keeps its zero-basis leadIn within a work's By-Work chart; Public/Private do not", async () => {
     const user = userEvent.setup();
+    useWorkComparisonStore
+      .getState()
+      .setRange(USERNAME, { start: mi(1990, 1), end: mi(2099, 12) });
     renderSection({ perWorkSeries: [ENRICHED_WORK], earliestPostYear: null });
 
     await goToBookmarksByWork(user);

@@ -7,6 +7,12 @@ import type { PerWorkSeries } from "../queries/useStatsForUser";
 
 const USERNAME = "testauthor";
 
+// docs/plans/date-range-slider-month-granularity.md D1: month-index
+// encoding (`year * 12 + (month - 1)`), matching lib/monthIndex.ts.
+function mi(year: number, month: number): number {
+  return year * 12 + (month - 1);
+}
+
 function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWorkSeries {
   return {
     title: `Work ${overrides.ao3WorkId}`,
@@ -117,17 +123,12 @@ describe("stale range window across a selection swap (regression)", () => {
 
     // "Work Early" alone already clears the >2 union-points gate (3
     // points), so the slider is mounted from the default 1-selected state.
+    // Per D2 (LOCKED), the default window is already Work Early's own
+    // real-capture span (Jan 2018 - Jan 2019) - narrowing further isn't
+    // needed to set up this regression's stale-window premise, since the
+    // default itself already excludes Work Late's 2023-2025 points.
     expect(screen.getAllByRole("slider").length).toBeGreaterThan(0);
-
-    // Narrow the window down to Work Early's own span - excludes Work
-    // Late's 2023-2025 points entirely.
-    const endThumb = screen.getByRole("slider", { name: /range end \(year\)/i });
-    const initialEnd = Number(endThumb.getAttribute("aria-valuenow"));
-    endThumb.focus();
-    for (let year = initialEnd; year > 2019; year--) {
-      await user.keyboard("{ArrowLeft}");
-    }
-    expect(screen.getByText(/2018\s*[–-]\s*2019/)).toBeInTheDocument();
+    expect(screen.getByText(/^Jan 2018\s*[–-]\s*Jan 2019$/)).toBeInTheDocument();
 
     // Add Work Late (union points stay well above the gate throughout),
     // then drop Work Early - leaving only Work Late selected. Work Late
@@ -158,8 +159,7 @@ describe("stale range window across a selection swap (regression)", () => {
 // report the currently-active (possibly narrowed) range, matching what's
 // actually shown.
 describe("comparison summary reports the active windowed range, not the full data span (regression)", () => {
-  it("updates the announced year span when the date-range slider is narrowed", async () => {
-    const user = userEvent.setup();
+  it("updates the announced month/year span when the date-range window is narrowed", () => {
     const singleWorkWideSpan: PerWorkSeries[] = [
       work({
         ao3WorkId: 1,
@@ -194,18 +194,28 @@ describe("comparison summary reports the active windowed range, not the full dat
       }),
     ];
 
-    renderSection({ perWorkSeries: singleWorkWideSpan, earliestPostYear: null });
+    // A single selected work's default window (D2) already equals its own
+    // full real-capture span - Jan 2018 to Jan 2025 - so this test still
+    // needs a genuine narrowing action to exercise the regression. Setting
+    // the store directly (rather than 60+ month-step ArrowLeft presses)
+    // proves the same summary-derivation logic; DateRangeSlider.test.tsx
+    // separately covers the slider's own keyboard-stepping mechanics.
+    const { rerender } = renderSection({ perWorkSeries: singleWorkWideSpan, earliestPostYear: null });
 
-    expect(screen.getByRole("status")).toHaveTextContent(/2018 to 2025/);
+    expect(screen.getByRole("status")).toHaveTextContent(/Jan 2018 to Jan 2025/);
 
-    const endThumb = screen.getByRole("slider", { name: /range end \(year\)/i });
-    const initialEnd = Number(endThumb.getAttribute("aria-valuenow"));
-    endThumb.focus();
-    for (let year = initialEnd; year > 2020; year--) {
-      await user.keyboard("{ArrowLeft}");
-    }
+    useWorkComparisonStore
+      .getState()
+      .setRange(USERNAME, { start: mi(2018, 1), end: mi(2020, 1) });
+    rerender(
+      <WorkComparisonSection
+        perWorkSeries={singleWorkWideSpan}
+        earliestPostYear={null}
+        username={USERNAME}
+      />,
+    );
 
-    expect(screen.getByRole("status")).toHaveTextContent(/2018 to 2020/);
-    expect(screen.getByRole("status")).not.toHaveTextContent(/2018 to 2025/);
+    expect(screen.getByRole("status")).toHaveTextContent(/Jan 2018 to Jan 2020/);
+    expect(screen.getByRole("status")).not.toHaveTextContent(/Jan 2018 to Jan 2025/);
   });
 });

@@ -13,6 +13,12 @@ import type { PerWorkSeries } from "../queries/useStatsForUser";
 // (.bookmarksByWork.test.tsx, T-T7).
 const USERNAME = "testauthor";
 
+// docs/plans/date-range-slider-month-granularity.md D1: month-index
+// encoding (`year * 12 + (month - 1)`), matching lib/monthIndex.ts.
+function mi(year: number, month: number): number {
+  return year * 12 + (month - 1);
+}
+
 function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWorkSeries {
   return {
     title: `Work ${overrides.ao3WorkId}`,
@@ -216,6 +222,12 @@ describe("WorkComparisonSection: Bookmarks By Type", () => {
   // keeps its lead-in."
   it("Total gets a zero-basis leadIn but the Public/Private charts for the same work do not", async () => {
     const user = userEvent.setup();
+    // Lead-in is hidden by default (docs/plans/date-range-slider-month-
+    // granularity.md D2, LOCKED) - widen the stored range so this test can
+    // observe it.
+    useWorkComparisonStore
+      .getState()
+      .setRange(USERNAME, { start: mi(1990, 1), end: mi(2099, 12) });
     renderSection({ perWorkSeries: ENRICHED_AND_UNENRICHED_WORKS, earliestPostYear: null });
     await goToBookmarksByType(user);
 

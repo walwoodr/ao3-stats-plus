@@ -12,7 +12,14 @@ import type { PerWorkSeries } from "../queries/useStatsForUser";
 // WorkComparisonSection.caption.test.tsx/.leadIn.test.tsx already exist
 // separately from WorkComparisonSection.test.tsx (CODE_STANDARDS.md file-
 // length guidance) - the base interaction/rendering suite lives there.
+//
+// docs/plans/date-range-slider-month-granularity.md D1: `range` is now a
+// MonthWindow (month indices), not raw years.
 const USERNAME = "testauthor";
+
+function mi(year: number, month: number): number {
+  return year * 12 + (month - 1);
+}
 
 function work(overrides: Partial<PerWorkSeries> & { ao3WorkId: number }): PerWorkSeries {
   return {
@@ -132,7 +139,7 @@ describe("WorkComparisonSection: store read/write wiring", () => {
     renderSection({ perWorkSeries: worksWithThreeUnionPoints, earliestPostYear: null });
     await selectWorkViaCombobox(user, "Work Two");
 
-    const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
+    const startThumb = screen.getByRole("slider", { name: /^range start$/i });
     startThumb.focus();
     await user.keyboard("{ArrowRight}");
 
@@ -209,7 +216,9 @@ describe("WorkComparisonSection: persistence reconciliation (§2.3)", () => {
   });
 
   it("re-clamps a stale restored range to the full domain rather than applying it as-is", () => {
-    useWorkComparisonStore.getState().setRange(USERNAME, { start: 1900, end: 1901 });
+    useWorkComparisonStore
+      .getState()
+      .setRange(USERNAME, { start: mi(1900, 1), end: mi(1901, 12) });
     const worksWithThreeUnionPoints: PerWorkSeries[] = [
       work({
         ao3WorkId: 1,
@@ -249,8 +258,8 @@ describe("WorkComparisonSection: persistence reconciliation (§2.3)", () => {
     // interaction needed to observe the re-clamp.
     renderSection({ perWorkSeries: worksWithThreeUnionPoints, earliestPostYear: null });
 
-    const startThumb = screen.getByRole("slider", { name: /range start \(year\)/i });
-    expect(startThumb).toHaveAttribute("aria-valuemin", "2020");
-    expect(Number(startThumb.getAttribute("aria-valuenow"))).toBeGreaterThanOrEqual(2020);
+    const startThumb = screen.getByRole("slider", { name: /^range start$/i });
+    expect(startThumb).toHaveAttribute("aria-valuemin", String(mi(2020, 1)));
+    expect(Number(startThumb.getAttribute("aria-valuenow"))).toBeGreaterThanOrEqual(mi(2020, 1));
   });
 });
