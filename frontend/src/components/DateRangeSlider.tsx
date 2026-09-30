@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Slider from "@mui/material/Slider";
+import { formatMonthIndex, yearBoundaryMarks } from "../lib/monthIndex";
 import { useChartColors } from "../lib/useChartColors";
 
 export interface DateRangeSliderProps {
@@ -24,11 +25,14 @@ function hexToRgba(hex: string, alpha: number): string {
 }
 
 function getAriaLabel(index: number): string {
-  return index === 0 ? "Range start (year)" : "Range end (year)";
+  return index === 0 ? "Range start" : "Range end";
 }
 
+// Announces a real month/year ("September 2026") rather than a raw month
+// index - docs/plans/date-range-slider-month-granularity.md §6, the single
+// most important accessibility fix here.
 function getAriaValueText(value: number): string {
-  return String(value);
+  return formatMonthIndex(value, "long");
 }
 
 // Thin wrapper around MUI `Slider` in range mode (decision B, resolved by
@@ -113,8 +117,9 @@ export function DateRangeSlider({
         min={min}
         max={max}
         step={1}
-        marks
+        marks={yearBoundaryMarks(min, max)}
         valueLabelDisplay="auto"
+        valueLabelFormat={(v) => formatMonthIndex(v, "short")}
         disableSwap
         disabled={disabled}
         tabIndex={0}
@@ -146,7 +151,7 @@ export function DateRangeSlider({
         }}
       />
       <p className={`font-mono text-sm ${disabled ? "text-ink-soft" : "text-ink"}`}>
-        {liveValue[0]} – {liveValue[1]}
+        {formatMonthIndex(liveValue[0])} – {formatMonthIndex(liveValue[1])}
       </p>
     </div>
   );
