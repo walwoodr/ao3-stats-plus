@@ -9,13 +9,25 @@ import {
   selectAllInFandom,
   shouldShowRangeSlider,
   unionCapturedOnDates,
-  type YearWindow,
+  type MonthWindow,
 } from "./comparisonSelection";
 import type { PerWorkPoint, PerWorkSeries } from "../queries/useStatsForUser";
 
 // comparisonSelection.ts is the pure logic layer WorkComparisonSection wires
 // up to local useState - kept pure and dependency-free so it's unit-testable
 // without rendering (per the plan's "State management" section).
+//
+// docs/plans/date-range-slider-month-granularity.md D1/D3: `YearWindow` is
+// renamed to `MonthWindow` (start/end are now MONTH indices, `year * 12 +
+// (month - 1)`, not raw years) - clampWindow's pure min/max/crossover math is
+// unchanged (retyped only); filterPointsInWindow's predicate changes from a
+// year comparison to a month-index comparison. This local helper avoids
+// importing the new lib/monthIndex.ts (Implementation's concern, not this
+// test's) - it duplicates the same `year * 12 + (month - 1)` encoding
+// directly so this file's fixtures stay self-contained.
+function mi(year: number, month: number): number {
+  return year * 12 + (month - 1);
+}
 function points(...dates: string[]): PerWorkPoint[] {
   return dates.map((capturedOn, index) => ({
     capturedOn,
@@ -226,63 +238,111 @@ describe("shouldShowRangeSlider (the >2 union-points gate)", () => {
 });
 
 describe("clampWindow", () => {
-  const bounds: YearWindow = { start: 2014, end: 2026 };
+  // Pure min/max/crossover math is granularity-agnostic (D1) - bounds are
+  // now month indices, but the logic under test is identical to the old
+  // year-based fixture, just retyped/renamed to MonthWindow.
+  const bounds: MonthWindow = { start: mi(2014, 1), end: mi(2026, 12) };
 
   it("passes through a window already within bounds with start <= end", () => {
-    expect(clampWindow({ start: 2018, end: 2022 }, bounds)).toEqual({ start: 2018, end: 2022 });
+    const window = { start: mi(2018, 3), end: mi(2022, 9) };
+    expect(clampWindow(window, bounds)).toEqual(window);
   });
 
   it("clamps a start below the minimum up to the minimum", () => {
-    expect(clampWindow({ start: 2000, end: 2020 }, bounds)).toEqual({ start: 2014, end: 2020 });
+    expect(clampWindow({ start: mi(2000, 1), end: mi(2020, 1) }, bounds)).toEqual({
+      start: mi(2014, 1),
+      end: mi(2020, 1),
+    });
   });
 
   it("clamps an end above the maximum down to the maximum", () => {
-    expect(clampWindow({ start: 2018, end: 2099 }, bounds)).toEqual({ start: 2018, end: 2026 });
+    expect(clampWindow({ start: mi(2018, 1), end: mi(2099, 1) }, bounds)).toEqual({
+      start: mi(2018, 1),
+      end: mi(2026, 12),
+    });
   });
 
   it("clamps both start and end when both are out of bounds", () => {
-    expect(clampWindow({ start: 1990, end: 2099 }, bounds)).toEqual({ start: 2014, end: 2026 });
+    expect(clampWindow({ start: mi(1990, 1), end: mi(2099, 1) }, bounds)).toEqual({
+      start: mi(2014, 1),
+      end: mi(2026, 12),
+    });
   });
 
   it("resolves a crossed-over window (start > end) so start never exceeds end", () => {
-    const result = clampWindow({ start: 2022, end: 2018 }, bounds);
+    const result = clampWindow({ start: mi(2022, 6), end: mi(2018, 1) }, bounds);
 
     expect(result.start).toBeLessThanOrEqual(result.end);
   });
 
   it("resolves a crossed-over window by clamping end up to start (no dragging start past end)", () => {
-    expect(clampWindow({ start: 2022, end: 2018 }, bounds)).toEqual({ start: 2022, end: 2022 });
+    expect(clampWindow({ start: mi(2022, 6), end: mi(2018, 1) }, bounds)).toEqual({
+      start: mi(2022, 6),
+      end: mi(2022, 6),
+    });
   });
 });
 
 describe("filterPointsInWindow", () => {
   const pts = points("2018-06-01", "2020-01-01", "2022-12-31", "2026-01-01");
 
-  it("returns only points whose capturedOn year falls within [start, end] inclusive", () => {
-    const result = filterPointsInWindow(pts, { start: 2020, end: 2022 });
+  it("returns only points whose capturedOn month index falls within [start, end] inclusive", () => {
+    const result = filterPointsInWindow(pts, { start: mi(2020, 1), end: mi(2022, 12) });
 
     expect(result.map((p) => p.capturedOn)).toEqual(["2020-01-01", "2022-12-31"]);
   });
 
-  it("includes points exactly on the window boundary years", () => {
-    const result = filterPointsInWindow(pts, { start: 2018, end: 2018 });
+  it("includes points exactly on the window boundary months", () => {
+    const result = filterPointsInWindow(pts, { start: mi(2018, 6), end: mi(2018, 6) });
 
     expect(result.map((p) => p.capturedOn)).toEqual(["2018-06-01"]);
   });
 
   it("returns an empty array when the window excludes every point (work stays selectable, just has no in-window points)", () => {
-    const result = filterPointsInWindow(pts, { start: 1990, end: 1995 });
+    const result = filterPointsInWindow(pts, { start: mi(1990, 1), end: mi(1995, 12) });
 
     expect(result).toEqual([]);
   });
 
   it("returns an empty array, without throwing, for a work with no points", () => {
-    expect(filterPointsInWindow([], { start: 2018, end: 2026 })).toEqual([]);
+    expect(filterPointsInWindow([], { start: mi(2018, 1), end: mi(2026, 12) })).toEqual([]);
   });
 
   it("does not mutate the input points array", () => {
     const original = [...pts];
-    filterPointsInWindow(pts, { start: 2020, end: 2020 });
+    filterPointsInWindow(pts, { start: mi(2020, 1), end: mi(2020, 1) });
     expect(pts).toEqual(original);
+  });
+
+  // The whole point of the feature (plan's Corner cases: "All points in the
+  // same calendar year but different months: now distinguishable") - a
+  // year-granular filter would have treated these two points identically.
+  it("distinguishes two points in the same calendar year but different months", () => {
+    const sameYearPoints = points("2026-01-15", "2026-06-01", "2026-11-30");
+
+    const result = filterPointsInWindow(sameYearPoints, {
+      start: mi(2026, 6),
+      end: mi(2026, 6),
+    });
+
+    expect(result.map((p) => p.capturedOn)).toEqual(["2026-06-01"]);
+  });
+
+  it("excludes a malformed capturedOn (NaN month index) rather than throwing", () => {
+    const malformed: PerWorkPoint[] = [
+      {
+        capturedOn: "not-a-date",
+        hits: 0,
+        kudos: 0,
+        comments: 0,
+        bookmarks: 0,
+        subscriptions: 0,
+      },
+    ];
+
+    expect(() =>
+      filterPointsInWindow(malformed, { start: mi(2018, 1), end: mi(2026, 12) }),
+    ).not.toThrow();
+    expect(filterPointsInWindow(malformed, { start: mi(2018, 1), end: mi(2026, 12) })).toEqual([]);
   });
 });
