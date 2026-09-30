@@ -132,7 +132,11 @@ describe("DashboardPage: account-level metric toggle", () => {
     expect(cells[1].textContent).toMatch(/5/);
   });
 
-  it("the Subscribers chart carries the same account-level zero-basis leadIn as Hits/Kudos", async () => {
+  // docs/plans/date-range-slider-month-granularity.md D5 (LOCKED): the
+  // account-level leadIn is no longer passed by default to any of the
+  // three TrendChart instances, Subscribers included - inverts the
+  // pre-D5 "carries the same... leadIn" assertion of this same scenario.
+  it("does NOT pass a leadIn to the Subscribers chart by default, same as Hits/Kudos (D5, LOCKED)", async () => {
     const user = userEvent.setup();
     mockPopulated(2020);
     renderDashboard();
@@ -140,17 +144,9 @@ describe("DashboardPage: account-level metric toggle", () => {
     await user.click(screen.getByRole("tab", { name: "Subscribers" }));
 
     const table = screen.getByRole("table", { name: /subscribers/i });
-    // leafColumnHeaders scopes to the day tier + corner only (date-
-    // hierarchy-grouping.md §4/§10 T5) - the 3-tier header's year/month
-    // grouping cells are ALSO real columnheaders, and the "before" wording
-    // now lives in the accessible name (aria-label), not visible text
-    // (D1's bare day-of-month display text).
+    // corner cell + one per real point only - no synthetic leadIn column.
     const columnHeaders = leafColumnHeaders(table);
-    // corner cell + the synthetic leadIn column + one per real point.
-    expect(columnHeaders).toHaveLength(TWO_POINT_SERIES.length + 2);
-    expect(columnHeaders[1].getAttribute("aria-label")).toMatch(/before/i);
-    const cells = within(table).getAllByRole("cell");
-    expect(cells[0].textContent).toBe("0");
+    expect(columnHeaders).toHaveLength(TWO_POINT_SERIES.length + 1);
   });
 
   it("the Subscribers chart exposes an accessible sr-only data table", async () => {

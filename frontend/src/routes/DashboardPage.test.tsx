@@ -279,51 +279,38 @@ describe("DashboardPage", () => {
       });
     }
 
-    it("builds a 0/0 leadIn and passes it to both the Hits and Kudos account-level charts", async () => {
+    // docs/plans/date-range-slider-month-granularity.md D5 (LOCKED, §10):
+    // the three account-level TrendChart instances stop being passed the
+    // `leadIn` prop by default - the synthetic 0/0 baseline no longer
+    // reaches either chart, even when earliestPostYear/hasLeadIn would
+    // otherwise make it eligible. Renamed from "builds a 0/0 leadIn and
+    // passes it..." (its exact former assertions are now the ones a fresh
+    // DashboardPage.leadInDefault.test.tsx guards against regressing).
+    it("does NOT pass a leadIn to the Hits or Kudos account-level charts by default (D5, LOCKED)", async () => {
       const user = userEvent.setup();
       mockWithEarliestPostYear({ earliestPostYear: 2020, aggregateSeries: TWO_POINT_SERIES });
 
       renderDashboard();
 
-      // The point values now live in the visible synced table (a sibling of
-      // the aria-hidden figure, not the old sr-only per-point marker spans
-      // that used to sit inside it - docs/plans/chart-synced-data-table.md
-      // §2.4).
-      // Scoped to leafColumnHeaders (day tier + corner only, date-hierarchy-
-      // grouping.md §4/§10 T5): the 3-tier header's year/month grouping
-      // cells are ALSO real columnheaders, so an unfiltered count/index no
-      // longer matches this test's original "one column per point" intent.
-      // The "before" wording lives in the accessible name (aria-label) now,
-      // not the visible textContent (D1's bare day-of-month display text).
+      // corner + real points only - no synthetic leadIn column.
       const hitsTable = screen.getByRole("table", { name: /total hits/i });
-      const hitsColumnHeaders = leafColumnHeaders(hitsTable);
-      // corner + one synthetic leadIn column + real points.
-      expect(hitsColumnHeaders).toHaveLength(TWO_POINT_SERIES.length + 2);
-      expect(hitsColumnHeaders[1].getAttribute("aria-label")).toMatch(/before/i);
-      expect(within(hitsTable).getAllByRole("cell")[0].textContent).toBe("0");
+      expect(leafColumnHeaders(hitsTable)).toHaveLength(TWO_POINT_SERIES.length + 1);
 
       await user.click(screen.getByRole("tab", { name: "Kudos" }));
 
       const kudosTable = screen.getByRole("table", { name: /total kudos/i });
-      const kudosColumnHeaders = leafColumnHeaders(kudosTable);
-      expect(kudosColumnHeaders).toHaveLength(TWO_POINT_SERIES.length + 2);
-      expect(kudosColumnHeaders[1].getAttribute("aria-label")).toMatch(/before/i);
-      expect(within(kudosTable).getAllByRole("cell")[0].textContent).toBe("0");
+      expect(leafColumnHeaders(kudosTable)).toHaveLength(TWO_POINT_SERIES.length + 1);
     });
 
-    // Superseded by docs/plans/per-work-zero-basis-dates.md: the parent
-    // per-work-comparison-graph.md plan's Q5 originally kept per-work
-    // baselines out of scope (comparison charts got no leadIn at all,
-    // distinct from the aggregate "Total hits" chart above). This plan
-    // deliberately reverses that - each selected work now gets its own
-    // zero-basis leadIn (own publishedOn, or the earliestPostYear fallback
-    // exercised here since Work A has no publishedOn) - so this integration
-    // test now asserts DashboardPage correctly threads earliestPostYear
-    // through to WorkComparisonSection's per-work leadIn derivation, rather
-    // than the old absence invariant. Derivation itself (branches, guards)
-    // is covered in depth by WorkComparisonSection.leadIn.test.tsx; this
-    // stays as an end-to-end wiring smoke test.
-    it("passes a leadIn to the per-work comparison charts, per the zero-basis dates feature", () => {
+    // Superseded again by docs/plans/date-range-slider-month-granularity.md
+    // D2 (LOCKED): the per-work comparison charts' own default window is
+    // now the real-capture span, which HIDES every work's zero-basis
+    // leadIn by default (previously always shown once per-work-zero-basis-
+    // dates.md shipped it). Derivation/widened-range branches are covered
+    // in depth by WorkComparisonSection.leadIn.test.tsx; this integration
+    // test now asserts the default-hidden wiring end to end instead of the
+    // old always-shown one.
+    it("does NOT pass a leadIn to the per-work comparison chart by default (D2, LOCKED)", () => {
       mockWithEarliestPostYear({
         earliestPostYear: 2020,
         aggregateSeries: TWO_POINT_SERIES,
@@ -358,23 +345,28 @@ describe("DashboardPage", () => {
       renderDashboard();
 
       // WorkComparisonSection's comparison charts (title "Hits"/"Kudos", not
-      // "Work A hits" - see WorkComparisonSection.test.tsx) now receive a
-      // leadIn for Work A (no publishedOn -> falls back to the
-      // earliestPostYear baseline) alongside its 2 real points.
+      // "Work A hits" - see WorkComparisonSection.test.tsx) default to
+      // Work A's own real-capture span, which sits at/after its estimated-
+      // baseline zero-basis month - no leadIn column by default.
       const comparisonHitsTable = screen.getByRole("table", { name: /^hits$/i });
-      // leafColumnHeaders scopes to the day tier + corner only (see the
-      // comment on the previous test in this describe block).
       const columnHeaders = leafColumnHeaders(comparisonHitsTable);
-      // corner + one synthetic leadIn column + Work A's 2 real points.
-      expect(columnHeaders).toHaveLength(4);
+      // corner + Work A's 2 real points only.
+      expect(columnHeaders).toHaveLength(3);
       expect(
         columnHeaders.some((header) =>
           /estimated baseline/i.test(header.getAttribute("aria-label") ?? ""),
         ),
-      ).toBe(true);
+      ).toBe(false);
     });
 
-    it("renders the charts (not the 'not enough history' message) for a single real snapshot with a valid leadIn", () => {
+    // docs/plans/date-range-slider-month-granularity.md §10 ("Corner cases
+    // (account-level)"): with the lead-in no longer passed by default, a
+    // single real snapshot is a lone dot, not a drawable trend - the
+    // `notEnoughHistory` gate is now `aggregateSeries.length === 1`
+    // unconditionally, dropping the old `!hasLeadIn &&` guard. This inverts
+    // the pre-D5 test of the same scenario ("renders the charts... for a
+    // single real snapshot with a valid leadIn").
+    it("shows the 'not enough history' message for a single real snapshot even when earliestPostYear would make a leadIn valid (new gate, D5)", () => {
       mockWithEarliestPostYear({
         earliestPostYear: 2020,
         aggregateSeries: [TWO_POINT_SERIES[0]],
@@ -382,12 +374,7 @@ describe("DashboardPage", () => {
 
       renderDashboard();
 
-      expect(screen.queryByText(/only have one|not enough history yet/i)).not.toBeInTheDocument();
-      const hitsTable = screen.getByRole("table", { name: /total hits/i });
-      // corner + one synthetic + one real point is a drawable two-point
-      // trend - leafColumnHeaders scopes to the day tier + corner only (see
-      // the earlier comment in this describe block).
-      expect(leafColumnHeaders(hitsTable)).toHaveLength(3);
+      expect(screen.getByText(/only have one|not enough history yet/i)).toBeInTheDocument();
     });
   });
 
