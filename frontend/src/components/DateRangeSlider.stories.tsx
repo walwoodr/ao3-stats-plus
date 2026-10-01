@@ -35,7 +35,9 @@ export const Default: Story = {
   args: { min: MIN, max: MAX, value: [MIN, MAX], onChange: () => {}, unionPointCount: 8 },
   render: function Render() {
     const [value, setValue] = useState<[number, number]>([MIN, MAX]);
-    return <DateRangeSlider min={MIN} max={MAX} value={value} onChange={setValue} unionPointCount={8} />;
+    return (
+      <DateRangeSlider min={MIN} max={MAX} value={value} onChange={setValue} unionPointCount={8} />
+    );
   },
 };
 
@@ -67,6 +69,8 @@ export const HiddenBelowGate: Story = {
   args: { min: MIN, max: MAX, value: [MIN, MAX], onChange: () => {}, unionPointCount: 2 },
   render: function Render() {
     const [value, setValue] = useState<[number, number]>([MIN, MAX]);
-    return <DateRangeSlider min={MIN} max={MAX} value={value} onChange={setValue} unionPointCount={2} />;
+    return (
+      <DateRangeSlider min={MIN} max={MAX} value={value} onChange={setValue} unionPointCount={2} />
+    );
   },
 };

@@ -64,7 +64,14 @@ describe("WorkComparisonSection: visible lead-in caption hidden by default (D2)"
         title: "Work One",
         publishedOn: "2020-01-01",
         points: [
-          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2026-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
     ];
@@ -89,9 +96,30 @@ describe("WorkComparisonSection: visible lead-in caption hidden by default (D2)"
         title: "Work One",
         publishedOn: "2020-01-01",
         points: [
-          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2026-02-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2026-03-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2026-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-02-01",
+            hits: 2,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-03-01",
+            hits: 3,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
     ];
@@ -100,7 +128,9 @@ describe("WorkComparisonSection: visible lead-in caption hidden by default (D2)"
     expect(screen.queryByText(CAPTION_TEXT)).not.toBeInTheDocument();
 
     widenRange();
-    rerender(<WorkComparisonSection perWorkSeries={works} earliestPostYear={2020} username={USERNAME} />);
+    rerender(
+      <WorkComparisonSection perWorkSeries={works} earliestPostYear={2020} username={USERNAME} />,
+    );
 
     expect(screen.getByText(CAPTION_TEXT)).toBeInTheDocument();
   });
@@ -114,7 +144,14 @@ describe("WorkComparisonSection: visible lead-in caption (widened range)", () =>
         title: "Work One",
         publishedOn: null,
         points: [
-          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2026-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
     ];
@@ -145,9 +182,30 @@ describe("WorkComparisonSection: visible lead-in caption (widened range)", () =>
         title: "Work One",
         publishedOn: "2026-01-01",
         points: [
-          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2026-02-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2026-03-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2026-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-02-01",
+            hits: 2,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-03-01",
+            hits: 3,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
       work({
@@ -155,7 +213,14 @@ describe("WorkComparisonSection: visible lead-in caption (widened range)", () =>
         title: "Work Two",
         publishedOn: "2020-01-01",
         points: [
-          { capturedOn: "2026-04-01", hits: 4, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2026-04-01",
+            hits: 4,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
     ];
@@ -180,9 +245,30 @@ describe("WorkComparisonSection: visible lead-in caption (widened range)", () =>
         title: "Work One",
         publishedOn: "2020-01-01",
         points: [
-          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2026-02-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2026-03-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2026-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-02-01",
+            hits: 2,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-03-01",
+            hits: 3,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
       work({
@@ -190,7 +276,14 @@ describe("WorkComparisonSection: visible lead-in caption (widened range)", () =>
         title: "Work Two",
         publishedOn: null,
         points: [
-          { capturedOn: "2026-04-01", hits: 4, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2026-04-01",
+            hits: 4,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
     ];
@@ -214,17 +307,36 @@ describe("WorkComparisonSection: visible lead-in caption (widened range)", () =>
         title: "Work One",
         publishedOn: "2010-01-01",
         points: [
-          { capturedOn: "2015-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2018-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2020-01-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2015-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2018-01-01",
+            hits: 2,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2020-01-01",
+            hits: 3,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
     ];
 
     // Narrow past the work's Jan 2010 publish month.
-    useWorkComparisonStore
-      .getState()
-      .setRange(USERNAME, { start: mi(2019, 1), end: mi(2020, 12) });
+    useWorkComparisonStore.getState().setRange(USERNAME, { start: mi(2019, 1), end: mi(2020, 12) });
     renderSection({ perWorkSeries: works, earliestPostYear: null });
 
     expect(screen.getByText(/^Jan 2019\s*[–-]/)).toBeInTheDocument();
@@ -238,9 +350,30 @@ describe("WorkComparisonSection: visible lead-in caption (widened range)", () =>
         title: "Work One",
         publishedOn: "2020-01-01",
         points: [
-          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2026-02-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2026-03-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2026-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-02-01",
+            hits: 2,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-03-01",
+            hits: 3,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
     ];
@@ -259,7 +392,14 @@ describe("WorkComparisonSection: visible lead-in caption (widened range)", () =>
         title: "Work One",
         publishedOn: "2020-01-01",
         points: [
-          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2026-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
     ];

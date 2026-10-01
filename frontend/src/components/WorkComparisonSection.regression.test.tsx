@@ -200,13 +200,14 @@ describe("comparison summary reports the active windowed range, not the full dat
     // the store directly (rather than 60+ month-step ArrowLeft presses)
     // proves the same summary-derivation logic; DateRangeSlider.test.tsx
     // separately covers the slider's own keyboard-stepping mechanics.
-    const { rerender } = renderSection({ perWorkSeries: singleWorkWideSpan, earliestPostYear: null });
+    const { rerender } = renderSection({
+      perWorkSeries: singleWorkWideSpan,
+      earliestPostYear: null,
+    });
 
     expect(screen.getByRole("status")).toHaveTextContent(/Jan 2018 to Jan 2025/);
 
-    useWorkComparisonStore
-      .getState()
-      .setRange(USERNAME, { start: mi(2018, 1), end: mi(2020, 1) });
+    useWorkComparisonStore.getState().setRange(USERNAME, { start: mi(2018, 1), end: mi(2020, 1) });
     rerender(
       <WorkComparisonSection
         perWorkSeries={singleWorkWideSpan}

@@ -207,16 +207,21 @@ describe("WorkComparisonSection: Bookmarks By Work", () => {
       ao3WorkId: 99,
       title: "Gate Clearing Work",
       points: [
-        { capturedOn: "2020-02-01", hits: 1, kudos: 1, comments: 0, bookmarks: 1, subscriptions: 0 },
+        {
+          capturedOn: "2020-02-01",
+          hits: 1,
+          kudos: 1,
+          comments: 0,
+          bookmarks: 1,
+          subscriptions: 0,
+        },
       ],
     });
     useWorkComparisonStore.getState().setSelection(USERNAME, [1, 99]);
     // Lead-in is hidden by default (docs/plans/date-range-slider-month-
     // granularity.md D2, LOCKED) - widen the stored range so the leadIn
     // column this test asserts on is actually present.
-    useWorkComparisonStore
-      .getState()
-      .setRange(USERNAME, { start: mi(1990, 1), end: mi(2099, 12) });
+    useWorkComparisonStore.getState().setRange(USERNAME, { start: mi(1990, 1), end: mi(2099, 12) });
     renderSection({ perWorkSeries: [ENRICHED_WORK, gateWork], earliestPostYear: null });
 
     await goToBookmarksByWork(user);
@@ -293,13 +298,18 @@ describe("WorkComparisonSection: Bookmarks By Work", () => {
       ao3WorkId: 99,
       title: "Gate Clearing Work",
       points: [
-        { capturedOn: "2020-02-01", hits: 1, kudos: 1, comments: 0, bookmarks: 1, subscriptions: 0 },
+        {
+          capturedOn: "2020-02-01",
+          hits: 1,
+          kudos: 1,
+          comments: 0,
+          bookmarks: 1,
+          subscriptions: 0,
+        },
       ],
     });
     useWorkComparisonStore.getState().setSelection(USERNAME, [1, 99]);
-    useWorkComparisonStore
-      .getState()
-      .setRange(USERNAME, { start: mi(1990, 1), end: mi(2099, 12) });
+    useWorkComparisonStore.getState().setRange(USERNAME, { start: mi(1990, 1), end: mi(2099, 12) });
     renderSection({ perWorkSeries: [ENRICHED_WORK, gateWork], earliestPostYear: null });
 
     await goToBookmarksByWork(user);

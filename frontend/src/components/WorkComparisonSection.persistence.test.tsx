@@ -216,9 +216,7 @@ describe("WorkComparisonSection: persistence reconciliation (§2.3)", () => {
   });
 
   it("re-clamps a stale restored range to the full domain rather than applying it as-is", () => {
-    useWorkComparisonStore
-      .getState()
-      .setRange(USERNAME, { start: mi(1900, 1), end: mi(1901, 12) });
+    useWorkComparisonStore.getState().setRange(USERNAME, { start: mi(1900, 1), end: mi(1901, 12) });
     const worksWithThreeUnionPoints: PerWorkSeries[] = [
       work({
         ao3WorkId: 1,

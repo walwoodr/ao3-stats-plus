@@ -53,7 +53,13 @@ describe("DateRangeSlider", () => {
   describe("always rendered - disabled below the >2 union-points threshold", () => {
     it("renders (never returns null) when unionPointCount is 0", () => {
       const { container } = render(
-        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={0} />,
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[MIN, MAX]}
+          onChange={vi.fn()}
+          unionPointCount={0}
+        />,
       );
 
       expect(container).not.toBeEmptyDOMElement();
@@ -62,7 +68,13 @@ describe("DateRangeSlider", () => {
 
     it("is disabled when unionPointCount is 0", () => {
       render(
-        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={0} />,
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[MIN, MAX]}
+          onChange={vi.fn()}
+          unionPointCount={0}
+        />,
       );
 
       screen.getAllByRole("slider").forEach((thumb) => expect(thumb).toBeDisabled());
@@ -70,7 +82,13 @@ describe("DateRangeSlider", () => {
 
     it("is disabled when unionPointCount is exactly 2 (boundary - not '>2')", () => {
       render(
-        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={2} />,
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[MIN, MAX]}
+          onChange={vi.fn()}
+          unionPointCount={2}
+        />,
       );
 
       screen.getAllByRole("slider").forEach((thumb) => expect(thumb).toBeDisabled());
@@ -78,7 +96,13 @@ describe("DateRangeSlider", () => {
 
     it("is enabled (not disabled) when unionPointCount is exactly 3 (boundary - '>2' means >= 3)", () => {
       render(
-        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={3} />,
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[MIN, MAX]}
+          onChange={vi.fn()}
+          unionPointCount={3}
+        />,
       );
 
       expect(screen.getAllByRole("slider")).toHaveLength(2);
@@ -89,7 +113,13 @@ describe("DateRangeSlider", () => {
   describe("disabled-state visual/data treatment (§3.2/§3.3)", () => {
     it("still shows the passed-in value range as 'MMM YYYY – MMM YYYY' in the visible readout while disabled", () => {
       render(
-        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={1} />,
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[MIN, MAX]}
+          onChange={vi.fn()}
+          unionPointCount={1}
+        />,
       );
 
       expect(screen.getByText(/Jan 2018\s*[–-]\s*Dec 2026/)).toBeInTheDocument();
@@ -97,7 +127,13 @@ describe("DateRangeSlider", () => {
 
     it("keeps the 'Date range' heading visible while disabled, so the control's purpose stays clear", () => {
       render(
-        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={0} />,
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[MIN, MAX]}
+          onChange={vi.fn()}
+          unionPointCount={0}
+        />,
       );
 
       expect(screen.getByText("Date range")).toBeInTheDocument();
@@ -105,7 +141,13 @@ describe("DateRangeSlider", () => {
 
     it("still exposes correct min/max bounds on the disabled thumbs (aria-valuemin/aria-valuemax as month indices)", () => {
       render(
-        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={0} />,
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[MIN, MAX]}
+          onChange={vi.fn()}
+          unionPointCount={0}
+        />,
       );
 
       expect(startThumb()).toHaveAttribute("aria-valuemin", String(MIN));
@@ -116,7 +158,13 @@ describe("DateRangeSlider", () => {
       const user = userEvent.setup();
       const onChange = vi.fn();
       render(
-        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={onChange} unionPointCount={0} />,
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[MIN, MAX]}
+          onChange={onChange}
+          unionPointCount={0}
+        />,
       );
 
       startThumb().focus();
@@ -129,7 +177,13 @@ describe("DateRangeSlider", () => {
   describe("rendered (>2 union points)", () => {
     it("renders two thumbs with role=slider", () => {
       render(
-        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={5} />,
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[MIN, MAX]}
+          onChange={vi.fn()}
+          unionPointCount={5}
+        />,
       );
 
       expect(screen.getAllByRole("slider")).toHaveLength(2);
@@ -137,7 +191,13 @@ describe("DateRangeSlider", () => {
 
     it("labels the start thumb 'Range start' via getAriaLabel (no '(year)' suffix - month/year is in the value text)", () => {
       render(
-        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={5} />,
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[MIN, MAX]}
+          onChange={vi.fn()}
+          unionPointCount={5}
+        />,
       );
 
       expect(startThumb()).toBeInTheDocument();
@@ -145,7 +205,13 @@ describe("DateRangeSlider", () => {
 
     it("labels the end thumb 'Range end' via getAriaLabel", () => {
       render(
-        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={5} />,
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[MIN, MAX]}
+          onChange={vi.fn()}
+          unionPointCount={5}
+        />,
       );
 
       expect(endThumb()).toBeInTheDocument();
@@ -168,7 +234,13 @@ describe("DateRangeSlider", () => {
 
     it("shows a visible mono-font readout of the current window as 'MMM YYYY – MMM YYYY'", () => {
       render(
-        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={5} />,
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[MIN, MAX]}
+          onChange={vi.fn()}
+          unionPointCount={5}
+        />,
       );
 
       expect(screen.getByText(/Jan 2018\s*[–-]\s*Dec 2026/)).toBeInTheDocument();
@@ -176,7 +248,13 @@ describe("DateRangeSlider", () => {
 
     it("updates the visible readout when the value prop changes", () => {
       const { rerender } = render(
-        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={5} />,
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[MIN, MAX]}
+          onChange={vi.fn()}
+          unionPointCount={5}
+        />,
       );
 
       rerender(
@@ -213,7 +291,13 @@ describe("DateRangeSlider", () => {
 
     it("replaces the boolean `marks` with explicit unlabeled year-boundary marks (one per January in range)", () => {
       const { container } = render(
-        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={5} />,
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[MIN, MAX]}
+          onChange={vi.fn()}
+          unionPointCount={5}
+        />,
       );
 
       // 2018..2026 inclusive = 9 Januaries.
@@ -223,7 +307,12 @@ describe("DateRangeSlider", () => {
     it("increases the start thumb's value by exactly one MONTH via the ArrowRight key", async () => {
       const user = userEvent.setup();
       render(
-        <ControlledDateRangeSlider min={MIN} max={MAX} initialValue={[MIN, MAX]} unionPointCount={5} />,
+        <ControlledDateRangeSlider
+          min={MIN}
+          max={MAX}
+          initialValue={[MIN, MAX]}
+          unionPointCount={5}
+        />,
       );
 
       startThumb().focus();
@@ -235,7 +324,12 @@ describe("DateRangeSlider", () => {
     it("decreases the end thumb's value by exactly one MONTH via the ArrowLeft key", async () => {
       const user = userEvent.setup();
       render(
-        <ControlledDateRangeSlider min={MIN} max={MAX} initialValue={[MIN, MAX]} unionPointCount={5} />,
+        <ControlledDateRangeSlider
+          min={MIN}
+          max={MAX}
+          initialValue={[MIN, MAX]}
+          unionPointCount={5}
+        />,
       );
 
       endThumb().focus();
@@ -267,7 +361,12 @@ describe("DateRangeSlider", () => {
     it("clamps the end thumb to min/max domain bounds", async () => {
       const user = userEvent.setup();
       render(
-        <ControlledDateRangeSlider min={MIN} max={MAX} initialValue={[MIN, MAX]} unionPointCount={5} />,
+        <ControlledDateRangeSlider
+          min={MIN}
+          max={MAX}
+          initialValue={[MIN, MAX]}
+          unionPointCount={5}
+        />,
       );
 
       endThumb().focus();
@@ -278,7 +377,13 @@ describe("DateRangeSlider", () => {
 
     it("keeps each thumb keyboard-focusable (tabIndex 0)", () => {
       render(
-        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={5} />,
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[MIN, MAX]}
+          onChange={vi.fn()}
+          unionPointCount={5}
+        />,
       );
 
       screen.getAllByRole("slider").forEach((thumb) => {
@@ -314,7 +419,13 @@ describe("DateRangeSlider", () => {
     it("does NOT call the onChange prop while a drag is still in progress (only MUI's own onChange fired, not onChangeCommitted)", () => {
       const onChange = vi.fn();
       render(
-        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={onChange} unionPointCount={5} />,
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[MIN, MAX]}
+          onChange={onChange}
+          unionPointCount={5}
+        />,
       );
 
       fireDrag(startThumb(), 0);
@@ -327,7 +438,13 @@ describe("DateRangeSlider", () => {
     it("calls the onChange prop once the drag is released (onChangeCommitted)", () => {
       const onChange = vi.fn();
       render(
-        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={onChange} unionPointCount={5} />,
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[MIN, MAX]}
+          onChange={onChange}
+          unionPointCount={5}
+        />,
       );
 
       fireDrag(startThumb(), 0);
@@ -338,7 +455,13 @@ describe("DateRangeSlider", () => {
 
     it("still keeps the visible readout live-updating DURING the drag, even though the onChange prop hasn't committed yet", () => {
       render(
-        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={vi.fn()} unionPointCount={5} />,
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[MIN, MAX]}
+          onChange={vi.fn()}
+          unionPointCount={5}
+        />,
       );
 
       fireDrag(startThumb(), 0);
@@ -352,7 +475,13 @@ describe("DateRangeSlider", () => {
       const user = userEvent.setup();
       const onChange = vi.fn();
       render(
-        <DateRangeSlider min={MIN} max={MAX} value={[MIN, MAX]} onChange={onChange} unionPointCount={5} />,
+        <DateRangeSlider
+          min={MIN}
+          max={MAX}
+          value={[MIN, MAX]}
+          onChange={onChange}
+          unionPointCount={5}
+        />,
       );
 
       startThumb().focus();

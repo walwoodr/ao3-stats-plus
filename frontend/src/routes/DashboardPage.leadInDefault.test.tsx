@@ -53,7 +53,10 @@ function installRechartsSizePolyfill() {
   beforeAll(() => {
     (globalThis as { ResizeObserver?: unknown }).ResizeObserver = ResizeObserverStub;
     Object.defineProperty(HTMLElement.prototype, "offsetWidth", { configurable: true, value: 600 });
-    Object.defineProperty(HTMLElement.prototype, "offsetHeight", { configurable: true, value: 240 });
+    Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+      configurable: true,
+      value: 240,
+    });
   });
 
   afterAll(() => {
@@ -87,8 +90,20 @@ function mockStats(overrides: Partial<ReturnType<typeof useStatsForUser>>) {
 }
 
 const TWO_POINT_SERIES = [
-  { capturedOn: "2026-01-01", totalHits: 10, totalKudos: 1, kudosToHitsRatio: 0.1, totalUserSubscriptions: 3 },
-  { capturedOn: "2026-01-08", totalHits: 20, totalKudos: 3, kudosToHitsRatio: 0.15, totalUserSubscriptions: 5 },
+  {
+    capturedOn: "2026-01-01",
+    totalHits: 10,
+    totalKudos: 1,
+    kudosToHitsRatio: 0.1,
+    totalUserSubscriptions: 3,
+  },
+  {
+    capturedOn: "2026-01-08",
+    totalHits: 20,
+    totalKudos: 3,
+    kudosToHitsRatio: 0.15,
+    totalUserSubscriptions: 5,
+  },
 ];
 
 function mockPopulated(earliestPostYear: number | null) {

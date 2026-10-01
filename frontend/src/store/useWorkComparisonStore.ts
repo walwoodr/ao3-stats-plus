@@ -78,7 +78,8 @@ const migratingStorage = {
     }
     return value ?? null;
   },
-  setItem: (name: string, value: StorageValue<WorkComparisonState>) => rawStorage?.setItem(name, value),
+  setItem: (name: string, value: StorageValue<WorkComparisonState>) =>
+    rawStorage?.setItem(name, value),
   removeItem: (name: string) => rawStorage?.removeItem(name),
 };
 

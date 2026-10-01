@@ -334,8 +334,16 @@ describe("useWorkComparisonStore", () => {
     it("nulls a pre-v1 range independently across every byUsername entry, not just the first", async () => {
       writeRawPersistedBlob({
         byUsername: {
-          authorA: { selectedWorkIds: [1], range: { start: 2018, end: 2026 }, selectedMetric: null },
-          authorB: { selectedWorkIds: [2], range: { start: 2010, end: 2020 }, selectedMetric: null },
+          authorA: {
+            selectedWorkIds: [1],
+            range: { start: 2018, end: 2026 },
+            selectedMetric: null,
+          },
+          authorB: {
+            selectedWorkIds: [2],
+            range: { start: 2010, end: 2020 },
+            selectedMetric: null,
+          },
         },
       });
 

@@ -96,7 +96,14 @@ describe("WorkComparisonSection: lead-in hidden by default, shown once widened (
         title: "Work One",
         publishedOn: "2020-06-01",
         points: [
-          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2026-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
       work({
@@ -104,7 +111,14 @@ describe("WorkComparisonSection: lead-in hidden by default, shown once widened (
         title: "Work Two",
         publishedOn: null,
         points: [
-          { capturedOn: "2026-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2026-01-01",
+            hits: 2,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
     ];
@@ -128,9 +142,30 @@ describe("WorkComparisonSection: lead-in hidden by default, shown once widened (
         title: "Work One",
         publishedOn: "2020-06-01",
         points: [
-          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2026-02-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2026-03-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2026-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-02-01",
+            hits: 2,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-03-01",
+            hits: 3,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
     ];
@@ -139,7 +174,9 @@ describe("WorkComparisonSection: lead-in hidden by default, shown once widened (
     expect(capturedLeadIns()[1]).toBeNull();
 
     widenRange();
-    rerender(<WorkComparisonSection perWorkSeries={works} earliestPostYear={2019} username={USERNAME} />);
+    rerender(
+      <WorkComparisonSection perWorkSeries={works} earliestPostYear={2019} username={USERNAME} />,
+    );
 
     expect(capturedLeadIns()[1]).toEqual({
       capturedOn: "2020-06-01",
@@ -162,9 +199,30 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
         title: "Work One",
         publishedOn: "2020-06-01",
         points: [
-          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2026-02-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2026-03-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2026-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-02-01",
+            hits: 2,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-03-01",
+            hits: 3,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
       work({
@@ -172,7 +230,14 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
         title: "Work Two",
         publishedOn: null,
         points: [
-          { capturedOn: "2026-04-01", hits: 4, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2026-04-01",
+            hits: 4,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
     ];
@@ -197,9 +262,30 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
         title: "Work One",
         publishedOn: "2020-06-01",
         points: [
-          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2026-02-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2026-03-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2026-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-02-01",
+            hits: 2,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-03-01",
+            hits: 3,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
       work({
@@ -207,7 +293,14 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
         title: "Work Two",
         publishedOn: null,
         points: [
-          { capturedOn: "2026-04-01", hits: 4, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2026-04-01",
+            hits: 4,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
     ];
@@ -234,9 +327,30 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
         title: "Work One",
         publishedOn: null,
         points: [
-          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2026-02-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2026-03-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2026-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-02-01",
+            hits: 2,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-03-01",
+            hits: 3,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
       work({
@@ -244,7 +358,14 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
         title: "Work Two",
         publishedOn: null,
         points: [
-          { capturedOn: "2026-04-01", hits: 4, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2026-04-01",
+            hits: 4,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
     ];
@@ -279,9 +400,30 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
         title: "Work One",
         publishedOn: "2020-06-01",
         points: [
-          { capturedOn: "2020-07-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2026-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2026-02-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2020-07-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-01-01",
+            hits: 2,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-02-01",
+            hits: 3,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
       work({
@@ -289,7 +431,14 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
         title: "Work Two",
         publishedOn: null,
         points: [
-          { capturedOn: "2026-03-01", hits: 4, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2026-03-01",
+            hits: 4,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       }),
     ];
@@ -320,9 +469,30 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
           title: "Work One",
           publishedOn: "2020-01-01",
           points: [
-            { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-            { capturedOn: "2026-02-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-            { capturedOn: "2026-03-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+            {
+              capturedOn: "2026-01-01",
+              hits: 1,
+              kudos: 1,
+              comments: 0,
+              bookmarks: 0,
+              subscriptions: 0,
+            },
+            {
+              capturedOn: "2026-02-01",
+              hits: 2,
+              kudos: 1,
+              comments: 0,
+              bookmarks: 0,
+              subscriptions: 0,
+            },
+            {
+              capturedOn: "2026-03-01",
+              hits: 3,
+              kudos: 1,
+              comments: 0,
+              bookmarks: 0,
+              subscriptions: 0,
+            },
           ],
         }),
         work({
@@ -331,7 +501,14 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
           // Same-day publish/capture - the degenerate corner case.
           publishedOn: "2026-01-01",
           points: [
-            { capturedOn: "2026-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+            {
+              capturedOn: "2026-01-01",
+              hits: 2,
+              kudos: 1,
+              comments: 0,
+              bookmarks: 0,
+              subscriptions: 0,
+            },
           ],
         }),
       ];
@@ -352,9 +529,30 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
       title: "Work Early",
       publishedOn: "2010-01-01",
       points: [
-        { capturedOn: "2015-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-        { capturedOn: "2018-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-        { capturedOn: "2020-01-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+        {
+          capturedOn: "2015-01-01",
+          hits: 1,
+          kudos: 1,
+          comments: 0,
+          bookmarks: 0,
+          subscriptions: 0,
+        },
+        {
+          capturedOn: "2018-01-01",
+          hits: 2,
+          kudos: 1,
+          comments: 0,
+          bookmarks: 0,
+          subscriptions: 0,
+        },
+        {
+          capturedOn: "2020-01-01",
+          hits: 3,
+          kudos: 1,
+          comments: 0,
+          bookmarks: 0,
+          subscriptions: 0,
+        },
       ],
     });
     const LATE: PerWorkSeries = work({
@@ -362,9 +560,30 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
       title: "Work Late",
       publishedOn: "2019-03-01",
       points: [
-        { capturedOn: "2019-06-01", hits: 10, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-        { capturedOn: "2020-01-01", hits: 20, kudos: 2, comments: 0, bookmarks: 0, subscriptions: 0 },
-        { capturedOn: "2021-01-01", hits: 30, kudos: 3, comments: 0, bookmarks: 0, subscriptions: 0 },
+        {
+          capturedOn: "2019-06-01",
+          hits: 10,
+          kudos: 1,
+          comments: 0,
+          bookmarks: 0,
+          subscriptions: 0,
+        },
+        {
+          capturedOn: "2020-01-01",
+          hits: 20,
+          kudos: 2,
+          comments: 0,
+          bookmarks: 0,
+          subscriptions: 0,
+        },
+        {
+          capturedOn: "2021-01-01",
+          hits: 30,
+          kudos: 3,
+          comments: 0,
+          bookmarks: 0,
+          subscriptions: 0,
+        },
       ],
     });
 
@@ -415,8 +634,22 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
         // not the month gate, that suppresses this one.
         publishedOn: "2020-01-01",
         points: [
-          { capturedOn: "2015-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
-          { capturedOn: "2016-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          {
+            capturedOn: "2015-01-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2016-01-01",
+            hits: 2,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
         ],
       });
 

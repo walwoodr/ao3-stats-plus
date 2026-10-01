@@ -256,9 +256,7 @@ describe("WorkComparisonSection: Bookmarks By Type", () => {
     // Lead-in is hidden by default (docs/plans/date-range-slider-month-
     // granularity.md D2, LOCKED) - widen the stored range so this test can
     // observe it.
-    useWorkComparisonStore
-      .getState()
-      .setRange(USERNAME, { start: mi(1990, 1), end: mi(2099, 12) });
+    useWorkComparisonStore.getState().setRange(USERNAME, { start: mi(1990, 1), end: mi(2099, 12) });
     renderSection({ perWorkSeries: worksWithWiderWorkOne, earliestPostYear: null });
     await goToBookmarksByType(user);
 

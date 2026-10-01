@@ -231,9 +231,7 @@ describe("WorkComparisonSection: per-work metric toggle", () => {
     // handling, so it needs an explicit rerender (matching every other
     // raw-store-write test in this suite) for the component to pick up the
     // change before the assertions below read the DOM.
-    useWorkComparisonStore
-      .getState()
-      .setRange(USERNAME, { start: mi(2021, 1), end: mi(2022, 12) });
+    useWorkComparisonStore.getState().setRange(USERNAME, { start: mi(2021, 1), end: mi(2022, 12) });
     rerender(
       <WorkComparisonSection
         perWorkSeries={worksWithThreeUnionPoints}
