@@ -222,13 +222,44 @@ describe("WorkComparisonSection: Bookmarks By Type", () => {
   // keeps its lead-in."
   it("Total gets a zero-basis leadIn but the Public/Private charts for the same work do not", async () => {
     const user = userEvent.setup();
+    // The shared ENRICHED_AND_UNENRICHED_WORKS fixture's default-selected
+    // Work One alone has only 2 own distinct capture dates - at or below
+    // that threshold the pre-existing >2-union-points gate resets ANY
+    // stored range back to null on the very next render (the plan's own
+    // "<=2 distinct union dates -> effectiveRange falls back to
+    // defaultWindow" corner case), which would silently undo the widened
+    // range below. A local 3-point variant of Work One clears that gate;
+    // its 3rd point is placed in 2020 itself (not 2026) so the domain
+    // floor - January of the earliest UNION year, since earliestPostYear is
+    // null here - reaches back far enough to make Work One's own 2020-01-01
+    // publish date reachable once widened.
+    const worksWithWiderWorkOne: PerWorkSeries[] = [
+      {
+        ...ENRICHED_AND_UNENRICHED_WORKS[0],
+        points: [
+          ...ENRICHED_AND_UNENRICHED_WORKS[0].points,
+          {
+            capturedOn: "2020-02-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 1,
+            subscriptions: 0,
+            publicBookmarks: null,
+            privateBookmarks: null,
+          },
+        ],
+      },
+      ENRICHED_AND_UNENRICHED_WORKS[1],
+    ];
+
     // Lead-in is hidden by default (docs/plans/date-range-slider-month-
     // granularity.md D2, LOCKED) - widen the stored range so this test can
     // observe it.
     useWorkComparisonStore
       .getState()
       .setRange(USERNAME, { start: mi(1990, 1), end: mi(2099, 12) });
-    renderSection({ perWorkSeries: ENRICHED_AND_UNENRICHED_WORKS, earliestPostYear: null });
+    renderSection({ perWorkSeries: worksWithWiderWorkOne, earliestPostYear: null });
     await goToBookmarksByType(user);
 
     // Maintenance item 3 (post-ship bug batch, 2026-09-23): the column

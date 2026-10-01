@@ -118,6 +118,10 @@ describe("WorkComparisonSection: lead-in hidden by default, shown once widened (
   });
 
   it("shows the leadIn once the stored range is widened to start before the lead-in month", () => {
+    // >2 own distinct points (not just 1) so the pre-existing >2-union-
+    // points gate stays clear and doesn't reset the just-widened range back
+    // to null on the very next render (the plan's own "<=2 distinct union
+    // dates -> effectiveRange falls back to defaultWindow" corner case).
     const works: PerWorkSeries[] = [
       work({
         ao3WorkId: 1,
@@ -125,6 +129,8 @@ describe("WorkComparisonSection: lead-in hidden by default, shown once widened (
         publishedOn: "2020-06-01",
         points: [
           { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-02-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-03-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
@@ -146,6 +152,10 @@ describe("WorkComparisonSection: lead-in hidden by default, shown once widened (
 describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened range)", () => {
   it("uses a work's own publishedOn as its leadIn, labeled 'Published <date>'", async () => {
     const user = userEvent.setup();
+    // Work One (the default selection) needs >2 own distinct points so the
+    // >2-union-points gate stays clear from the very first render -
+    // otherwise the gate-drop line resets the widened range back to null
+    // before "Work Two" is ever selected.
     const works: PerWorkSeries[] = [
       work({
         ao3WorkId: 1,
@@ -153,6 +163,8 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
         publishedOn: "2020-06-01",
         points: [
           { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-02-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-03-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
       work({
@@ -160,7 +172,7 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
         title: "Work Two",
         publishedOn: null,
         points: [
-          { capturedOn: "2026-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-04-01", hits: 4, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
@@ -186,6 +198,8 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
         publishedOn: "2020-06-01",
         points: [
           { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-02-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-03-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
       work({
@@ -193,7 +207,7 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
         title: "Work Two",
         publishedOn: null,
         points: [
-          { capturedOn: "2026-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-04-01", hits: 4, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
@@ -212,6 +226,8 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
 
   it("gives every fallback work the identical shared fallback capturedOn/label (they collapse to one slot)", async () => {
     const user = userEvent.setup();
+    // Work One (the default selection) needs >2 own distinct points so the
+    // >2-union-points gate stays clear from the very first render.
     const works: PerWorkSeries[] = [
       work({
         ao3WorkId: 1,
@@ -219,6 +235,8 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
         publishedOn: null,
         points: [
           { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-02-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-03-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
       work({
@@ -226,7 +244,7 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
         title: "Work Two",
         publishedOn: null,
         points: [
-          { capturedOn: "2026-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-04-01", hits: 4, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
@@ -246,13 +264,24 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
 
   it("omits leadIn entirely when a work has no publishedOn and earliestPostYear itself is null", async () => {
     const user = userEvent.setup();
+    // Work One (the default selection) needs >2 own distinct points so the
+    // >2-union-points gate stays clear from the very first render. Since
+    // earliestPostYear is null here (that's this test's whole point - no
+    // fallback baseline exists), the domain floor is January of the
+    // earliest UNION year instead - so Work One's earliest own captured
+    // point is deliberately placed in 2020 itself (after its 2020-06-01
+    // publish date) so the domain floor reaches far enough back to make
+    // that publish date reachable once widened, rather than being
+    // permanently out of the domain's reach.
     const works: PerWorkSeries[] = [
       work({
         ao3WorkId: 1,
         title: "Work One",
         publishedOn: "2020-06-01",
         points: [
-          { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2020-07-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-02-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
       work({
@@ -260,7 +289,7 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
         title: "Work Two",
         publishedOn: null,
         points: [
-          { capturedOn: "2026-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-03-01", hits: 4, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
@@ -283,6 +312,8 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
   describe("guard: zeroBasisDate >= firstVisiblePoint.capturedOn", () => {
     it("suppresses the leadIn when a work's publishedOn is not strictly before its first point", async () => {
       const user = userEvent.setup();
+      // Work One (the default selection) needs >2 own distinct points so
+      // the >2-union-points gate stays clear from the very first render.
       const works: PerWorkSeries[] = [
         work({
           ao3WorkId: 1,
@@ -290,6 +321,8 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
           publishedOn: "2020-01-01",
           points: [
             { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+            { capturedOn: "2026-02-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+            { capturedOn: "2026-03-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
           ],
         }),
         work({
@@ -337,8 +370,17 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
 
     it("keeps every selected work's leadIn present once the window is widened to cover both", async () => {
       const user = userEvent.setup();
+      // EARLY alone already clears the >2-union-points gate (3 own points),
+      // so the widened range survives the first render. earliestPostYear
+      // is set to EARLY's own publish year (rather than this guard block's
+      // usual null) so the domain floor - January of
+      // min(earliestPostYear, earliestUnionYear) - actually reaches back
+      // far enough to make EARLY's 2010 publish month reachable at all; with
+      // earliestPostYear null the floor would be Jan 2015 (the earliest
+      // UNION capture date), permanently short of EARLY's own 2010 publish
+      // date regardless of how wide the stored range is.
       widenRange();
-      renderSection({ perWorkSeries: [EARLY, LATE], earliestPostYear: null });
+      renderSection({ perWorkSeries: [EARLY, LATE], earliestPostYear: 2010 });
       await selectWorkViaCombobox(user, "Work Late");
 
       const leadIns = capturedLeadIns();

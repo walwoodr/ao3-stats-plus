@@ -187,13 +187,37 @@ describe("WorkComparisonSection: Bookmarks By Work", () => {
   // work-type column shape this test used to check.
   it("each work's chart exposes its own visible table with Total/Public/Private rows across the captured dates", async () => {
     const user = userEvent.setup();
+    // This test's own exact-4-column assertion below means ENRICHED_WORK's
+    // own points can't simply grow a 3rd point (that would add a 5th
+    // column) to clear the pre-existing >2-union-points gate. Instead, a
+    // second work is selected alongside it purely to clear that gate - its
+    // own by-work chart never contributes columns to "Work One"'s table
+    // (buildWorkTypeSeries only ever uses ONE work's own points), so it's
+    // invisible to this test's actual assertions. Its capture date is
+    // placed in 2020 (not 2026) so the domain floor - January of the
+    // earliest UNION year, since earliestPostYear is null here - reaches
+    // back far enough to make ENRICHED_WORK's own 2020-01-01 publish date
+    // reachable once widened. Selection is set directly (not via the
+    // combobox) so BOTH works are already selected on the very first
+    // render, before the gate-drop line ever runs - adding the second work
+    // via a later interaction would arrive too late, since the gate-drop
+    // reset already fires (and sticks) on the first render where only
+    // ENRICHED_WORK's own 2 points are selected.
+    const gateWork: PerWorkSeries = work({
+      ao3WorkId: 99,
+      title: "Gate Clearing Work",
+      points: [
+        { capturedOn: "2020-02-01", hits: 1, kudos: 1, comments: 0, bookmarks: 1, subscriptions: 0 },
+      ],
+    });
+    useWorkComparisonStore.getState().setSelection(USERNAME, [1, 99]);
     // Lead-in is hidden by default (docs/plans/date-range-slider-month-
     // granularity.md D2, LOCKED) - widen the stored range so the leadIn
     // column this test asserts on is actually present.
     useWorkComparisonStore
       .getState()
       .setRange(USERNAME, { start: mi(1990, 1), end: mi(2099, 12) });
-    renderSection({ perWorkSeries: [ENRICHED_WORK], earliestPostYear: null });
+    renderSection({ perWorkSeries: [ENRICHED_WORK, gateWork], earliestPostYear: null });
 
     await goToBookmarksByWork(user);
 
@@ -259,10 +283,24 @@ describe("WorkComparisonSection: Bookmarks By Work", () => {
   // get one (their first enrichment point isn't the work's first capture).
   it("Total keeps its zero-basis leadIn within a work's By-Work chart; Public/Private do not", async () => {
     const user = userEvent.setup();
+    // Same gate-clearing/domain-floor rationale as the previous test: a
+    // second selected work (own by-work chart never contributes to "Work
+    // One"'s own table) clears the pre-existing >2-union-points gate and
+    // pulls the domain floor back far enough to reach ENRICHED_WORK's own
+    // 2020-01-01 publish date. Selection is set directly so both works are
+    // already selected on the very first render.
+    const gateWork: PerWorkSeries = work({
+      ao3WorkId: 99,
+      title: "Gate Clearing Work",
+      points: [
+        { capturedOn: "2020-02-01", hits: 1, kudos: 1, comments: 0, bookmarks: 1, subscriptions: 0 },
+      ],
+    });
+    useWorkComparisonStore.getState().setSelection(USERNAME, [1, 99]);
     useWorkComparisonStore
       .getState()
       .setRange(USERNAME, { start: mi(1990, 1), end: mi(2099, 12) });
-    renderSection({ perWorkSeries: [ENRICHED_WORK], earliestPostYear: null });
+    renderSection({ perWorkSeries: [ENRICHED_WORK, gateWork], earliestPostYear: null });
 
     await goToBookmarksByWork(user);
 

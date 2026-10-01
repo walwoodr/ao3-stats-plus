@@ -217,17 +217,30 @@ describe("WorkComparisonSection: per-work metric toggle", () => {
         ],
       }),
     ];
-    renderSection({ perWorkSeries: worksWithThreeUnionPoints, earliestPostYear: null });
+    const { rerender } = renderSection({
+      perWorkSeries: worksWithThreeUnionPoints,
+      earliestPostYear: null,
+    });
     await selectWorkViaCombobox(user, "Work Two");
     await user.click(screen.getByRole("tab", { name: "Comments" }));
 
     // Narrow start past Work One's 2020-01-01 point (12 months on, rather
     // than looping 12 ArrowRight month-steps through the keyboard -
     // DateRangeSlider.test.tsx already covers that interaction mechanism
-    // directly).
+    // directly). A raw store write doesn't go through React's own event
+    // handling, so it needs an explicit rerender (matching every other
+    // raw-store-write test in this suite) for the component to pick up the
+    // change before the assertions below read the DOM.
     useWorkComparisonStore
       .getState()
       .setRange(USERNAME, { start: mi(2021, 1), end: mi(2022, 12) });
+    rerender(
+      <WorkComparisonSection
+        perWorkSeries={worksWithThreeUnionPoints}
+        earliestPostYear={null}
+        username={USERNAME}
+      />,
+    );
 
     const table = screen.getByRole("table", { name: /^comments$/i });
     // 2020's comments:1 point for Work One should be filtered out of the
@@ -247,6 +260,13 @@ describe("WorkComparisonSection: per-work metric toggle", () => {
 
   it("carries a zero-basis leadIn on a non-sparse metric chart, same as Hits", async () => {
     const user = userEvent.setup();
+    // >2 own distinct points (not just 1) so the pre-existing >2-union-
+    // points gate stays clear and doesn't reset the just-widened range back
+    // to null on the very next render. The 2nd point is placed in 2020
+    // itself (not 2026) so the domain floor - January of the earliest
+    // UNION year, since earliestPostYear is null here - reaches back far
+    // enough to make Work One's own 2020-01-01 publish date reachable once
+    // widened.
     const works: PerWorkSeries[] = [
       work({
         ao3WorkId: 1,
@@ -254,10 +274,30 @@ describe("WorkComparisonSection: per-work metric toggle", () => {
         publishedOn: "2020-01-01",
         points: [
           {
-            capturedOn: "2026-01-01",
+            capturedOn: "2020-02-01",
             hits: 1,
             kudos: 1,
+            comments: 2,
+            bookmarks: 1,
+            subscriptions: 1,
+            publicBookmarks: null,
+            privateBookmarks: null,
+          },
+          {
+            capturedOn: "2026-01-01",
+            hits: 2,
+            kudos: 1,
             comments: 4,
+            bookmarks: 1,
+            subscriptions: 1,
+            publicBookmarks: null,
+            privateBookmarks: null,
+          },
+          {
+            capturedOn: "2026-02-01",
+            hits: 3,
+            kudos: 1,
+            comments: 5,
             bookmarks: 1,
             subscriptions: 1,
             publicBookmarks: null,

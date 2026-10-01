@@ -75,6 +75,14 @@ describe("WorkComparisonSection: visible lead-in caption hidden by default (D2)"
   });
 
   it("shows the caption once the stored range is widened to include the lead-in month", () => {
+    // >2 own distinct points (not just 1) so the pre-existing >2-union-
+    // points gate stays clear and doesn't reset the just-widened range back
+    // to null on the very next render (the plan's own "<=2 distinct union
+    // dates -> effectiveRange falls back to defaultWindow" corner case) -
+    // see docs/plans/date-range-slider-month-granularity.md's Corner cases.
+    // earliestPostYear is set to the work's own publish year so the domain
+    // floor (Jan of min(earliestPostYear, earliestUnionYear)) actually
+    // reaches down to the lead-in month being widened to.
     const works: PerWorkSeries[] = [
       work({
         ao3WorkId: 1,
@@ -82,15 +90,17 @@ describe("WorkComparisonSection: visible lead-in caption hidden by default (D2)"
         publishedOn: "2020-01-01",
         points: [
           { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-02-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-03-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
 
-    const { rerender } = renderSection({ perWorkSeries: works, earliestPostYear: null });
+    const { rerender } = renderSection({ perWorkSeries: works, earliestPostYear: 2020 });
     expect(screen.queryByText(CAPTION_TEXT)).not.toBeInTheDocument();
 
     widenRange();
-    rerender(<WorkComparisonSection perWorkSeries={works} earliestPostYear={null} username={USERNAME} />);
+    rerender(<WorkComparisonSection perWorkSeries={works} earliestPostYear={2020} username={USERNAME} />);
 
     expect(screen.getByText(CAPTION_TEXT)).toBeInTheDocument();
   });
@@ -117,13 +127,27 @@ describe("WorkComparisonSection: visible lead-in caption (widened range)", () =>
 
   it("appears once at least one additionally-selected work has a leadIn, even if the first selected work doesn't", async () => {
     const user = userEvent.setup();
+    // Work One (the default selection) needs >2 OWN distinct points so the
+    // >2-union-points gate is already clear on the very first render -
+    // otherwise the gate-drop line resets the just-widened range back to
+    // null before "Work Two" is ever selected, and that reset is permanent
+    // (nothing re-applies the wide range afterward). Its own publishedOn is
+    // set equal to its first captured point (not null) - with
+    // earliestPostYear now needed non-null (for Work Two's domain-floor
+    // reachability below), a null publishedOn would otherwise fall back to
+    // the earliestPostYear baseline and give Work One an eligible leadIn
+    // too, contradicting this test's "even if the first selected work
+    // doesn't [have a leadIn]" premise - the zeroBasisDate >= firstVisible-
+    // Point guard deterministically suppresses it instead.
     const works: PerWorkSeries[] = [
       work({
         ao3WorkId: 1,
         title: "Work One",
-        publishedOn: null,
+        publishedOn: "2026-01-01",
         points: [
           { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-02-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-03-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
       work({
@@ -131,13 +155,13 @@ describe("WorkComparisonSection: visible lead-in caption (widened range)", () =>
         title: "Work Two",
         publishedOn: "2020-01-01",
         points: [
-          { capturedOn: "2026-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-04-01", hits: 4, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
 
     widenRange();
-    renderSection({ perWorkSeries: works, earliestPostYear: null });
+    renderSection({ perWorkSeries: works, earliestPostYear: 2020 });
     expect(screen.queryByText(CAPTION_TEXT)).not.toBeInTheDocument();
 
     await selectWorkViaCombobox(user, "Work Two");
@@ -147,6 +171,9 @@ describe("WorkComparisonSection: visible lead-in caption (widened range)", () =>
 
   it("hides the caption again once the only work with a leadIn is deselected", async () => {
     const user = userEvent.setup();
+    // Work One (the default selection, and the one with the leadIn here)
+    // needs >2 own distinct points so the initial widenRange() write
+    // survives the first render's gate check.
     const works: PerWorkSeries[] = [
       work({
         ao3WorkId: 1,
@@ -154,6 +181,8 @@ describe("WorkComparisonSection: visible lead-in caption (widened range)", () =>
         publishedOn: "2020-01-01",
         points: [
           { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-02-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-03-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
       work({
@@ -161,13 +190,13 @@ describe("WorkComparisonSection: visible lead-in caption (widened range)", () =>
         title: "Work Two",
         publishedOn: null,
         points: [
-          { capturedOn: "2026-01-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-04-01", hits: 4, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
 
     widenRange();
-    renderSection({ perWorkSeries: works, earliestPostYear: null });
+    renderSection({ perWorkSeries: works, earliestPostYear: 2020 });
     expect(screen.getByText(CAPTION_TEXT)).toBeInTheDocument();
 
     await selectWorkViaCombobox(user, "Work One");
@@ -210,12 +239,14 @@ describe("WorkComparisonSection: visible lead-in caption (widened range)", () =>
         publishedOn: "2020-01-01",
         points: [
           { capturedOn: "2026-01-01", hits: 1, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-02-01", hits: 2, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
+          { capturedOn: "2026-03-01", hits: 3, kudos: 1, comments: 0, bookmarks: 0, subscriptions: 0 },
         ],
       }),
     ];
 
     widenRange();
-    renderSection({ perWorkSeries: works, earliestPostYear: null });
+    renderSection({ perWorkSeries: works, earliestPostYear: 2020 });
 
     expect(screen.getAllByText(CAPTION_TEXT)).toHaveLength(1);
   });
