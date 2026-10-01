@@ -220,3 +220,69 @@ describe("comparison summary reports the active windowed range, not the full dat
     expect(screen.getByRole("status")).not.toHaveTextContent(/Jan 2018 to Jan 2025/);
   });
 });
+
+// Regression for a Review (adversarial) finding, 2026-10-01: a malformed
+// capturedOn at either boundary of the sorted union-dates array made
+// monthIndexOf return NaN for defaultWindow.start/.end. Since effectiveRange
+// is never-null (D2), every filterPointsInWindow comparison against a NaN
+// bound is false - silently discarding ALL real points across every
+// selected work, not just the one malformed point. This directly violated
+// the plan's own stated invariant (§5 Error states: "the point is excluded
+// ... No throw, no crash" - implying only the bad point, never everything
+// else). Fixed by falling back to `domain` when either union-derived bound
+// isn't finite.
+describe("a malformed capturedOn at a union-date boundary does not suppress every other real point (regression)", () => {
+  it("still renders the other works' real data when the union's first date is malformed", async () => {
+    const user = userEvent.setup();
+    const worksWithOneMalformedBoundary: PerWorkSeries[] = [
+      work({
+        ao3WorkId: 1,
+        title: "Work Malformed",
+        points: [
+          {
+            capturedOn: "not-a-date",
+            hits: 1,
+            kudos: 0,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+        ],
+      }),
+      work({
+        ao3WorkId: 2,
+        title: "Work Good",
+        points: [
+          {
+            capturedOn: "2024-03-01",
+            hits: 10,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2024-04-01",
+            hits: 20,
+            kudos: 2,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+        ],
+      }),
+    ];
+
+    renderSection({ perWorkSeries: worksWithOneMalformedBoundary, earliestPostYear: null });
+    // Default selection (reconcileSelection) is Work Malformed alone - add
+    // Work Good so both are in the union, matching the scenario the
+    // adversarial finding actually describes (a malformed point at one
+    // boundary of a multi-work union, not a single-work selection).
+    await selectWorkViaCombobox(user, "Work Good");
+
+    const table = screen.getByRole("table", { name: /hits/i });
+    expect(within(table).getByRole("columnheader", { name: "2024-03-01" })).toBeInTheDocument();
+    expect(within(table).getByRole("columnheader", { name: "2024-04-01" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).not.toHaveTextContent(/NaN/);
+  });
+});

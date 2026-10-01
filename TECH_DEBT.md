@@ -2,6 +2,29 @@
 
 ## Backlog
 
+- [2026-10-01] (stage: Review (adversarial)) `useWorkComparisonStore`'s
+  `migratingStorage` wrapper (zustand persist) makes the store's rehydration
+  genuinely async where it previously wasn't, since normalizing a missing
+  `version` key on read now goes through an async storage adapter path.
+  Correctness of the normalization itself was independently verified; the
+  finding is about the newly-async hydration timing (a brief window on first
+  mount where `selectedWorkIds`/`rawRange` may read as not-yet-hydrated
+  defaults before the persisted blob lands) not being accounted for
+  anywhere in the plan or tested directly. Deferred: no observed user-facing
+  symptom (WorkComparisonSection's own lazy-initializer reconciliation
+  already tolerates an empty/default selection on first render), but worth
+  a dedicated test if hydration-timing bugs surface later.
+- [2026-10-01] (stage: Review (adversarial)) `WorkComparisonSection.tsx`'s
+  `domain`/`defaultWindow` computation mixes time bases: `now.getFullYear()`
+  (local time) for `currentYear`/`domainStart`'s ceiling, but
+  `now.getUTCFullYear()`/`now.getUTCMonth()` for `domain.end`. For a user in
+  a timezone where local and UTC dates fall in different months (e.g. late
+  evening in a UTC-behind zone, or early morning in a UTC-ahead zone) near a
+  month/year boundary, this can produce a one-month-off domain ceiling
+  relative to what "now" means to the user. Low-probability, narrow window;
+  deferred rather than fixed inline since changing the basis touches the
+  locked D1/D2 plan decisions and should go through Planning, not a
+  reactive Review-finding patch.
 - [2026-09-24] (stage: Testing) `frontend/src/lib/syncedTableModel.test.ts`
   is now 656 lines, over `CODE_STANDARDS.md`'s 400-line `.ts` budget - it was
   already at 523 lines (over budget) before this stage's item 3

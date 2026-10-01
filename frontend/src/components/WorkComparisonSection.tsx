@@ -27,6 +27,9 @@ export interface WorkComparisonSectionProps {
   username: string;
 }
 
+// Returns NaN (never throws) for a malformed capturedOn, matching
+// monthIndexOf's contract (lib/monthIndex.ts) - callers must guard before
+// using the result as a domain bound.
 function yearOf(capturedOn: string): number {
   return Number(capturedOn.slice(0, 4));
 }
@@ -221,7 +224,18 @@ export function WorkComparisonSection({
 
   const now = new Date();
   const currentYear = now.getFullYear();
-  const earliestUnionYear = unionDates.length > 0 ? yearOf(unionDates[0]) : currentYear;
+  // Malformed-date guard (Review adversarial finding, 2026-10-01, deeper
+  // root cause): yearOf() returns NaN for a malformed capturedOn, same as
+  // monthIndexOf. Unlike monthIndexOf's call sites below, this feeds
+  // `domain` itself (not just `defaultWindow`) - an unguarded NaN here
+  // poisons the domain every other value is clamped/compared against,
+  // which is what actually produced the infinite re-render loop (not just
+  // the silent-exclusion symptom the finding described). Falls back to
+  // currentYear, matching the existing no-union-dates fallback.
+  const rawEarliestUnionYear = unionDates.length > 0 ? yearOf(unionDates[0]) : currentYear;
+  const earliestUnionYear = Number.isFinite(rawEarliestUnionYear)
+    ? rawEarliestUnionYear
+    : currentYear;
   const domainStart = Math.min(earliestPostYear ?? earliestUnionYear, currentYear);
   // Domain floor is January of the earliest post/union year (so the user
   // can always drag start down into any lead-in month within that year);
@@ -236,9 +250,20 @@ export function WorkComparisonSection({
   // straight from the existing union-dates logic (synthetic lead-in dates
   // never enter unionDates). Falls back to `domain` when there are no union
   // dates (slider disabled anyway).
-  const defaultWindow: MonthWindow =
+  // Malformed-date guard (Review adversarial finding, 2026-10-01): a
+  // malformed capturedOn at either boundary makes monthIndexOf return NaN,
+  // and since effectiveRange is never-null, a NaN start/end would make
+  // EVERY filterPointsInWindow comparison false - silently discarding all
+  // real points across all works, not just the one malformed point. Falls
+  // back to `domain` in that case, preserving the plan's actual invariant
+  // ("only the malformed point is excluded, never a crash/mass-exclusion").
+  const unionWindow: MonthWindow | null =
     unionDates.length > 0
       ? { start: monthIndexOf(unionDates[0]), end: monthIndexOf(unionDates[unionDates.length - 1]) }
+      : null;
+  const defaultWindow: MonthWindow =
+    unionWindow !== null && Number.isFinite(unionWindow.start) && Number.isFinite(unionWindow.end)
+      ? unionWindow
       : domain;
 
   // Range state invariants (plan's Error states): re-clamp `range` against
