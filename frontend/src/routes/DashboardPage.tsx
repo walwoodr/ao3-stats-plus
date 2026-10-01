@@ -136,19 +136,19 @@ export function DashboardPage() {
   const perWorkSeries = data?.statsForUser.perWorkSeries ?? [];
   const earliestPostYear = data?.statsForUser.earliestPostYear ?? null;
 
-  // The synthetic "before you had any stats, you were at zero" baseline
-  // point, built only when earliestPostYear is present AND actually sorts
-  // before the first real snapshot - a future/same-year value (e.g. from a
-  // borderline first-ingest race) would otherwise draw a nonsensical
-  // backwards or overlapping lead-in segment.
-  const firstCapturedOn = aggregateSeries[0]?.capturedOn;
-  const leadInDate = earliestPostYear !== null ? `${earliestPostYear}-01-01` : null;
-  const hasLeadIn = leadInDate !== null && !!firstCapturedOn && leadInDate < firstCapturedOn;
-  const hitsLeadIn = hasLeadIn ? { capturedOn: leadInDate as string, value: 0 } : undefined;
-  const kudosLeadIn = hasLeadIn ? { capturedOn: leadInDate as string, value: 0 } : undefined;
-  const subscribersLeadIn = hasLeadIn ? { capturedOn: leadInDate as string, value: 0 } : undefined;
-
-  const notEnoughHistory = !hasLeadIn && aggregateSeries.length === 1;
+  // Per docs/plans/date-range-slider-month-granularity.md §10 (D5, LOCKED):
+  // the account-level charts no longer construct/pass a synthetic "before
+  // you had any stats, you were at zero" leadIn point by default - that
+  // capability (TrendChart's `leadIn` prop, leadInEpoch placement, the
+  // `.chart-leadin-dot` tokens) remains fully intact for a future (deferred)
+  // account-level widen control and for the per-work charts, which still
+  // build and pass their own leadIn via WorkComparisonSection.
+  //
+  // D5: with the lead-in no longer drawn by default, a single real snapshot
+  // is a lone dot, not a trend - "not enough history" is unconditional on
+  // the snapshot count (previously also required `!hasLeadIn`, since a
+  // lead-in used to turn even one snapshot into a minimal two-point line).
+  const notEnoughHistory = aggregateSeries.length === 1;
 
   return (
     <div className="mx-auto max-w-4xl p-8">
@@ -182,7 +182,6 @@ export function DashboardPage() {
                   capturedOn: point.capturedOn,
                   value: point.totalHits,
                 }))}
-                leadIn={hitsLeadIn}
               />
             )}
             {selectedMetric === "kudos" && (
@@ -194,7 +193,6 @@ export function DashboardPage() {
                   capturedOn: point.capturedOn,
                   value: point.totalKudos,
                 }))}
-                leadIn={kudosLeadIn}
               />
             )}
             {selectedMetric === "subscribers" && (
@@ -209,7 +207,6 @@ export function DashboardPage() {
                   // to guard the old optional typing is now provably dead.
                   value: point.totalUserSubscriptions,
                 }))}
-                leadIn={subscribersLeadIn}
               />
             )}
           </MetricToggle>
