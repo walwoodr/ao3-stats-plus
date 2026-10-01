@@ -66,7 +66,20 @@ export function DateRangeSlider({
   // (see DateRangeSlider.test.tsx's regression tests for the full
   // writeup, including a Playwright/CDP input-synthesis artifact that was
   // investigated and ruled out as a separate, unrelated concern).
-  const [liveValue, setLiveValue] = useState(value);
+  // Defense-in-depth (Review adversarial, 2026-10-01): a non-finite bound
+  // reaching `value` (e.g. a NaN that escapes some future upstream domain
+  // computation) would otherwise loop forever in the reconciliation below -
+  // `NaN !== committedValue[0]` is always true, so the mismatch never
+  // resolves and every render re-triggers the setState that caused it.
+  // Coercing to `min`/`max` first (before either piece of state is even
+  // initialized) means any such bug degrades to a clamped slider instead of
+  // an unrecoverable "Too many re-renders" crash.
+  const safeValue: [number, number] = [
+    Number.isFinite(value[0]) ? value[0] : min,
+    Number.isFinite(value[1]) ? value[1] : max,
+  ];
+
+  const [liveValue, setLiveValue] = useState(safeValue);
 
   // Reconciles local live-drag state with the external value whenever it
   // changes for a reason OTHER than this component's own commit - e.g. a
@@ -77,10 +90,10 @@ export function DateRangeSlider({
   // than in a useEffect, matching this project's established "you might
   // not need an effect" convention (see WorkComparisonSection.tsx's
   // identical rationale for its own range/selection state).
-  const [committedValue, setCommittedValue] = useState(value);
-  if (value[0] !== committedValue[0] || value[1] !== committedValue[1]) {
-    setCommittedValue(value);
-    setLiveValue(value);
+  const [committedValue, setCommittedValue] = useState(safeValue);
+  if (safeValue[0] !== committedValue[0] || safeValue[1] !== committedValue[1]) {
+    setCommittedValue(safeValue);
+    setLiveValue(safeValue);
   }
 
   // §3.2: the old `unionPointCount <= 2` null-return gate is removed - the

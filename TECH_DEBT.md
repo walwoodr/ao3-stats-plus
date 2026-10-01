@@ -2,6 +2,28 @@
 
 ## Backlog
 
+- [2026-10-01] (stage: Review (adversarial)) Two narrow, currently-unreachable
+  edge cases found while re-reviewing the `yearOf()`/`DateRangeSlider` NaN
+  hardening fix (commit 3eee600 and its follow-up):
+  1. **Asymmetric guard**: `WorkComparisonSection.tsx`'s
+     `domainStart = Math.min(earliestPostYear ?? earliestUnionYear, currentYear)`
+     guards `earliestUnionYear` against NaN but not `earliestPostYear` - `??`
+     only catches `null`/`undefined`, not `NaN`. Not reachable today (the
+     backend types `earliestPostYear` as `Integer` and JSON can't carry
+     `NaN`), and even a forced `NaN` was confirmed by Review not to loop
+     (DateRangeSlider's new min/max clamp catches it downstream). Noted for
+     completeness given the fix's explicit "defend `domain` against NaN"
+     theme - no action needed unless `earliestPostYear`'s source ever
+     changes.
+  2. **`yearOf`/`monthIndexOf` disagree on "malformed"**: `yearOf("")` and
+     `yearOf("0000-...")` return `0` (finite, passes the new guard), while
+     `monthIndexOf("")` returns `NaN`. An empty-string `capturedOn` at
+     `unionDates[0]` would push the domain floor to year 0, causing
+     `yearBoundaryMarks(0, ~24312)` to emit ~2000 slider marks - a
+     performance/DOM-bloat degradation, not a crash or data-loss bug.
+     Extremely narrow trigger (empty-string `capturedOn`, which the backend
+     shouldn't produce); revisit only if real malformed-date reports surface
+     this shape specifically.
 - [2026-10-01] (stage: Review (adversarial)) `useWorkComparisonStore`'s
   `migratingStorage` wrapper (zustand persist) makes the store's rehydration
   genuinely async where it previously wasn't, since normalizing a missing

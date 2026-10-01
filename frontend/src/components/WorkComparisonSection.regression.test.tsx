@@ -285,4 +285,39 @@ describe("a malformed capturedOn at a union-date boundary does not suppress ever
     expect(within(table).getByRole("columnheader", { name: "2024-04-01" })).toBeInTheDocument();
     expect(screen.getByRole("status")).not.toHaveTextContent(/NaN/);
   });
+
+  // Regression for Review (adversarial) Finding 2, 2026-10-01: the test
+  // above only covers the `defaultWindow`/`monthIndexOf` guard, reached via
+  // the multi-work union. The deeper bug - `yearOf()` (feeding `domainStart`/
+  // `domain` itself, not just `defaultWindow`) had no NaN guard at all - is
+  // only reachable when the DEFAULT single-work selection
+  // (`reconcileSelection`) lands on the one work whose only point is
+  // malformed, which the multi-work test above exercises only as an
+  // unstated side effect of array order. This test makes that path
+  // explicit: a single work, malformed point, no interaction - asserting it
+  // renders at all (an infinite re-render loop throws, so a successful
+  // render IS the assertion) rather than relying on the combobox test to
+  // keep covering it incidentally.
+  it("still renders (no infinite re-render loop) when the only selected work's only point is malformed", () => {
+    const soleWorkMalformed: PerWorkSeries[] = [
+      work({
+        ao3WorkId: 1,
+        title: "Work Malformed",
+        points: [
+          {
+            capturedOn: "not-a-date",
+            hits: 1,
+            kudos: 0,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+        ],
+      }),
+    ];
+
+    renderSection({ perWorkSeries: soleWorkMalformed, earliestPostYear: null });
+
+    expect(screen.getByRole("status")).not.toHaveTextContent(/NaN/);
+  });
 });
