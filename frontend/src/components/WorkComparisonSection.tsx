@@ -5,8 +5,9 @@ import {
   filterPointsInWindow,
   shouldShowRangeSlider,
   unionCapturedOnDates,
-  type YearWindow,
+  type MonthWindow,
 } from "../lib/comparisonSelection";
+import { formatMonthIndex, monthIndexOf, toMonthIndex } from "../lib/monthIndex";
 import { assignStyleSlot, releaseStyleSlot } from "../lib/seriesStyles";
 import { BOOKMARK_TYPES, PER_WORK_METRICS, PER_WORK_METRIC_TABS } from "../lib/perWorkMetrics";
 import { useWorkComparisonStore } from "../store/useWorkComparisonStore";
@@ -76,20 +77,22 @@ function zeroBasisLabelFor(
 // Gates a work's computed zero-basis date into a renderable `leadIn`, per
 // the plan's "Decoupling from the date-range slider" slider-interaction
 // gating: only when the work has >=1 currently-visible point, the
-// zero-basis year isn't below the active window's start, and the
-// zero-basis date is strictly before the first visible point (the
-// degenerate-guard, avoiding a zero-width/backwards segment).
+// zero-basis MONTH isn't below the active window's start (docs/plans/date-
+// range-slider-month-granularity.md D3 - `effectiveRange` is now always
+// set, so the old null guard is dropped), and the zero-basis date is
+// strictly before the first visible point (the degenerate-guard, avoiding a
+// zero-width/backwards segment).
 function computeLeadIn(
   work: PerWorkSeries,
   earliestPostYear: number | null,
   visiblePoints: PerWorkPoint[],
-  effectiveRange: YearWindow | null,
+  effectiveRange: MonthWindow,
 ): SeriesLeadIn | undefined {
   if (visiblePoints.length === 0) return undefined;
 
   const zeroBasisDate = zeroBasisDateFor(work, earliestPostYear);
   if (zeroBasisDate === null) return undefined;
-  if (effectiveRange !== null && yearOf(zeroBasisDate) < effectiveRange.start) return undefined;
+  if (monthIndexOf(zeroBasisDate) < effectiveRange.start) return undefined;
 
   const firstVisiblePoint = visiblePoints[0];
   if (zeroBasisDate >= firstVisiblePoint.capturedOn) return undefined;
@@ -216,10 +219,27 @@ export function WorkComparisonSection({
     setRangeInStore(username, null);
   }
 
-  const currentYear = new Date().getFullYear();
+  const now = new Date();
+  const currentYear = now.getFullYear();
   const earliestUnionYear = unionDates.length > 0 ? yearOf(unionDates[0]) : currentYear;
   const domainStart = Math.min(earliestPostYear ?? earliestUnionYear, currentYear);
-  const domain: YearWindow = { start: domainStart, end: currentYear };
+  // Domain floor is January of the earliest post/union year (so the user
+  // can always drag start down into any lead-in month within that year);
+  // ceiling is the current month (docs/plans/date-range-slider-month-
+  // granularity.md D1/§3).
+  const domain: MonthWindow = {
+    start: toMonthIndex(domainStart, 1),
+    end: toMonthIndex(now.getUTCFullYear(), now.getUTCMonth() + 1),
+  };
+
+  // The LOCKED default (D2): earliest..latest REAL captured month, derived
+  // straight from the existing union-dates logic (synthetic lead-in dates
+  // never enter unionDates). Falls back to `domain` when there are no union
+  // dates (slider disabled anyway).
+  const defaultWindow: MonthWindow =
+    unionDates.length > 0
+      ? { start: monthIndexOf(unionDates[0]), end: monthIndexOf(unionDates[unionDates.length - 1]) }
+      : domain;
 
   // Range state invariants (plan's Error states): re-clamp `range` against
   // the *live* `domain` at derivation time, not just against the
@@ -228,17 +248,18 @@ export function WorkComparisonSection({
   // date range) while staying above the >2 gate, so the gate-drop reset
   // below never fires for it - `range` alone can't be trusted raw here. If
   // the stored window no longer overlaps the domain at all, treat it as
-  // fully stale and fall back to the full domain rather than collapsing it
-  // to a degenerate single-point clamp; otherwise preserve the overlapping
-  // portion of the user's chosen window.
-  const effectiveRange: YearWindow | null =
+  // fully stale and fall back to `defaultWindow` (D2) rather than collapsing
+  // it to a degenerate single-point clamp; otherwise preserve the
+  // overlapping portion of the user's chosen window. `effectiveRange` is
+  // NEVER null now - the default window's own edges already bracket every
+  // real point, so filtering can always apply unconditionally while
+  // `computeLeadIn`'s start-gate hides the lead-in by default.
+  const effectiveRange: MonthWindow =
     rawRange === null || rawRange.end < domain.start || rawRange.start > domain.end
-      ? null
+      ? defaultWindow
       : clampWindow(rawRange, domain);
 
-  const sliderValue: [number, number] = effectiveRange
-    ? [effectiveRange.start, effectiveRange.end]
-    : [domain.start, domain.end];
+  const sliderValue: [number, number] = [effectiveRange.start, effectiveRange.end];
 
   function handleRangeChange(nextValue: [number, number]) {
     setRangeInStore(username, clampWindow({ start: nextValue[0], end: nextValue[1] }, domain));
@@ -257,9 +278,7 @@ export function WorkComparisonSection({
     applyLeadIn: boolean,
   ): SeriesDatum[] {
     return orderedSelectedWorks.map((work) => {
-      const visiblePoints = effectiveRange
-        ? filterPointsInWindow(work.points, effectiveRange)
-        : work.points;
+      const visiblePoints = filterPointsInWindow(work.points, effectiveRange);
       const points = visiblePoints
         .map((point) => ({ capturedOn: point.capturedOn, value: valueOf(point) }))
         .filter((point): point is { capturedOn: string; value: number } => point.value !== null);
@@ -284,9 +303,7 @@ export function WorkComparisonSection({
   // work's chart shows only its Total line, never empty Public/Private
   // legend entries (plan §4.3).
   function buildWorkTypeSeries(work: PerWorkSeries): SeriesDatum[] {
-    const visiblePoints = effectiveRange
-      ? filterPointsInWindow(work.points, effectiveRange)
-      : work.points;
+    const visiblePoints = filterPointsInWindow(work.points, effectiveRange);
     return BOOKMARK_TYPES.map((type, styleIndex) => {
       const points = visiblePoints
         .map((point) => ({ capturedOn: point.capturedOn, value: type.valueOf(point) }))
@@ -300,20 +317,13 @@ export function WorkComparisonSection({
 
   // Reports the currently-active (possibly narrowed) range, not the full
   // unfiltered union span - the summary should describe what the charts
-  // actually show right now (TECH_DEBT.md, 2026-08-03). When no window is
-  // applied (effectiveRange null - slider untouched or not shown),
-  // unionDates' own full span is still the right fallback, matching
-  // pre-narrowing behavior.
-  const summaryRangeStart = effectiveRange
-    ? effectiveRange.start
-    : yearOf(unionDates[0] ?? `${currentYear}-01-01`);
-  const summaryRangeEnd = effectiveRange
-    ? effectiveRange.end
-    : yearOf(unionDates[unionDates.length - 1] ?? `${currentYear}-01-01`);
+  // actually show right now (TECH_DEBT.md, 2026-08-03). `effectiveRange` is
+  // never null, so it's always the source of truth here; formatted as
+  // "MMM YYYY" month/year text rather than raw year numbers (D1/§3).
   const summaryMessage =
     selectedWorkIds.length > 0
       ? `Comparing ${selectedWorkIds.length} work${selectedWorkIds.length === 1 ? "" : "s"}, ` +
-        `${summaryRangeStart} to ${summaryRangeEnd}.`
+        `${formatMonthIndex(effectiveRange.start)} to ${formatMonthIndex(effectiveRange.end)}.`
       : "";
 
   // The Bookmarks tab expands into its own By-Type/By-Work sub-views
