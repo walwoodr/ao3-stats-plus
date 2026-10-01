@@ -1,12 +1,12 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist, type StorageValue } from "zustand/middleware";
 import {
   addWork as pureAddWork,
   deselectAllInFandom as pureDeselectAllInFandom,
   removeWork as pureRemoveWork,
   selectAllInFandom as pureSelectAllInFandom,
+  type MonthWindow,
   type SelectAllInFandomResult,
-  type YearWindow,
 } from "../lib/comparisonSelection";
 
 // Persisted per-username selection/range store (plan §2.1) - moves
@@ -19,7 +19,7 @@ import {
 // duplicated here.
 export interface WorkComparisonSelection {
   selectedWorkIds: number[];
-  range: YearWindow | null;
+  range: MonthWindow | null;
   // Per-work metric toggle persistence (docs/plans/additional-metric-trend-
   // charts.md §3.0) - the selected key from WorkComparisonSection's
   // top-level [Hits|Kudos|Comments|Bookmarks|Subscriptions] tablist. `null`
@@ -32,7 +32,7 @@ interface WorkComparisonState {
   byUsername: Record<string, WorkComparisonSelection>;
 
   getSelection: (username: string) => number[];
-  getRange: (username: string) => YearWindow | null;
+  getRange: (username: string) => MonthWindow | null;
   getSelectedMetric: (username: string) => string | null;
 
   setSelection: (username: string, selectedWorkIds: number[]) => void;
@@ -40,7 +40,7 @@ interface WorkComparisonState {
   removeWork: (username: string, workId: number) => void;
   selectAllInFandom: (username: string, fandomWorkIds: number[]) => SelectAllInFandomResult;
   deselectAllInFandom: (username: string, fandomWorkIds: number[]) => void;
-  setRange: (username: string, range: YearWindow | null) => void;
+  setRange: (username: string, range: MonthWindow | null) => void;
   setSelectedMetric: (username: string, metric: string) => void;
   clearSelection: (username: string) => void;
 }
@@ -60,6 +60,27 @@ const EMPTY_SELECTION: WorkComparisonSelection = {
 function getEntry(byUsername: Record<string, WorkComparisonSelection>, username: string) {
   return byUsername[username] ?? EMPTY_SELECTION;
 }
+
+// Normalizes a missing `version` field to 0 on read. zustand 5.x's persist
+// `migrate` hook only runs when the persisted blob has an explicit NUMERIC
+// `version` field (verified against the installed
+// node_modules/zustand/esm/middleware.mjs) - a blob written before this
+// store ever set a `version` option at all has no version key, so without
+// this wrapper `migrate` would silently never fire for it. Normalizing the
+// missing key to 0 here makes every pre-v1 blob (explicit 0 OR absent)
+// reliably trigger `migrate` below.
+const rawStorage = createJSONStorage<WorkComparisonState>(() => window.localStorage);
+const migratingStorage = {
+  getItem: async (name: string): Promise<StorageValue<WorkComparisonState> | null> => {
+    const value = await rawStorage?.getItem(name);
+    if (value && typeof value === "object" && !("version" in value)) {
+      return { ...value, version: 0 };
+    }
+    return value ?? null;
+  },
+  setItem: (name: string, value: StorageValue<WorkComparisonState>) => rawStorage?.setItem(name, value),
+  removeItem: (name: string) => rawStorage?.removeItem(name),
+};
 
 export const useWorkComparisonStore = create<WorkComparisonState>()(
   persist(
@@ -153,6 +174,35 @@ export const useWorkComparisonStore = create<WorkComparisonState>()(
           },
         })),
     }),
-    { name: "ao3-stats-plus-work-comparison-store" },
+    {
+      name: "ao3-stats-plus-work-comparison-store",
+      storage: migratingStorage,
+      // Persist migration (docs/plans/date-range-slider-month-granularity.md
+      // D2, "Persisted year-range from before this change"): `range` moved
+      // from year semantics to month-index semantics, so a pre-v1 persisted
+      // range would otherwise be silently misread as a month-index window
+      // (a year number like 2018 would decode to a date around year 168).
+      // version bumps from the implicit 0 -> 1; any entry persisted before
+      // this change migrates by nulling its `range` only - ephemeral view
+      // state, safe to drop - leaving selectedWorkIds/selectedMetric intact.
+      version: 1,
+      migrate: (persistedState) => {
+        const state = persistedState as { byUsername?: Record<string, WorkComparisonSelection> };
+        const byUsername = state?.byUsername ?? {};
+        const migratedByUsername = Object.fromEntries(
+          Object.entries(byUsername).map(([username, entry]) => [
+            username,
+            { ...entry, range: null },
+          ]),
+        );
+        // zustand's `merge` step (its default shallow-merge behavior, not
+        // overridden here) layers this result over the freshly-created
+        // store's action functions, so only the persisted DATA shape needs
+        // to be returned here - the `WorkComparisonState` cast reflects
+        // that merge contract rather than claiming this object itself
+        // carries every store method.
+        return { ...state, byUsername: migratedByUsername } as WorkComparisonState;
+      },
+    },
   ),
 );
