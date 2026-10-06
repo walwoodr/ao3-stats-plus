@@ -10,11 +10,17 @@ import type { PerWorkSeries } from "../queries/useStatsForUser";
 // currently selected/visible work has a rendered lead-in, and is hidden
 // entirely when zero lead-ins are currently rendered.
 //
-// docs/plans/date-range-slider-month-granularity.md D2 (LOCKED): the default
-// range is now the real-capture span, which sits at/after every work's own
-// lead-in month - so no lead-in is rendered by default, and the caption is
-// therefore hidden by default too. Every test that wants the caption VISIBLE
-// widens the stored range first via `widenRange`.
+// docs/plans/date-range-slider-month-granularity.md D2 originally meant the
+// default range (the real-capture span) sat at/after every work's own
+// lead-in month, so the (since-removed) computeLeadIn drop-gate hid the
+// caption by default too. Chart-table-polish-batch item 4, OD-2 (docs/
+// plans/chart-table-polish-batch.md §4 item 4, resolved 2026-10-06) removes
+// that drop-gate - the caption now shows whenever a resolvable leadIn
+// exists, independent of window position; "hidden by default" moved
+// entirely to the chart's own visual clipping (windowStartEpoch). Several
+// tests below still call `widenRange` where that's incidental to clearing
+// an unrelated gate (e.g. the >2-union-points reset), not to reveal an
+// otherwise-hidden caption.
 const CAPTION_TEXT = /dashed segments show the period before your first captured stats for a work/i;
 const USERNAME = "testauthor";
 
@@ -56,8 +62,18 @@ beforeEach(() => {
   useWorkComparisonStore.setState({ byUsername: {} });
 });
 
-describe("WorkComparisonSection: visible lead-in caption hidden by default (D2)", () => {
-  it("does not render the caption on first load even when the default single selected work HAS a leadIn (hidden by default, not absent)", () => {
+// Chart-table-polish-batch item 4, OD-2 (docs/plans/chart-table-polish-
+// batch.md §4 item 4, resolved 2026-10-06): INVERTS this describe block,
+// same rationale as WorkComparisonSection.leadIn.test.tsx's identically-
+// named supersession block. The caption's visibility (`hasRenderedLeadIn`)
+// is derived directly from whether any selected work's built series carries
+// a `leadIn` - since OD-2 removes computeLeadIn's window-start drop-gate,
+// the caption is no longer hidden by default either; it shows whenever a
+// resolvable leadIn exists (subject only to the zero-visible-points and
+// degenerate guards), independent of the window. The plan's own §4 item 4
+// "Interaction with the caption" note anticipated exactly this.
+describe("WorkComparisonSection: visible lead-in caption present regardless of window position (OD-2 supersedes D2's prior data-level hiding)", () => {
+  it("renders the caption on first load when the default single selected work has a resolvable leadIn (OD-2: no longer data-level-hidden by default)", () => {
     const works: PerWorkSeries[] = [
       work({
         ao3WorkId: 1,
@@ -78,18 +94,15 @@ describe("WorkComparisonSection: visible lead-in caption hidden by default (D2)"
 
     renderSection({ perWorkSeries: works, earliestPostYear: null });
 
-    expect(screen.queryByText(CAPTION_TEXT)).not.toBeInTheDocument();
+    expect(screen.getByText(CAPTION_TEXT)).toBeInTheDocument();
   });
 
-  it("shows the caption once the stored range is widened to include the lead-in month", () => {
+  it("leaves the caption's visibility unchanged by widening the stored range - OD-2 moved that effect to the chart's visual clipping, not computeLeadIn", () => {
     // >2 own distinct points (not just 1) so the pre-existing >2-union-
     // points gate stays clear and doesn't reset the just-widened range back
     // to null on the very next render (the plan's own "<=2 distinct union
     // dates -> effectiveRange falls back to defaultWindow" corner case) -
     // see docs/plans/date-range-slider-month-granularity.md's Corner cases.
-    // earliestPostYear is set to the work's own publish year so the domain
-    // floor (Jan of min(earliestPostYear, earliestUnionYear)) actually
-    // reaches down to the lead-in month being widened to.
     const works: PerWorkSeries[] = [
       work({
         ao3WorkId: 1,
@@ -125,7 +138,7 @@ describe("WorkComparisonSection: visible lead-in caption hidden by default (D2)"
     ];
 
     const { rerender } = renderSection({ perWorkSeries: works, earliestPostYear: 2020 });
-    expect(screen.queryByText(CAPTION_TEXT)).not.toBeInTheDocument();
+    expect(screen.getByText(CAPTION_TEXT)).toBeInTheDocument();
 
     widenRange();
     rerender(

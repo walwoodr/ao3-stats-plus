@@ -12,16 +12,21 @@ import type { SeriesDatum } from "./charts/MultiSeriesTrendChart";
 // (mocked here to observe exactly what's passed, independent of
 // MultiSeriesTrendChart's own rendering).
 //
-// docs/plans/date-range-slider-month-granularity.md D2 (LOCKED): the default
-// range on first load is now the real-capture span (earliest..latest REAL
-// captured month), which brackets every real point but sits AT OR AFTER
-// every work's own lead-in month - so a lead-in is HIDDEN by default and
-// only appears once the window is explicitly widened below it. Every test
-// below that wants to observe a *rendered* leadIn therefore widens the
-// stored range first via `widenRange` (a direct store write - equivalent in
-// effect to dragging the start thumb down, but avoids looping dozens of
-// month-steps through the keyboard to cross a multi-year span, which
-// DateRangeSlider.test.tsx already covers as its own concern).
+// docs/plans/date-range-slider-month-granularity.md D2 originally gated
+// this at the DATA level: the default range (earliest..latest REAL
+// captured month) sits at/after every work's own lead-in month, so a
+// drop-gate in computeLeadIn hid the leadIn entirely until the window was
+// widened below it. Chart-table-polish-batch item 4, OD-2 (docs/plans/
+// chart-table-polish-batch.md §4 item 4, resolved 2026-10-06) REMOVES that
+// drop-gate: computeLeadIn no longer consults the window at all, so a
+// work's leadIn is now present in the series data regardless of window
+// position (subject only to the zero-visible-points and degenerate
+// guards) - "hidden by default" is now purely a chart-visual effect, via
+// the windowStartEpoch prop clipping it off the left edge (see
+// MultiSeriesTrendChart.windowClipping.test.tsx), never a data-model
+// absence. Several tests below still call `widenRange` where that's
+// incidental to clearing an unrelated gate (e.g. the >2-union-points reset)
+// rather than to reveal an otherwise-hidden leadIn.
 vi.mock("./charts/MultiSeriesTrendChart", () => ({
   MultiSeriesTrendChart: ({ title, series }: { title: string; series: SeriesDatum[] }) => (
     <pre data-testid={`captured-series-${title}`}>
@@ -87,8 +92,21 @@ beforeEach(() => {
   useWorkComparisonStore.setState({ byUsername: {} });
 });
 
-describe("WorkComparisonSection: lead-in hidden by default, shown once widened (D2, LOCKED)", () => {
-  it("hides every selected work's leadIn on first load (default = real-capture span, no persisted range)", async () => {
+// Chart-table-polish-batch item 4, OD-2 (docs/plans/chart-table-polish-
+// batch.md §4 item 4, resolved 2026-10-06): INVERTS this describe block's
+// pre-batch assertions, same as the "guard: date-range slider window vs a
+// work's publish month" block below. The D2-LOCKED premise this block's
+// name/original comment described - a lead-in HIDDEN at the data level by
+// default because the real-capture-span default window sits at/after its
+// month - was exactly the drop-gate OD-2 removes. computeLeadIn no longer
+// takes the window into account at all (only the zero-visible-points and
+// degenerate guards remain), so a work's leadIn is now present in the
+// series data on first load too - "hidden by default" is now purely a
+// CHART-visual effect (windowStartEpoch clipping it off the left edge),
+// never a data-model absence. The plan's own §4 item 4 "Interaction with
+// the caption" note anticipated this exact consequence.
+describe("WorkComparisonSection: lead-in present in series data regardless of window position (OD-2 supersedes D2's prior data-level hiding)", () => {
+  it("keeps every selected work's leadIn present in the series data on first load (default = real-capture span) - hiding is now a chart-visual-only effect", async () => {
     const user = userEvent.setup();
     const works: PerWorkSeries[] = [
       work({
@@ -127,11 +145,19 @@ describe("WorkComparisonSection: lead-in hidden by default, shown once widened (
     await selectWorkViaCombobox(user, "Work Two");
 
     const leadIns = capturedLeadIns();
-    expect(leadIns[1]).toBeNull();
-    expect(leadIns[2]).toBeNull();
+    expect(leadIns[1]).toEqual({
+      capturedOn: "2020-06-01",
+      label: "Published 2020-06-01",
+      isPublishDate: true,
+    });
+    expect(leadIns[2]).toEqual({
+      capturedOn: "2019-01-01",
+      label: "Before 2019 (estimated baseline)",
+      isPublishDate: false,
+    });
   });
 
-  it("shows the leadIn once the stored range is widened to start before the lead-in month", () => {
+  it("leaves the series-data leadIn unchanged by widening the stored range - OD-2 moved that effect to the chart's windowStartEpoch prop, not computeLeadIn", () => {
     // >2 own distinct points (not just 1) so the pre-existing >2-union-
     // points gate stays clear and doesn't reset the just-widened range back
     // to null on the very next render (the plan's own "<=2 distinct union
@@ -170,19 +196,21 @@ describe("WorkComparisonSection: lead-in hidden by default, shown once widened (
       }),
     ];
 
+    const expectedLeadIn = {
+      capturedOn: "2020-06-01",
+      label: "Published 2020-06-01",
+      isPublishDate: true,
+    };
+
     const { rerender } = renderSection({ perWorkSeries: works, earliestPostYear: 2019 });
-    expect(capturedLeadIns()[1]).toBeNull();
+    expect(capturedLeadIns()[1]).toEqual(expectedLeadIn);
 
     widenRange();
     rerender(
       <WorkComparisonSection perWorkSeries={works} earliestPostYear={2019} username={USERNAME} />,
     );
 
-    expect(capturedLeadIns()[1]).toEqual({
-      capturedOn: "2020-06-01",
-      label: "Published 2020-06-01",
-      isPublishDate: true,
-    });
+    expect(capturedLeadIns()[1]).toEqual(expectedLeadIn);
   });
 });
 
