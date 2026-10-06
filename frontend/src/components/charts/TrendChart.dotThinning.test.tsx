@@ -1,7 +1,8 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { TrendChart, type TrendPoint } from "./TrendChart";
 import { maxDotsFor } from "../../lib/chartDotDensity";
+import type { Breakpoint } from "../../lib/useBreakpoint";
 
 // Chart-table-polish-batch item 7 (docs/plans/chart-table-polish-batch.md
 // §4 item 7/§5/§7/§8 T7): above 30 real points, TrendChart thins its
@@ -105,7 +106,14 @@ describe("TrendChart: data-point dot thinning above 30 points (item 7)", () => {
     expect(valueDotCircles(container)).toHaveLength(maxDotsFor("base"));
   });
 
-  it("still renders one dot per point for a <=30-point series (regression fence - no thinning engages)", () => {
+  // Renamed from the original "<=30-point series (regression fence)" title:
+  // 10 points is well under maxDotsFor("base") (14) on its own, so this case
+  // was already passing for a reason unrelated to the plan's >30 engagement
+  // gate (chart-table-polish-batch.md §4 item 7/§5) - it proves nothing
+  // about that gate, only that a small series under ANY breakpoint's max-dots
+  // value is left unthinned. The real gate boundary is covered by the
+  // "explicit >30 engagement gate" describe block below.
+  it("still renders one dot per point for a 10-point series, well under any breakpoint's max-dots value", () => {
     const { container } = render(
       <TrendChart title="Total hits" valueLabel="Hits" points={dailyPoints(10)} />,
     );
@@ -144,4 +152,67 @@ describe("TrendChart: data-point dot thinning above 30 points (item 7)", () => {
       ).toBe(true);
     });
   });
+});
+
+// Mirrors useBreakpoint.test.ts's own matchMedia-mock convention (duplicated
+// here rather than shared, matching this file's existing per-file-duplication
+// convention for installRechartsLayoutPolyfill) - lets a test force the "md"
+// tier instead of relying on jsdom's default (always-non-matching) stub.
+// Query-aware (NOT a blanket "every query matches" stub): useChartColors
+// also calls window.matchMedia, for "(prefers-color-scheme: dark)" - a
+// blanket-true mock would silently flip the chart into dark mode too and
+// break color-keyed dot assertions with an unrelated false failure.
+function installMatchMediaMock(mdMatches: boolean) {
+  const MD_QUERY = "(min-width: 768px)";
+  window.matchMedia = (query: string) =>
+    ({
+      matches: query === MD_QUERY ? mdMatches : false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }) as unknown as MediaQueryList;
+}
+
+// Plan §4 item 7 / §5 corner cases (chart-table-polish-batch.md): "`>30`
+// gate: thinning engages only when `pointCount > 30`." / "Exactly 30 / 31
+// points: ... item 7 gates are strict (`> 30`); 30 shows ... all dots, 31 ...
+// (on base) thins dots. Boundary tests at 30 and 31." The removed-above
+// 10-point case does NOT prove this gate (10 is under maxDotsFor("base")=14
+// for an unrelated reason) - these do, because 30 exceeds maxDotsFor("base")
+// (14) while still being <= the plan's 30-point threshold, so a correct
+// implementation must show all 30 even though a naive
+// `pointCount > maxDots` check (with no reference to 30 at all) would thin
+// it. Expected count is `min(maxDotsFor(bp), pointCount)` once thinning
+// actually engages (pointCount > 30) - not a blind "fewer than pointCount"
+// assumption - because on "md" (maxDots 35) a 31-point series is still under
+// maxDots and must show all 31.
+describe("TrendChart: item 7's explicit >30 engagement gate (boundary tests at 30 and 31 points)", () => {
+  installRechartsLayoutPolyfill();
+
+  afterEach(() => {
+    delete (window as { matchMedia?: typeof window.matchMedia }).matchMedia;
+  });
+
+  function expectedDotCount(pointCount: number, breakpoint: Breakpoint): number {
+    const maxDots = maxDotsFor(breakpoint);
+    return pointCount <= 30 ? pointCount : Math.min(maxDots, pointCount);
+  }
+
+  it.each<[Breakpoint, number]>([
+    ["base", 30],
+    ["base", 31],
+    ["md", 30],
+    ["md", 31],
+  ])(
+    "renders %s expected dots for a %i-point series (the >30 gate, not breakpoint max-dots alone, decides whether thinning engages)",
+    (breakpoint, pointCount) => {
+      installMatchMediaMock(breakpoint === "md");
+
+      const { container } = render(
+        <TrendChart title="Total hits" valueLabel="Hits" points={dailyPoints(pointCount)} />,
+      );
+
+      expect(valueDotCircles(container)).toHaveLength(expectedDotCount(pointCount, breakpoint));
+    },
+  );
 });

@@ -1,7 +1,8 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { RatioChart, type RatioPoint } from "./RatioChart";
 import { maxDotsFor } from "../../lib/chartDotDensity";
+import type { Breakpoint } from "../../lib/useBreakpoint";
 
 // Chart-table-polish-batch item 7 (docs/plans/chart-table-polish-batch.md
 // §4 item 7/§5/§7/§8 T7): RatioChart gets the same data-point dot thinning
@@ -97,7 +98,12 @@ describe("RatioChart: data-point dot thinning above 30 points (item 7)", () => {
     expect(ratioDotCircles(container)).toHaveLength(maxDotsFor("base"));
   });
 
-  it("still renders one dot per point for a <=30-point series (regression fence - no thinning engages)", () => {
+  // Renamed from the original "<=30-point series (regression fence)" title -
+  // see TrendChart.dotThinning.test.tsx's identical comment: 10 points is
+  // well under maxDotsFor("base") (14) on its own, so this proves nothing
+  // about the plan's >30 engagement gate - see the "explicit >30 engagement
+  // gate" describe block below for the real boundary.
+  it("still renders one dot per point for a 10-point series, well under any breakpoint's max-dots value", () => {
     const { container } = render(
       <RatioChart title="Kudos-to-hits ratio" points={dailyPoints(10)} />,
     );
@@ -126,4 +132,54 @@ describe("RatioChart: data-point dot thinning above 30 points (item 7)", () => {
       ).toBe(true);
     });
   });
+});
+
+// See TrendChart.dotThinning.test.tsx's identical matchMedia-mock helper -
+// duplicated here per this file's own existing per-file-duplication
+// convention. Query-aware (not a blanket "every query matches" stub) so it
+// doesn't also flip useChartColors' dark-mode query.
+function installMatchMediaMock(mdMatches: boolean) {
+  const MD_QUERY = "(min-width: 768px)";
+  window.matchMedia = (query: string) =>
+    ({
+      matches: query === MD_QUERY ? mdMatches : false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }) as unknown as MediaQueryList;
+}
+
+// Plan §4 item 7 / §5 corner cases - see TrendChart.dotThinning.test.tsx's
+// identical top-of-block comment for the full rationale. Expected count is
+// `min(maxDotsFor(bp), pointCount)` once thinning actually engages
+// (pointCount > 30), not a blind "fewer than pointCount" assumption.
+describe("RatioChart: item 7's explicit >30 engagement gate (boundary tests at 30 and 31 points)", () => {
+  installRechartsLayoutPolyfill();
+
+  afterEach(() => {
+    delete (window as { matchMedia?: typeof window.matchMedia }).matchMedia;
+  });
+
+  function expectedDotCount(pointCount: number, breakpoint: Breakpoint): number {
+    const maxDots = maxDotsFor(breakpoint);
+    return pointCount <= 30 ? pointCount : Math.min(maxDots, pointCount);
+  }
+
+  it.each<[Breakpoint, number]>([
+    ["base", 30],
+    ["base", 31],
+    ["md", 30],
+    ["md", 31],
+  ])(
+    "renders %s expected dots for a %i-point series (the >30 gate, not breakpoint max-dots alone, decides whether thinning engages)",
+    (breakpoint, pointCount) => {
+      installMatchMediaMock(breakpoint === "md");
+
+      const { container } = render(
+        <RatioChart title="Kudos-to-hits ratio" points={dailyPoints(pointCount)} />,
+      );
+
+      expect(ratioDotCircles(container)).toHaveLength(expectedDotCount(pointCount, breakpoint));
+    },
+  );
 });
