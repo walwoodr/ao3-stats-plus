@@ -414,3 +414,21 @@
      batch.
   Needs a dedicated Maintenance pass to reproduce and fix both outstanding
   causes so CI is actually green again, not just locally-green.
+
+- [2026-10-06] (stage: Implementation) 4 of the `accessibility.spec.ts`
+  e2e failures (on top of the already-tracked webkit color-contrast and
+  CI-wide 42-test entries above) are confirmed pre-existing - reproduced
+  identically against the chart-table-polish-batch plan's own
+  pre-Implementation commit (`a3140dd`), in an isolated worktree, so none
+  are caused by this batch: (1) "keyboard walkthrough ... operate both
+  slider thumbs" times out focusing `role=slider name=/range start/` on
+  all 3 browsers; (2) "the comparison view with multiple works selected
+  ... has no detectable a11y violations" (light + dark) can't find that
+  same slider after selecting a second work, on all 3 browsers; (3) "the
+  populated dashboard's 3-tier date header ..." can't find an expected
+  "Before 2025 (estimated baseline)" column header in the Total Hits
+  table, on all 3 browsers. All three look related (something about this
+  environment's mock/fixture data not producing the >2-union-point
+  condition `shouldShowRangeSlider`/account-level leadIn eligibility
+  expects) rather than three independent bugs - worth a single root-cause
+  pass rather than three.
