@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import {
+  DENSE_WINDOWED_STATS_RESPONSE,
   mockStatsForUser,
   MULTI_WORK_STATS_RESPONSE,
   POPULATED_STATS_RESPONSE,
@@ -272,6 +273,35 @@ test.describe("accessibility - automated axe scans", () => {
     expect(results.violations).toEqual([]);
   });
 
+  // Chart-table-polish-batch (docs/plans/chart-table-polish-batch.md §7's
+  // "Regression gate", §8 T8): items 4/5/7 together, on the real mounted
+  // dashboard surfaces - a >30-point aggregate history (day-tick
+  // suppression + dot thinning) and a per-work comparison chart whose
+  // publish-date lead-in renders clipped at the left edge by default (item
+  // 4, OD-2 - no slider drag needed, see DENSE_WINDOWED_STATS_RESPONSE's
+  // own comment). Regression fence, not red-today: confirmed by running
+  // this spec - today's pre-batch rendering (every day-of-month tick shown,
+  // one dot per point, the leadIn hidden outright rather than clipped) is
+  // already axe-clean, since axe flags WCAG rule violations, not "this
+  // specific polish item hasn't landed." Earns its place by catching a
+  // contrast/ARIA/landmark regression the denser post-Implementation
+  // rendering (more ticks suppressed, dots clipped near the plot edge,
+  // etc.) could introduce - the genuinely red-today proof that items 4/5/7
+  // themselves exist lives in the component/unit tests above (e.g.
+  // TrendChart.dayTickSuppression.test.tsx, MultiSeriesTrendChart.
+  // windowClipping.test.tsx, *.dotThinning.test.tsx).
+  test("the dense (>30-point), windowed-clip comparison dashboard has no detectable a11y violations", async ({
+    page,
+  }) => {
+    await mockStatsForUser(page, DENSE_WINDOWED_STATS_RESPONSE);
+    await page.goto("/u/testauthor?token=tok_valid123");
+    await expect(page.getByRole("img", { name: /total hits/i })).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).analyze();
+
+    expect(results.violations).toEqual([]);
+  });
+
   test("the token-mismatch error state has no detectable a11y violations", async ({ page }) => {
     await mockStatsForUser(page, TOKEN_MISMATCH_RESPONSE);
     await page.goto("/u/testauthor?token=tok_wrong");
@@ -492,6 +522,20 @@ test.describe("accessibility - automated axe scans (dark mode)", () => {
       "aria-disabled",
       "true",
     );
+
+    const results = await new AxeBuilder({ page }).analyze();
+
+    expect(results.violations).toEqual([]);
+  });
+
+  // Dark-mode counterpart of the light-mode dense/windowed-clip scan above -
+  // see that test's identical comment for the full items 4/5/7 rationale.
+  test("the dense (>30-point), windowed-clip comparison dashboard has no detectable a11y violations in dark mode", async ({
+    page,
+  }) => {
+    await mockStatsForUser(page, DENSE_WINDOWED_STATS_RESPONSE);
+    await page.goto("/u/testauthor?token=tok_valid123");
+    await expect(page.getByRole("img", { name: /total hits/i })).toBeVisible();
 
     const results = await new AxeBuilder({ page }).analyze();
 

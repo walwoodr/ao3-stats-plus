@@ -139,6 +139,42 @@ export const DateHierarchyHardCase: Story = {
   },
 };
 
+// Chart-table-polish-batch items 2/3/5/6/7 (docs/plans/chart-table-polish-
+// batch.md §8 T8): a dense (>30-point), large-magnitude history feeds the
+// addon-a11y automated axe scan against the batch's combined new states -
+// whole-number Y ticks, the taller 75vh wrapper, suppressed day-of-month
+// x-ticks, no axis-tick marker, and thinned on-line dots - all at once, on
+// the same fixture, the way a real long-history account would actually
+// look. Red today: day-of-month ticks aren't suppressed and dots aren't
+// thinned yet.
+function dailyPoints(count: number, startValue: number) {
+  return Array.from({ length: count }, (_, i) => {
+    const date = new Date(Date.UTC(2026, 0, 1 + i));
+    return { capturedOn: date.toISOString().slice(0, 10), value: startValue + i * 37 };
+  });
+}
+
+export const DenseHistoryAboveThirtyPoints: Story = {
+  args: {
+    title: "Total hits",
+    valueLabel: "Hits",
+    points: dailyPoints(45, 130536),
+  },
+  play: async ({ canvasElement }) => {
+    const dayTickTexts = Array.from(
+      canvasElement.querySelectorAll(".recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value"),
+    ).map((el) => el.textContent ?? "");
+    await expect(dayTickTexts.every((text) => text === "")).toBe(true);
+
+    const dotCircles = canvasElement.querySelectorAll('.recharts-line-dots circle[r="3.5"]');
+    await expect(dotCircles.length).toBeLessThan(45);
+
+    await expect(canvasElement.querySelectorAll(".recharts-xAxis-tick-labels circle")).toHaveLength(
+      0,
+    );
+  },
+};
+
 // Review batch regression (2026-09-27, Finding 1): the DateHierarchyHardCase
 // story above happened to have well-separated year-label pixel positions for
 // its specific data shape - that green Preview was never evidence this class

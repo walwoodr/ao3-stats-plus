@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
 import { MultiSeriesTrendChart } from "./MultiSeriesTrendChart";
+import { toEpoch } from "../../lib/chartTimeAxis";
 
 // Storybook coverage feeds the addon-a11y automated axe scan across
 // multi-series, ragged-history, single-series, and 0-series empty states -
@@ -195,6 +196,79 @@ export const HighlightedColumnState: Story = {
     await expect(
       canvasElement.querySelector('[data-testid="active-point-guide-line"]'),
     ).not.toBeNull();
+  },
+};
+
+// Chart-table-polish-batch items 3/5/6/7 (docs/plans/chart-table-polish-
+// batch.md §8 T8) - mirrors TrendChart.stories.tsx's identical
+// DenseHistoryAboveThirtyPoints rationale, on this chart's own (per-series)
+// point-count/dot-rendering shape.
+function denseDailyPoints(count: number, startValue: number) {
+  return Array.from({ length: count }, (_, i) => {
+    const date = new Date(Date.UTC(2026, 0, 1 + i));
+    return { capturedOn: date.toISOString().slice(0, 10), value: startValue + i * 3 };
+  });
+}
+
+export const DenseHistoryAboveThirtyPoints: Story = {
+  args: {
+    title: "Hits",
+    valueLabel: "Hits",
+    series: [
+      {
+        workId: 1,
+        title: "The Long Way Home",
+        styleIndex: 0,
+        points: denseDailyPoints(45, 100),
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const dayTickTexts = Array.from(
+      canvasElement.querySelectorAll(".recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value"),
+    ).map((el) => el.textContent ?? "");
+    await expect(dayTickTexts.every((text) => text === "")).toBe(true);
+
+    const dotCircles = canvasElement.querySelectorAll('.recharts-line-dots circle[r="4"]');
+    await expect(dotCircles.length).toBeLessThan(45);
+
+    await expect(canvasElement.querySelectorAll(".recharts-xAxis-tick-labels circle")).toHaveLength(
+      0,
+    );
+  },
+};
+
+// Chart-table-polish-batch item 4, OD-2a = Option B (docs/plans/chart-
+// table-polish-batch.md §4 item 4, §8 T8): feeds the addon-a11y scan
+// against the windowed-clip state - a work whose publish-date baseline
+// (2014) falls before the (new) windowStartEpoch prop, so the dashed
+// lead-in is clipped at the plot's left edge instead of rendering its dot/
+// label. Red today: windowStartEpoch isn't wired to anything (no prop on
+// MultiSeriesTrendChartProps yet), so the baseline renders unclipped,
+// exactly at today's domain-minimum left edge.
+export const WindowedClipComparison: Story = {
+  args: {
+    title: "Hits",
+    valueLabel: "Hits",
+    series: [
+      {
+        workId: 1,
+        title: "The Long Way Home",
+        styleIndex: 0,
+        points: [
+          { capturedOn: "2026-01-15", value: 700 },
+          { capturedOn: "2026-02-05", value: 721 },
+        ],
+        leadIn: {
+          capturedOn: "2014-09-06",
+          label: "Published 2014-09-06",
+          isPublishDate: true,
+        },
+      },
+    ],
+    // Window starts well after the 2014 publish date - clips the baseline
+    // off the left edge per OD-2a's Option B framing.
+    windowStartEpoch: toEpoch("2026-01-01"),
   },
 };
 

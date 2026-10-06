@@ -68,6 +68,37 @@ export const RegularHistoryWithLeadIn: Story = {
 // TrendChart.stories.tsx's HighlightedColumnState: feeds the addon-a11y
 // scan against the table->chart sync's highlighted-column state (D-B).
 // Red today: RatioChart has no column headers or ActivePointOverlay yet.
+// Chart-table-polish-batch items 3/5/6/7 (docs/plans/chart-table-polish-
+// batch.md §8 T8) - mirrors TrendChart.stories.tsx's identical
+// DenseHistoryAboveThirtyPoints rationale. Item 2 is deliberately excluded
+// here (OD-1: RatioChart keeps decimal Y ticks).
+function dailyRatioPoints(count: number) {
+  return Array.from({ length: count }, (_, i) => {
+    const date = new Date(Date.UTC(2026, 0, 1 + i));
+    return { capturedOn: date.toISOString().slice(0, 10), ratio: 0.01 + i * 0.002 };
+  });
+}
+
+export const DenseHistoryAboveThirtyPoints: Story = {
+  args: {
+    title: "Kudos-to-hits ratio",
+    points: dailyRatioPoints(45),
+  },
+  play: async ({ canvasElement }) => {
+    const dayTickTexts = Array.from(
+      canvasElement.querySelectorAll(".recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value"),
+    ).map((el) => el.textContent ?? "");
+    await expect(dayTickTexts.every((text) => text === "")).toBe(true);
+
+    const dotCircles = canvasElement.querySelectorAll('.recharts-line-dots circle[r="3.5"]');
+    await expect(dotCircles.length).toBeLessThan(45);
+
+    await expect(canvasElement.querySelectorAll(".recharts-xAxis-tick-labels circle")).toHaveLength(
+      0,
+    );
+  },
+};
+
 export const HighlightedColumnState: Story = {
   args: {
     title: "Kudos-to-hits ratio",

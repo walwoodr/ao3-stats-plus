@@ -83,6 +83,63 @@ export const POPULATED_STATS_RESPONSE = {
   },
 };
 
+// Chart-table-polish-batch (docs/plans/chart-table-polish-batch.md §7/§8
+// T8): a single fixture exercising items 4/5/7 together on the real,
+// mounted dashboard surfaces (TrendChart's aggregate series, and the
+// per-work MultiSeriesTrendChart) - a >30-point daily aggregate history
+// (items 5/7: day-tick suppression + dot thinning), and a per-work series
+// whose publish date (2020) sits well before its own >30-point capture
+// history, so its lead-in renders clipped at the chart's left edge by
+// DEFAULT once the drop-gate is removed (item 4, OD-2) - the locked D2
+// default window (earliest..latest REAL captured month) starts AT the
+// first real capture, which is always after a genuine publish-date
+// baseline, so no slider interaction is needed to reach the clipped state.
+function denseDailyAggregatePoints(count: number) {
+  return Array.from({ length: count }, (_, i) => {
+    const date = new Date(Date.UTC(2026, 0, 1 + i));
+    return {
+      capturedOn: date.toISOString().slice(0, 10),
+      totalHits: 100 + i * 37,
+      totalKudos: 10 + i * 3,
+      kudosToHitsRatio: 0.1 + i * 0.001,
+      totalUserSubscriptions: 5 + i,
+    };
+  });
+}
+
+function denseDailyWorkPoints(count: number) {
+  return Array.from({ length: count }, (_, i) => {
+    const date = new Date(Date.UTC(2026, 0, 1 + i));
+    return {
+      capturedOn: date.toISOString().slice(0, 10),
+      hits: 50 + i * 11,
+      kudos: 5 + i,
+      comments: i,
+      bookmarks: i,
+      subscriptions: i,
+    };
+  });
+}
+
+export const DENSE_WINDOWED_STATS_RESPONSE = {
+  data: {
+    statsForUser: {
+      kudosToHitsRatio: 0.15,
+      aggregateSeries: denseDailyAggregatePoints(35),
+      perWorkSeries: [
+        {
+          ao3WorkId: 301,
+          title: "Dense Clipped Work",
+          fandoms: "Fandom One",
+          publishedOn: "2020-01-01",
+          points: denseDailyWorkPoints(35),
+        },
+      ],
+      earliestPostYear: 2019,
+    },
+  },
+};
+
 export const TOKEN_MISMATCH_RESPONSE = {
   errors: [{ message: "That token does not match this username." }],
 };
