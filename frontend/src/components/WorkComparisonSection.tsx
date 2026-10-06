@@ -7,7 +7,7 @@ import {
   unionCapturedOnDates,
   type MonthWindow,
 } from "../lib/comparisonSelection";
-import { formatMonthIndex, monthIndexOf, toMonthIndex } from "../lib/monthIndex";
+import { formatMonthIndex, fromMonthIndex, monthIndexOf, toMonthIndex } from "../lib/monthIndex";
 import { assignStyleSlot, releaseStyleSlot } from "../lib/seriesStyles";
 import { BOOKMARK_TYPES, PER_WORK_METRICS, PER_WORK_METRIC_TABS } from "../lib/perWorkMetrics";
 import { useWorkComparisonStore } from "../store/useWorkComparisonStore";
@@ -108,6 +108,20 @@ function computeLeadIn(
     label: zeroBasisLabelFor(work, zeroBasisDate, earliestPostYear),
     isPublishDate: isAccuratePublishDate(work, zeroBasisDate),
   };
+}
+
+// Chart-table-polish-batch item 4, OD-2a = Option B (docs/plans/chart-
+// table-polish-batch.md §4 item 4, §6): converts the active window's start
+// month-index into the epoch MultiSeriesTrendChart's `windowStartEpoch`
+// prop expects - `fromMonthIndex` -> `Date.UTC` at day 1 of that month.
+// Degrades to `undefined` (never throws) for a non-finite month index, so
+// the chart falls back to its own data-derived domain minimum rather than
+// rendering blank (§6's documented fallback contract).
+function windowStartEpochFor(effectiveRange: MonthWindow): number | undefined {
+  if (!Number.isFinite(effectiveRange.start)) return undefined;
+  const { year, month } = fromMonthIndex(effectiveRange.start);
+  const epoch = Date.UTC(year, month - 1, 1);
+  return Number.isFinite(epoch) ? epoch : undefined;
 }
 
 // Filters a persisted/restored selection down to ids that still exist in
@@ -363,6 +377,7 @@ export function WorkComparisonSection({
   // than recomputing it separately" instruction.
   const currentSeries = currentMetric ? buildSeries(currentMetric.valueOf, true) : [];
   const hasRenderedLeadIn = currentSeries.some((s) => s.leadIn !== undefined);
+  const windowStartEpoch = windowStartEpochFor(effectiveRange);
 
   return (
     <div className="mt-10 flex flex-col gap-6">
@@ -420,6 +435,7 @@ export function WorkComparisonSection({
                 title={currentMetric.label}
                 valueLabel={currentMetric.label}
                 series={currentSeries}
+                windowStartEpoch={windowStartEpoch}
               />
             )}
             {hasRenderedLeadIn && (
