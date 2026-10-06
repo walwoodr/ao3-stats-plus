@@ -297,10 +297,15 @@ describe("WorkComparisonSection: visible lead-in caption (widened range)", () =>
     expect(screen.queryByText(CAPTION_TEXT)).not.toBeInTheDocument();
   });
 
-  // Corner case §4: zooming the slider past every currently selected work's
-  // publish month drops every leadIn as a display-window consequence - the
-  // caption must follow suit and disappear.
-  it("hides the caption once the slider window is narrowed past every selected work's publish month", () => {
+  // Chart-table-polish-batch item 4, OD-2 (docs/plans/chart-table-polish-
+  // batch.md §4 item 4, resolved 2026-10-06): INVERTS this test's pre-batch
+  // assertion. Zooming the slider past a work's publish month used to drop
+  // its leadIn entirely (the deliberate pre-batch drop-gate) and hide the
+  // caption with it - OD-2 reverses that: the leadIn now stays in the data
+  // (clipped visually at the chart's left edge instead, per OD-2a = Option
+  // B), so `hasRenderedLeadIn`/the caption must stay TRUE here, per the
+  // plan's own §4 "Interaction with the caption" note.
+  it("keeps the caption visible once the slider window is narrowed past every selected work's publish month (OD-2: the leadIn is clipped, not dropped)", () => {
     const works: PerWorkSeries[] = [
       work({
         ao3WorkId: 1,
@@ -340,7 +345,7 @@ describe("WorkComparisonSection: visible lead-in caption (widened range)", () =>
     renderSection({ perWorkSeries: works, earliestPostYear: null });
 
     expect(screen.getByText(/^Jan 2019\s*[–-]/)).toBeInTheDocument();
-    expect(screen.queryByText(CAPTION_TEXT)).not.toBeInTheDocument();
+    expect(screen.getByText(CAPTION_TEXT)).toBeInTheDocument();
   });
 
   it("renders the caption exactly once, not once per chart (Hits + Kudos)", () => {

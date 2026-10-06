@@ -607,7 +607,17 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
       expect(leadIns[2]).not.toBeNull();
     });
 
-    it("drops a work's leadIn once the slider's narrowed start passes its publish month, while a later-published work's leadIn remains", async () => {
+    // Chart-table-polish-batch item 4, OD-2 (docs/plans/chart-table-polish-
+    // batch.md §4 item 4, resolved 2026-10-06): INVERTS this test's
+    // pre-batch assertion. The prior "drops a work's leadIn once the
+    // slider's narrowed start passes its publish month" behavior was the
+    // deliberate drop-gate decision from per-work-zero-basis-dates.md/
+    // date-range-slider-month-granularity.md - OD-2 explicitly reverses it:
+    // a baseline earlier than the window start now STAYS in the data (the
+    // chart clips it visually via windowStartEpoch, per OD-2a = Option B;
+    // see MultiSeriesTrendChart.windowClipping.test.tsx), so computeLeadIn
+    // must no longer return undefined for this case.
+    it("keeps a work's leadIn once the slider's narrowed start passes its publish month (OD-2: drop-gate removed, chart clips it visually instead)", async () => {
       const user = userEvent.setup();
       // Start narrowed to March 2019: past Work Early's Jan 2010 publish
       // month, not past Work Late's March 2019 one (inclusive boundary).
@@ -620,11 +630,16 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
       expect(screen.getByText(/^Mar 2019\s*[–-]/)).toBeInTheDocument();
 
       const leadIns = capturedLeadIns();
-      expect(leadIns[1]).toBeNull();
+      expect(leadIns[1]).not.toBeNull();
       expect(leadIns[2]).not.toBeNull();
     });
 
-    it("omits a work's leadIn once the narrowed window filters out all of its own visible points, independent of the month gate", async () => {
+    // OD-2 (see the "keeps a work's leadIn..." test above for the full
+    // rationale): the start-month gate this test's title/comments
+    // originally isolated against no longer exists, so Work Early's leadIn
+    // is no longer expected to be null here either - only the "zero
+    // visible points" guard (Work Vanishes) still suppresses a leadIn.
+    it("omits a work's leadIn only when the narrowed window filters out all of its own visible points - the month-start gate is gone (OD-2)", async () => {
       const user = userEvent.setup();
       const VANISHES: PerWorkSeries = work({
         ao3WorkId: 3,
@@ -661,7 +676,7 @@ describe("WorkComparisonSection: per-work zero-basis leadIn derivation (widened 
       await selectWorkViaCombobox(user, "Work Vanishes");
 
       const leadIns = capturedLeadIns();
-      expect(leadIns[1]).toBeNull(); // Work Early: dropped by the start-month gate
+      expect(leadIns[1]).not.toBeNull(); // Work Early: OD-2 - no longer dropped by a start-month gate
       expect(leadIns[2]).not.toBeNull(); // Work Late: the positive control - still present
       expect(leadIns[3]).toBeNull(); // Work Vanishes: zero visible points after filtering
     });
