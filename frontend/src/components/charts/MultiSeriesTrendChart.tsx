@@ -2,6 +2,12 @@ import { useId, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import type { MouseHandlerDataParam } from "recharts";
 import { useChartColors } from "../../lib/useChartColors";
+import { useBreakpoint } from "../../lib/useBreakpoint";
+import {
+  maxDotsFor,
+  selectVisibleDotIndices,
+  type VisibleDotIndices,
+} from "../../lib/chartDotDensity";
 import { formatNumber } from "../../lib/formatNumber";
 import { SERIES_STYLE_SLOTS } from "../../lib/seriesStyles";
 import { buildMultiSeriesTableModel } from "../../lib/syncedTableModel";
@@ -89,6 +95,7 @@ export function MultiSeriesTrendChart({
 }: MultiSeriesTrendChartProps) {
   const headingId = useId();
   const colors = useChartColors();
+  const breakpoint = useBreakpoint();
   const [activeDateKey, setActiveDateKey] = useState<string | null>(null);
   const [pinnedDateKey, setPinnedDateKey] = useState<string | null>(null);
   const [orientation, setOrientation] = useState<Orientation>("datesAsColumns");
@@ -103,6 +110,26 @@ export function MultiSeriesTrendChart({
   }
 
   const { rows: chartData, zeroBasisLabels } = buildChartData(series);
+
+  // Item 7 (chart-table-polish-batch.md §4 item 7): each series' dot
+  // thinning is keyed off its OWN point count (distinct real capture dates
+  // for that work), not the shared chart-wide row count - a sparse work
+  // keeps every dot even on a chart dense with other works' points.
+  // Own-rank visibility (selectVisibleDotIndices, in terms of this
+  // series' own point sequence 0..N-1) is computed first, then mapped
+  // back to the actual chartData row indices Recharts' dot callback
+  // receives - a work's real points don't necessarily occupy every row
+  // (other works'/zero-basis slots interleave).
+  const maxDots = maxDotsFor(breakpoint);
+  function visibleRowIndicesFor(workId: number): VisibleDotIndices {
+    const ownRowIndices: number[] = [];
+    chartData.forEach((row, rowIndex) => {
+      if (typeof row[workKey(workId)] === "number") ownRowIndices.push(rowIndex);
+    });
+    const ownVisible = selectVisibleDotIndices(ownRowIndices.length, maxDots);
+    if (ownVisible === "all") return "all";
+    return new Set([...ownVisible].map((ownIndex) => ownRowIndices[ownIndex]));
+  }
 
   function isLeadInTick(xEpoch: number): boolean {
     const row = chartData.find((r) => r.xEpoch === xEpoch);
@@ -299,7 +326,12 @@ export function MultiSeriesTrendChart({
                         activeDot={false}
                         stroke={color}
                         strokeWidth={2}
-                        dot={createSeriesDot({ dataKey: key, shape: slot.shape, color })}
+                        dot={createSeriesDot({
+                          dataKey: key,
+                          shape: slot.shape,
+                          color,
+                          visibleIndices: visibleRowIndicesFor(s.workId),
+                        })}
                       />
                     );
                   })}

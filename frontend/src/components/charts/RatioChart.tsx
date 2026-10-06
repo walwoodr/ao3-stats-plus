@@ -2,6 +2,8 @@ import { useId, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import type { MouseHandlerDataParam } from "recharts";
 import { useChartColors } from "../../lib/useChartColors";
+import { useBreakpoint } from "../../lib/useBreakpoint";
+import { maxDotsFor, selectVisibleDotIndices } from "../../lib/chartDotDensity";
 import { formatNumber } from "../../lib/formatNumber";
 import { buildRatioTableModel } from "../../lib/syncedTableModel";
 import {
@@ -74,9 +76,14 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
   // values, not CSS custom properties, so these are resolved reactively via
   // useChartColors rather than left to the surrounding Tailwind classes.
   const colors = useChartColors();
+  const breakpoint = useBreakpoint();
   const [activeDateKey, setActiveDateKey] = useState<string | null>(null);
   const [pinnedDateKey, setPinnedDateKey] = useState<string | null>(null);
   const [orientation, setOrientation] = useState<Orientation>("datesAsColumns");
+
+  // Item 7 (chart-table-polish-batch.md §4 item 7): see TrendChart's
+  // identical comment - thinning is keyed off the real point count only.
+  const visibleDotIndices = selectVisibleDotIndices(points.length, maxDotsFor(breakpoint));
 
   // Item 4 point 2's two lead-in placement paths - see TrendChart's
   // identical comment for the full rationale.
@@ -289,7 +296,10 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
                       // Null on the synthetic leadIn row for this series - skip it so
                       // only real points get a dot here (the leadIn's own dot is drawn
                       // by the "lead" line below, in accent, not ink).
-                      if (payload?.ratio == null || cx == null || cy == null) {
+                      const realIndex = leadIn ? (index ?? 0) - 1 : (index ?? 0);
+                      const isThinnedOut =
+                        visibleDotIndices !== "all" && !visibleDotIndices.has(realIndex);
+                      if (payload?.ratio == null || cx == null || cy == null || isThinnedOut) {
                         return <g key={`ratio-dot-${index}`} />;
                       }
                       return (

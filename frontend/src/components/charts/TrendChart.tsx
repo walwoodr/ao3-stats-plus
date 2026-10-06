@@ -2,6 +2,8 @@ import { useId, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import type { MouseHandlerDataParam } from "recharts";
 import { useChartColors } from "../../lib/useChartColors";
+import { useBreakpoint } from "../../lib/useBreakpoint";
+import { maxDotsFor, selectVisibleDotIndices } from "../../lib/chartDotDensity";
 import { formatNumber } from "../../lib/formatNumber";
 import { buildTrendTableModel } from "../../lib/syncedTableModel";
 import {
@@ -72,9 +74,17 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
   // via the Tailwind classes the surrounding chrome uses - see
   // src/lib/useChartColors.ts and MASTER.md's Chart Guidance section.
   const colors = useChartColors();
+  const breakpoint = useBreakpoint();
   const [activeDateKey, setActiveDateKey] = useState<string | null>(null);
   const [pinnedDateKey, setPinnedDateKey] = useState<string | null>(null);
   const [orientation, setOrientation] = useState<Orientation>("datesAsColumns");
+
+  // Item 7 (chart-table-polish-batch.md §4 item 7): thinning is keyed off
+  // the real point count only - a leadIn row (when present) always sits at
+  // chartData index 0 ahead of every real point, so a real point's own
+  // 0-based rank among `points` is its chartData `index` minus 1 in that
+  // case, 0 otherwise (see the dot callback below).
+  const visibleDotIndices = selectVisibleDotIndices(points.length, maxDotsFor(breakpoint));
 
   // Item 4 point 2's two lead-in placement paths (§3 item 4): a real point
   // sits at its true epoch; the account-level estimated-baseline lead-in
@@ -302,7 +312,10 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
                       // Null on the synthetic leadIn row for this series - skip it so
                       // only real points get a dot here (the leadIn's own dot is drawn
                       // by the "lead" line below, in accent, not ink).
-                      if (payload?.value == null || cx == null || cy == null) {
+                      const realIndex = leadIn ? (index ?? 0) - 1 : (index ?? 0);
+                      const isThinnedOut =
+                        visibleDotIndices !== "all" && !visibleDotIndices.has(realIndex);
+                      if (payload?.value == null || cx == null || cy == null || isThinnedOut) {
                         return <g key={`value-dot-${index}`} />;
                       }
                       return (
