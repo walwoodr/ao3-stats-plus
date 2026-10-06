@@ -63,10 +63,14 @@ function xAxisTickMarkers(container: HTMLElement): Element[] {
   return Array.from(container.querySelectorAll(".recharts-xAxis-tick-labels circle"));
 }
 
-describe("RatioChart: the lead-in's X-axis tick is a marker, never long text (structural fix, 2026-09-25)", () => {
+// Chart-table-polish-batch item 6 (docs/plans/chart-table-polish-batch.md
+// §4 item 6, §8 T6): INVERTS this file's pre-batch "exactly one marker"
+// assertion - see TrendChart.leadInAxisMarker.test.tsx's identical
+// top-of-file comment for the full rationale.
+describe("RatioChart: no marker is ever drawn on an x-axis tick - the lead-in slot renders bare (item 6)", () => {
   installRechartsSizePolyfill();
 
-  it("renders no axis tick text for the lead-in slot - only real points get date text - and exactly one marker", () => {
+  it("renders no axis tick text AND no marker for the lead-in slot - only real points get date text", () => {
     const points = [
       { capturedOn: "2026-07-30", ratio: 0.5 },
       { capturedOn: "2026-07-31", ratio: 0.6 },
@@ -86,9 +90,8 @@ describe("RatioChart: the lead-in's X-axis tick is a marker, never long text (st
       expect(label).not.toBe("2014");
     });
 
-    const markers = xAxisTickMarkers(container);
-    expect(markers).toHaveLength(1);
-    expect(markers[0].getAttribute("fill")).toBe("#9F1239"); // colors.accent (light mode)
+    // Item 6: zero markers render anywhere, including the lead-in's slot.
+    expect(xAxisTickMarkers(container)).toHaveLength(0);
   });
 
   it("leaves every real point's tick centered - no special-casing beyond the lead-in slot", () => {

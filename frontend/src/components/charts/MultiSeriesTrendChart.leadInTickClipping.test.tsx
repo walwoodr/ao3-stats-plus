@@ -71,10 +71,14 @@ function xAxisTickMarkers(container: HTMLElement): Element[] {
   return Array.from(container.querySelectorAll(".recharts-xAxis-tick-labels circle"));
 }
 
-describe("MultiSeriesTrendChart: the lead-in's X-axis tick is a marker, never the long publish-date label (structural fix, 2026-09-25)", () => {
+// Chart-table-polish-batch item 6 (docs/plans/chart-table-polish-batch.md
+// §4 item 6, §8 T6): INVERTS this file's pre-batch "exactly one marker"
+// assertion - see TrendChart.leadInAxisMarker.test.tsx's identical
+// top-of-file comment for the full rationale.
+describe("MultiSeriesTrendChart: no marker is ever drawn on an x-axis tick - the lead-in slot renders bare (item 6)", () => {
   installRechartsSizePolyfill();
 
-  it("renders a marker (not text) at the publish-date lead-in's position - the real label never appears among the rendered tick texts", () => {
+  it("renders no marker and no text at the publish-date lead-in's position - the real label never appears among the rendered tick texts", () => {
     const work: SeriesDatum = {
       workId: 1,
       title: "Lay Down Your Stones and Arrows",
@@ -115,8 +119,8 @@ describe("MultiSeriesTrendChart: the lead-in's X-axis tick is a marker, never th
     ).map((el) => el.getAttribute("text-anchor"));
     expect(anchors).toEqual(["middle", "middle", "middle"]);
 
-    // Exactly one marker renders, for the lead-in slot.
-    expect(xAxisTickMarkers(container)).toHaveLength(1);
+    // Item 6: zero markers render anywhere, including the lead-in's slot.
+    expect(xAxisTickMarkers(container)).toHaveLength(0);
   });
 
   it("still shows the real capture dates' ticks correctly, centered, when there's no lead-in at all (regression fence)", () => {

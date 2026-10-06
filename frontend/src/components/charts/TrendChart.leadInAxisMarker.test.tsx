@@ -69,10 +69,19 @@ function xAxisTickMarkers(container: HTMLElement): Element[] {
   return Array.from(container.querySelectorAll(".recharts-xAxis-tick-labels circle"));
 }
 
-describe("TrendChart: the account-level lead-in's X-axis tick is a marker, never long text (structural fix, 2026-09-25)", () => {
+// Chart-table-polish-batch item 6 (docs/plans/chart-table-polish-batch.md
+// §4 item 6, §8 T6): INVERTS this file's pre-batch "exactly one marker"
+// assertions. The 2026-09-25 structural fix (comment above) deliberately
+// replaced the lead-in's long axis-tick TEXT with a small marker glyph -
+// item 6 now removes that marker glyph entirely too (never a dot on any
+// x-axis tick, lead-in or otherwise), leaving the lead-in's slot fully
+// bare (no text, no marker). The dashed connector and its on-line anchor
+// dot (drawn by the "lead" Line itself, not LeadInXAxisTick) are untouched
+// - see the plan's §3 "Lead-in convention" scope note.
+describe("TrendChart: no marker is ever drawn on an x-axis tick - the lead-in slot renders bare (item 6)", () => {
   installRechartsSizePolyfill();
 
-  it("renders no axis tick text for the lead-in slot at all - only real points get date text", () => {
+  it("renders no axis tick text AND no marker for the lead-in slot - only real points get date text", () => {
     const points = [
       { capturedOn: "2026-07-30", value: 130536 },
       { capturedOn: "2026-07-31", value: 130597 },
@@ -96,10 +105,8 @@ describe("TrendChart: the account-level lead-in's X-axis tick is a marker, never
       expect(label).not.toBe("2014");
     });
 
-    // Exactly one marker renders, for the lead-in slot.
-    const markers = xAxisTickMarkers(container);
-    expect(markers).toHaveLength(1);
-    expect(markers[0].getAttribute("fill")).toBe("#9F1239"); // colors.accent (light mode)
+    // Item 6: zero markers render anywhere, including the lead-in's slot.
+    expect(xAxisTickMarkers(container)).toHaveLength(0);
   });
 
   it("leaves every real point's tick centered and unaffected - no special-casing beyond the lead-in slot", () => {
