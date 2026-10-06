@@ -36,7 +36,7 @@ describe("TrendChart: 75vh height at the md+ breakpoint (item 3)", () => {
     expect(findHeightWrapper(container)).toBeDefined();
   });
 
-  it("passes height=\"100%\" to Recharts' ResponsiveContainer so it fills whatever height the wrapper above resolves to, rather than a fixed pixel height", () => {
+  it('passes height="100%" to Recharts\' ResponsiveContainer so it fills whatever height the wrapper above resolves to, rather than a fixed pixel height', () => {
     const { container } = render(
       <TrendChart title="Total hits" valueLabel="Hits" points={POINTS} />,
     );

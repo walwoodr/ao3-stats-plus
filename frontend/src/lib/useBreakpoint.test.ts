@@ -44,7 +44,7 @@ describe("useBreakpoint", () => {
     window.matchMedia = originalMatchMedia;
   });
 
-  it("resolves to \"base\" when the md (>=768px) media query does not match", () => {
+  it('resolves to "base" when the md (>=768px) media query does not match', () => {
     installMatchMediaMock(false);
 
     const { result } = renderHook(() => useBreakpoint());
@@ -52,7 +52,7 @@ describe("useBreakpoint", () => {
     expect(result.current).toBe("base");
   });
 
-  it("resolves to \"md\" when the md (>=768px) media query matches", () => {
+  it('resolves to "md" when the md (>=768px) media query matches', () => {
     installMatchMediaMock(true);
 
     const { result } = renderHook(() => useBreakpoint());
@@ -72,7 +72,7 @@ describe("useBreakpoint", () => {
 
   // §6 error states: SSR/no-matchMedia safety, mirroring useChartColors.
   // ts's usePrefersDarkColorScheme identical guard.
-  it("defaults to \"base\" and does not throw when window.matchMedia is unavailable", () => {
+  it('defaults to "base" and does not throw when window.matchMedia is unavailable', () => {
     // @ts-expect-error - deliberately simulating an environment without matchMedia at all.
     delete window.matchMedia;
 

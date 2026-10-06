@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  maxDotsFor,
-  PLOT_WIDTH_BY_BREAKPOINT,
-  selectVisibleDotIndices,
-} from "./chartDotDensity";
+import { maxDotsFor, PLOT_WIDTH_BY_BREAKPOINT, selectVisibleDotIndices } from "./chartDotDensity";
 
 // Chart-table-polish-batch item 7 (docs/plans/chart-table-polish-batch.md
 // §4 item 7/§8 T7): chartDotDensity.ts does not exist yet - every test
@@ -28,7 +24,7 @@ describe("maxDotsFor: one dot per ~20px of plot width, per breakpoint", () => {
 });
 
 describe("selectVisibleDotIndices: edge-preserving even sampling", () => {
-  it("returns every index (\"all\") when pointCount is <= maxDots", () => {
+  it('returns every index ("all") when pointCount is <= maxDots', () => {
     expect(selectVisibleDotIndices(5, 14)).toBe("all");
     expect(selectVisibleDotIndices(14, 14)).toBe("all");
   });

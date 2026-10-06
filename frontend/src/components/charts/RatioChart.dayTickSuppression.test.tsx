@@ -69,7 +69,9 @@ describe("RatioChart: day-of-month tick suppression above 30 points (item 5)", (
   installRechartsSizePolyfill();
 
   it("suppresses every day-number tick text (all empty) for a >30-point series", () => {
-    const { container } = render(<RatioChart title="Kudos-to-hits ratio" points={dailyPoints(45)} />);
+    const { container } = render(
+      <RatioChart title="Kudos-to-hits ratio" points={dailyPoints(45)} />,
+    );
 
     const texts = xAxisTickTexts(container);
     expect(texts.length).toBeGreaterThan(0);
@@ -77,7 +79,9 @@ describe("RatioChart: day-of-month tick suppression above 30 points (item 5)", (
   });
 
   it("still shows real day-number ticks at exactly 30 points (boundary, unaffected)", () => {
-    const { container } = render(<RatioChart title="Kudos-to-hits ratio" points={dailyPoints(30)} />);
+    const { container } = render(
+      <RatioChart title="Kudos-to-hits ratio" points={dailyPoints(30)} />,
+    );
 
     const texts = xAxisTickTexts(container);
     expect(texts.length).toBeGreaterThan(0);
@@ -85,7 +89,9 @@ describe("RatioChart: day-of-month tick suppression above 30 points (item 5)", (
   });
 
   it("suppresses day-number ticks at exactly 31 points (boundary, strict > 30)", () => {
-    const { container } = render(<RatioChart title="Kudos-to-hits ratio" points={dailyPoints(31)} />);
+    const { container } = render(
+      <RatioChart title="Kudos-to-hits ratio" points={dailyPoints(31)} />,
+    );
 
     const texts = xAxisTickTexts(container);
     expect(texts.length).toBeGreaterThan(0);
@@ -93,7 +99,9 @@ describe("RatioChart: day-of-month tick suppression above 30 points (item 5)", (
   });
 
   it("leaves a small (<=30-point) series' day-number ticks fully intact (regression fence)", () => {
-    const { container } = render(<RatioChart title="Kudos-to-hits ratio" points={dailyPoints(3)} />);
+    const { container } = render(
+      <RatioChart title="Kudos-to-hits ratio" points={dailyPoints(3)} />,
+    );
 
     const texts = xAxisTickTexts(container);
     expect(texts.every((text) => /^\d{2}$/.test(text))).toBe(true);

@@ -432,3 +432,13 @@
   condition `shouldShowRangeSlider`/account-level leadIn eligibility
   expects) rather than three independent bugs - worth a single root-cause
   pass rather than three.
+
+- [2026-10-06] (stage: Implementation) `frontend/tests/accessibility.spec.ts`
+  was already over the `.ts` 400-line `CODE_STANDARDS.md` budget (500 lines)
+  before this batch started; this batch's T8 testing-stage commit
+  (dense/windowed-clip a11y coverage) added its new assertions to the same
+  file rather than splitting it, taking it to 544 lines. Not a regression
+  introduced by Implementation's own edits, and not worth a disruptive
+  mid-batch split - but worth a dedicated split pass (e.g. by dashboard
+  state/page, mirroring this project's other `*.test.ts` per-concern
+  splits) the next time this file is touched.

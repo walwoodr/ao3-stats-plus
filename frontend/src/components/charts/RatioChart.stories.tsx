@@ -86,7 +86,9 @@ export const DenseHistoryAboveThirtyPoints: Story = {
   },
   play: async ({ canvasElement }) => {
     const dayTickTexts = Array.from(
-      canvasElement.querySelectorAll(".recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value"),
+      canvasElement.querySelectorAll(
+        ".recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value",
+      ),
     ).map((el) => el.textContent ?? "");
     await expect(dayTickTexts.every((text) => text === "")).toBe(true);
 
