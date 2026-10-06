@@ -111,3 +111,77 @@ describe("TrendChart: Y-axis top tick is a clean rounded number, not a raw decim
     expect(topTick).toBe("780");
   });
 });
+
+// Chart-table-polish-batch item 2 (docs/plans/chart-table-polish-batch.md
+// §4/§8 T2, OD-1): the bug-fix tests above only prove the domain CEILING is
+// a clean rounded number - they don't prove every intermediate tick
+// Recharts generates along the way is also decimal-free. A small-max
+// domain (1, 2, 3) is the case that actually exposes the gap: Recharts'
+// default tick-value generator can legitimately propose fractional
+// intermediate ticks (e.g. 0, 1.25, 2.5, ...) for a small ceiling, which a
+// tickFormatter alone can't fix (it would just round two different numeric
+// ticks to the same displayed label). `allowDecimals={false}` is the
+// public recharts@3.10.0 API this batch's plan specifies for forcing the
+// tick *generator* itself to integer steps.
+describe("TrendChart: Y-axis ticks are always whole numbers, never decimals (item 2, OD-1 - count chart)", () => {
+  installRechartsSizePolyfill();
+
+  it("renders only integer tick labels for a small-max (1, 2, 3) domain - no '.' in any tick", () => {
+    const points = [
+      { capturedOn: "2026-01-01", value: 1 },
+      { capturedOn: "2026-01-02", value: 2 },
+      { capturedOn: "2026-01-03", value: 3 },
+    ];
+
+    const { container } = render(
+      <TrendChart title="Total hits" valueLabel="Hits" points={points} />,
+    );
+
+    const texts = yAxisTickTexts(container);
+    expect(texts.length).toBeGreaterThan(0);
+    texts.forEach((text) => expect(text).not.toContain("."));
+  });
+
+  it("renders comma-grouped integer labels for a large, non-round magnitude - no decimal anywhere on the axis", () => {
+    const points = [
+      { capturedOn: "2026-07-30", value: 130536 },
+      { capturedOn: "2026-07-31", value: 130597 },
+      { capturedOn: "2026-08-02", value: 130911 },
+      { capturedOn: "2026-08-03", value: 141823 },
+    ];
+
+    const { container } = render(
+      <TrendChart title="Total hits" valueLabel="Hits" points={points} />,
+    );
+
+    const texts = yAxisTickTexts(container);
+    expect(texts.length).toBeGreaterThan(0);
+    texts.forEach((text) => expect(text).not.toContain("."));
+    // At least one tick should show real comma grouping at this magnitude -
+    // guards against a fix that merely strips decimals but regresses the
+    // pre-existing thousands-separator formatting (formatNumber).
+    expect(texts.some((text) => /\d,\d{3}/.test(text))).toBe(true);
+  });
+
+  // Regression fence, not a red-today assertion: this specific fixture's
+  // ticks already happen not to collide before Implementation (confirmed by
+  // running this suite) - it earns its place once allowDecimals={false}
+  // lands by catching a future regression back to formatter-only rounding,
+  // the exact failure mode this item's plan detail (§4 item 2) warns about.
+  it("never duplicates a visible tick label by rounding two distinct fractional ticks to the same integer", () => {
+    // A domain shape where naive formatter-only rounding (without
+    // allowDecimals) would plausibly collide: dataMax=3 with a lead-in's 0
+    // floor spans a narrow [0, ~3.5] range, exactly the regime where
+    // Recharts' default tick step can be sub-1.
+    const points = [{ capturedOn: "2026-01-01", value: 3 }];
+    const leadIn = { capturedOn: "2020-01-01", value: 0 };
+
+    const { container } = render(
+      <TrendChart title="Total hits" valueLabel="Hits" points={points} leadIn={leadIn} />,
+    );
+
+    const texts = yAxisTickTexts(container);
+    const uniqueTexts = new Set(texts);
+    expect(uniqueTexts.size).toBe(texts.length);
+  });
+});
