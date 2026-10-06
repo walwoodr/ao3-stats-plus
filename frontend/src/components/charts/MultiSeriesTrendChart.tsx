@@ -7,6 +7,7 @@ import { SERIES_STYLE_SLOTS } from "../../lib/seriesStyles";
 import { buildMultiSeriesTableModel } from "../../lib/syncedTableModel";
 import {
   computeYDomain,
+  DAY_TICK_SUPPRESSION_THRESHOLD,
   estimateYAxisWidth,
   formatDayTick,
   leadInEpoch,
@@ -253,11 +254,18 @@ export function MultiSeriesTrendChart({
   }
 
   // Only a real capture date's tick gets text at all - a zero-basis-only
-  // slot renders a marker instead (see LeadInXAxisTick.tsx), so this never
-  // needs to consult zeroBasisLabels for its own rendering. D1: bare
-  // day-of-month, not the full ISO date - month/year context now lives in
-  // DateGroupingOverlay's own span/rule labels.
-  const tickFormatter = (xEpoch: number): string => formatDayTick(xEpoch);
+  // slot renders nothing (see LeadInXAxisTick.tsx), so this never needs to
+  // consult zeroBasisLabels for its own rendering. D1: bare day-of-month,
+  // not the full ISO date - month/year context now lives in
+  // DateGroupingOverlay's own span/rule labels. Item 5 (chart-table-polish-
+  // batch.md §4 item 5): pointCount here is the count of distinct REAL
+  // capture dates in the union (every chartData row minus the zero-basis-
+  // only slots), not any single series' own count - above
+  // DAY_TICK_SUPPRESSION_THRESHOLD of those, every day-number tick is
+  // suppressed too.
+  const pointCount = chartData.length - zeroBasisLabels.size;
+  const tickFormatter = (xEpoch: number): string =>
+    pointCount > DAY_TICK_SUPPRESSION_THRESHOLD ? "" : formatDayTick(xEpoch);
 
   // Passed to <XAxis tickFormatter>, NOT to the custom tick renderer's own
   // `tickFormatter` above - see LeadInXAxisTick.tsx's top-of-file comment
@@ -386,7 +394,6 @@ export function MultiSeriesTrendChart({
                     fill: colors.inkSoft,
                     formatTick: tickFormatter,
                     isLeadInTick,
-                    markerColor: colors.inkSoft,
                   })}
                 />
                 <YAxis

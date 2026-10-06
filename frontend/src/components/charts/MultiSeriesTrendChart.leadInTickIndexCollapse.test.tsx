@@ -124,10 +124,18 @@ function xAxisTickMarkers(container: HTMLElement): Element[] {
   return Array.from(container.querySelectorAll(".recharts-xAxis-tick-labels circle"));
 }
 
+// Chart-table-polish-batch item 6 (docs/plans/chart-table-polish-batch.md
+// §4 item 6, §8 T6): completes the same marker-assertion inversion already
+// applied to the sibling *.leadInAxisMarker.test.tsx/*.leadInTickClipping.
+// test.tsx files - this file predates item 6 and was missed from that
+// explicit file list, but asserts the IDENTICAL now-removed marker glyph
+// feature. Item 6's removal is unconditional, so the lead-in slot renders
+// nothing at all now; the real point's own tick survival/centering (the
+// actual third-round regression this file guards) is unchanged.
 describe("MultiSeriesTrendChart: a 2-tick chart (lead-in + one real point) never lets Recharts' collision filtering collapse or mis-anchor either tick (bug fix, 2026-09-25 third round)", () => {
   installRechartsMeasurementPolyfill();
 
-  it("renders both the lead-in's marker and the real point's centered date tick, even under realistic text-measurement collision filtering", () => {
+  it("renders the real point's centered date tick and no marker at all for the lead-in slot (item 6), even under realistic text-measurement collision filtering", () => {
     const work: SeriesDatum = {
       workId: 3,
       title: "Lay Down Your Stones and Arrows",
@@ -157,13 +165,14 @@ describe("MultiSeriesTrendChart: a 2-tick chart (lead-in + one real point) never
     );
     expect(realLabel?.getAttribute("text-anchor")).toBe("middle");
 
-    // The lead-in's own marker always survives too - it can't be dropped by
-    // "doesn't fit" collision filtering, since Recharts measures its
-    // tickFormatter output ("") as zero-width.
-    expect(xAxisTickMarkers(container)).toHaveLength(1);
+    // Item 6: the lead-in slot renders no marker at all (it can't be
+    // dropped by "doesn't fit" collision filtering either, since Recharts
+    // measures its tickFormatter output ("") as zero-width - but item 6
+    // means there's nothing to drop or keep in the first place).
+    expect(xAxisTickMarkers(container)).toHaveLength(0);
   });
 
-  it("behaves identically for a SHORT lead-in label - the marker approach doesn't branch on label length the way the superseded fix's collision-triggering behavior did", () => {
+  it("behaves identically for a SHORT lead-in label - no marker renders regardless of label length", () => {
     const work: SeriesDatum = {
       workId: 4,
       title: "A Work With A Short Lead-In Label",
@@ -186,6 +195,6 @@ describe("MultiSeriesTrendChart: a 2-tick chart (lead-in + one real point) never
       ".recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value",
     );
     expect(realLabel?.getAttribute("text-anchor")).toBe("middle");
-    expect(xAxisTickMarkers(container)).toHaveLength(1);
+    expect(xAxisTickMarkers(container)).toHaveLength(0);
   });
 });

@@ -6,6 +6,7 @@ import { formatNumber } from "../../lib/formatNumber";
 import { buildRatioTableModel } from "../../lib/syncedTableModel";
 import {
   computeYDomain,
+  DAY_TICK_SUPPRESSION_THRESHOLD,
   estimateYAxisWidth,
   formatDayTick,
   leadInEpoch,
@@ -116,10 +117,14 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
     return chartData.find((r) => r.xEpoch === xEpoch)?.isLeadIn ?? false;
   }
 
-  // Only a real point's tick gets text at all - the lead-in slot renders a
-  // marker instead (see LeadInXAxisTick.tsx), so this never needs to format
-  // a lead-in's date. D1: bare day-of-month, not the full ISO date.
-  const formatTick = (xEpoch: number): string => formatDayTick(xEpoch);
+  // Only a real point's tick gets text at all - the lead-in slot renders
+  // nothing (see LeadInXAxisTick.tsx), so this never needs to format a
+  // lead-in's date. D1: bare day-of-month, not the full ISO date. Item 5
+  // (chart-table-polish-batch.md §4 item 5): above
+  // DAY_TICK_SUPPRESSION_THRESHOLD real points, every day-number tick is
+  // suppressed too.
+  const formatTick = (xEpoch: number): string =>
+    points.length > DAY_TICK_SUPPRESSION_THRESHOLD ? "" : formatDayTick(xEpoch);
 
   // Passed to <XAxis tickFormatter>, NOT to the custom tick renderer's own
   // `formatTick` above - see TrendChart's identical comment/
@@ -253,7 +258,6 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
                     fill: colors.inkSoft,
                     formatTick,
                     isLeadInTick,
-                    markerColor: colors.accent,
                   })}
                 />
                 <YAxis

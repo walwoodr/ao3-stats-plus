@@ -6,6 +6,7 @@ import { formatNumber } from "../../lib/formatNumber";
 import { buildTrendTableModel } from "../../lib/syncedTableModel";
 import {
   computeYDomain,
+  DAY_TICK_SUPPRESSION_THRESHOLD,
   estimateYAxisWidth,
   formatDayTick,
   leadInEpoch,
@@ -117,11 +118,16 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
     return chartData.find((r) => r.xEpoch === xEpoch)?.isLeadIn ?? false;
   }
 
-  // Only a real point's tick gets text at all - the lead-in slot renders a
-  // marker instead (see LeadInXAxisTick.tsx), so this never needs to format
-  // a lead-in's date. D1: bare day-of-month, not the full ISO date - month/
+  // Only a real point's tick gets text at all - the lead-in slot renders
+  // nothing (see LeadInXAxisTick.tsx), so this never needs to format a
+  // lead-in's date. D1: bare day-of-month, not the full ISO date - month/
   // year context now lives in DateGroupingOverlay's own span/rule labels.
-  const formatTick = (xEpoch: number): string => formatDayTick(xEpoch);
+  // Item 5 (chart-table-polish-batch.md §4 item 5): above
+  // DAY_TICK_SUPPRESSION_THRESHOLD real points, every day-number tick is
+  // suppressed too - month/year context then comes solely from
+  // DateGroupingOverlay.
+  const formatTick = (xEpoch: number): string =>
+    points.length > DAY_TICK_SUPPRESSION_THRESHOLD ? "" : formatDayTick(xEpoch);
 
   // Passed to <XAxis tickFormatter>, NOT to the custom tick renderer's own
   // `formatTick` above - this is the string Recharts' internal tick-overlap-
@@ -261,7 +267,6 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
                     fill: colors.inkSoft,
                     formatTick,
                     isLeadInTick,
-                    markerColor: colors.accent,
                   })}
                 />
                 <YAxis

@@ -89,10 +89,23 @@ function xAxisTickMarkers(container: HTMLElement): Element[] {
   return Array.from(container.querySelectorAll(".recharts-xAxis-tick-labels circle"));
 }
 
+// Chart-table-polish-batch item 6 (docs/plans/chart-table-polish-batch.md
+// §4 item 6, §8 T6): completes the same marker-assertion inversion already
+// applied to the sibling *.leadInAxisMarker.test.tsx/*.leadInTickClipping.
+// test.tsx files - this file predates item 6 and was missed from that
+// explicit file list, but asserts the IDENTICAL now-removed marker glyph
+// feature (whether a lead-in's x-axis-tick marker survives Recharts'
+// collision filtering). Item 6's removal is unconditional ("never draw a
+// marker dot on x-axis ticks" - any point count, any chart), so "both
+// lead-ins survive without being dropped" is now proven by their absence
+// being uniform (zero markers anywhere) rather than by a marker count that
+// used to vary with the collision bug this file's round-5 fix addressed.
+// The label/text-anchor assertions below (the actual round-5 regression
+// this file guards) are unchanged.
 describe("MultiSeriesTrendChart: two far-apart publish-date lead-ins both survive (round 5 fix, 2026-09-25)", () => {
   installRechartsSizePolyfill();
 
-  it("renders BOTH works' lead-in markers, not just the domain-minimum one", () => {
+  it("renders neither work's lead-in as an axis-tick marker (item 6) - and neither's real point collides/drops, surviving the round-5 proximity bug", () => {
     const oldWork: SeriesDatum = {
       workId: 10,
       title: "Old Work",
@@ -123,9 +136,8 @@ describe("MultiSeriesTrendChart: two far-apart publish-date lead-ins both surviv
       <MultiSeriesTrendChart title="Hits" valueLabel="Hits" series={[oldWork, newWork]} />,
     );
 
-    // Both lead-ins are publish dates, so both are real, distinct positions
-    // on the shared axis - neither should be silently dropped.
-    expect(xAxisTickMarkers(container)).toHaveLength(2);
+    // Item 6: zero markers render anywhere, including both lead-in slots.
+    expect(xAxisTickMarkers(container)).toHaveLength(0);
 
     // Both works' own real capture dates still render as ordinary centered
     // text ticks - the bug this round fixes is specific to the lead-in
