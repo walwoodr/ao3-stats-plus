@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   computeYDomain,
+  DAY_TICK_SUPPRESSION_THRESHOLD,
   formatDateTick,
   formatDayTick,
   formatLeadInTick,
@@ -269,5 +270,16 @@ describe("computeYDomain: nice-rounded ceiling, realistic non-round magnitudes (
       const result = computeYDomain(values, { hasLeadIn: values.includes(0) });
       expect(result.domain[1]).toBeGreaterThanOrEqual(dataMax);
     }
+  });
+});
+
+// Chart-table-polish-batch item 5 (docs/plans/chart-table-polish-batch.md
+// §4/§8 T5): a single shared threshold, so all three charts' day-of-month
+// tick suppression agree and this constant is tested in exactly one place
+// (the plan's own wording), mirroring MAX_REAL_AXIS_TICKS's existing
+// precedent in this same module.
+describe("DAY_TICK_SUPPRESSION_THRESHOLD: the shared >30-points cutover", () => {
+  it("is exactly 30 - day-of-month ticks suppress above this many real points", () => {
+    expect(DAY_TICK_SUPPRESSION_THRESHOLD).toBe(30);
   });
 });
