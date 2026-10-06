@@ -302,15 +302,20 @@ describe("DashboardPage", () => {
       expect(leafColumnHeaders(kudosTable)).toHaveLength(TWO_POINT_SERIES.length + 1);
     });
 
-    // Superseded again by docs/plans/date-range-slider-month-granularity.md
-    // D2 (LOCKED): the per-work comparison charts' own default window is
-    // now the real-capture span, which HIDES every work's zero-basis
-    // leadIn by default (previously always shown once per-work-zero-basis-
-    // dates.md shipped it). Derivation/widened-range branches are covered
-    // in depth by WorkComparisonSection.leadIn.test.tsx; this integration
-    // test now asserts the default-hidden wiring end to end instead of the
-    // old always-shown one.
-    it("does NOT pass a leadIn to the per-work comparison chart by default (D2, LOCKED)", () => {
+    // Chart-table-polish-batch item 4, OD-2 (docs/plans/chart-table-polish-
+    // batch.md §4 item 4, resolved 2026-10-06): INVERTS this test's
+    // pre-batch assertion, same rationale as WorkComparisonSection.leadIn.
+    // test.tsx's/.caption.test.tsx's identically-superseded "D2, LOCKED"
+    // blocks - this integration test asserts the exact same data-level
+    // drop-gate (computeLeadIn's monthIndexOf(zeroBasisDate) <
+    // effectiveRange.start` check) that OD-2 removes, and was missed from
+    // the plan's T4 file list too (same category of Testing-stage gap,
+    // flagged for Review). computeLeadIn no longer consults the window at
+    // all, so a work's leadIn is now present by default too (subject only
+    // to the zero-visible-points and degenerate guards) - "hidden by
+    // default" is now purely a chart-visual effect (windowStartEpoch
+    // clipping), not a data-model absence or table-column omission.
+    it("passes a leadIn to the per-work comparison chart by default too - OD-2 removed the window-start drop-gate", () => {
       mockWithEarliestPostYear({
         earliestPostYear: 2020,
         aggregateSeries: TWO_POINT_SERIES,
@@ -346,17 +351,20 @@ describe("DashboardPage", () => {
 
       // WorkComparisonSection's comparison charts (title "Hits"/"Kudos", not
       // "Work A hits" - see WorkComparisonSection.test.tsx) default to
-      // Work A's own real-capture span, which sits at/after its estimated-
-      // baseline zero-basis month - no leadIn column by default.
+      // Work A's own real-capture span, but OD-2 means that no longer
+      // gates the leadIn's presence in the series data - Work A has no
+      // publishedOn, so its estimated-baseline fallback
+      // (`${earliestPostYear}-01-01` = "2020-01-01") precedes its first
+      // real point ("2026-01-01") and is now always included.
       const comparisonHitsTable = screen.getByRole("table", { name: /^hits$/i });
       const columnHeaders = leafColumnHeaders(comparisonHitsTable);
-      // corner + Work A's 2 real points only.
-      expect(columnHeaders).toHaveLength(3);
+      // corner + the estimated-baseline leadIn + Work A's 2 real points.
+      expect(columnHeaders).toHaveLength(4);
       expect(
         columnHeaders.some((header) =>
           /estimated baseline/i.test(header.getAttribute("aria-label") ?? ""),
         ),
-      ).toBe(false);
+      ).toBe(true);
     });
 
     // docs/plans/date-range-slider-month-granularity.md §10 ("Corner cases

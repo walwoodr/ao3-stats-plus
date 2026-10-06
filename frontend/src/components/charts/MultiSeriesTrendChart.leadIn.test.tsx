@@ -195,7 +195,16 @@ describe("MultiSeriesTrendChart: visible dashed lead-in line + zero dot", () => 
   // full label remains available in the visible synced data table below the
   // chart (see this file's "the visible synced table gains zero-basis
   // columns" describe block, unaffected by this change).
-  it("renders a marker - not the zero-basis label, and not the raw ISO date - on the visible chart's axis tick for a fallback slot", () => {
+  //
+  // Chart-table-polish-batch item 6 (docs/plans/chart-table-polish-batch.md
+  // §4 item 6, §8 T6): INVERTS this test's marker assertion - same
+  // supersession already applied to *.leadInAxisMarker.test.tsx/
+  // *.leadInTickClipping.test.tsx (and completed on two further sibling
+  // files, leadInTickIndexCollapse/leadInTickProximityDrop, during
+  // Implementation). This file tests the identical now-removed marker
+  // glyph and was missed from the plan's T6 file list too - same category
+  // of Testing-stage gap, flagged for Review.
+  it("renders no marker at all - not the zero-basis label, and not the raw ISO date - on the visible chart's axis tick for a fallback slot (item 6)", () => {
     const fallbackWork: SeriesDatum = {
       workId: 4,
       title: "Work D",
@@ -213,7 +222,7 @@ describe("MultiSeriesTrendChart: visible dashed lead-in line + zero dot", () => 
     expect(hiddenChart?.textContent).not.toMatch(/2018-01-01/);
 
     const axisMarkers = container.querySelectorAll(".recharts-xAxis-tick-labels circle");
-    expect(axisMarkers).toHaveLength(1);
+    expect(axisMarkers).toHaveLength(0);
   });
 });
 
