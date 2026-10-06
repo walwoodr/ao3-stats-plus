@@ -24,6 +24,14 @@ export function maxDotsFor(breakpoint: Breakpoint): number {
   return Math.floor(PLOT_WIDTH_BY_BREAKPOINT[breakpoint] / PX_PER_DOT);
 }
 
+// Plan §4 item 7 / §6 error states / §8 T7: thinning must not engage at all
+// until pointCount > 30, independent of the breakpoint's max-dots density -
+// a 20-point series stays fully shown even on `base` (maxDotsFor = 14).
+// Named, exported constant per the DAY_TICK_SUPPRESSION_THRESHOLD
+// (chartTimeAxis.ts, item 5) precedent: single source of truth, not
+// re-implemented ad hoc at each of the three chart call sites.
+export const DOT_THINNING_ENGAGEMENT_THRESHOLD = 30;
+
 // "all" is a cheap, explicit short-circuit for the (overwhelmingly common)
 // case where no thinning is needed at all - every point gets a dot and
 // every caller can skip building/consulting a Set entirely.
@@ -37,6 +45,7 @@ export type VisibleDotIndices = "all" | Set<number>;
 // of a divide-by-zero/NaN index.
 export function selectVisibleDotIndices(pointCount: number, maxDots: number): VisibleDotIndices {
   if (pointCount <= 0 || maxDots <= 0) return new Set<number>();
+  if (pointCount <= DOT_THINNING_ENGAGEMENT_THRESHOLD) return "all";
   if (pointCount <= maxDots) return "all";
 
   const lastIndex = pointCount - 1;

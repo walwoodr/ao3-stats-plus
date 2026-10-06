@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { maxDotsFor, PLOT_WIDTH_BY_BREAKPOINT, selectVisibleDotIndices } from "./chartDotDensity";
+import {
+  DOT_THINNING_ENGAGEMENT_THRESHOLD,
+  maxDotsFor,
+  PLOT_WIDTH_BY_BREAKPOINT,
+  selectVisibleDotIndices,
+} from "./chartDotDensity";
 
 // Chart-table-polish-batch item 7 (docs/plans/chart-table-polish-batch.md
 // §4 item 7/§8 T7): chartDotDensity.ts does not exist yet - every test
@@ -56,6 +61,27 @@ describe("selectVisibleDotIndices: edge-preserving even sampling", () => {
     const first = selectVisibleDotIndices(45, 14);
     const second = selectVisibleDotIndices(45, 14);
     expect(first).toEqual(second);
+  });
+
+  // Plan §4 item 7 / §8 T7 ("<=30"/">30" gating): thinning must not engage
+  // at all until pointCount > 30, independent of maxDots. Exercised here at
+  // the pure-helper level (not just the three component call sites) with
+  // maxDots = 14 (base) so a pointCount <= 30 but > maxDots would wrongly
+  // thin under a naive `pointCount > maxDots` check alone.
+  describe(`>${DOT_THINNING_ENGAGEMENT_THRESHOLD} engagement gate (§4 item 7)`, () => {
+    it("returns 'all' at exactly the threshold (30 points), even though 30 > maxDots (14)", () => {
+      expect(selectVisibleDotIndices(DOT_THINNING_ENGAGEMENT_THRESHOLD, 14)).toBe("all");
+    });
+
+    it("returns 'all' below the threshold (20 points) despite exceeding maxDots (14)", () => {
+      expect(selectVisibleDotIndices(20, 14)).toBe("all");
+    });
+
+    it("engages thinning just above the threshold (31 points)", () => {
+      const result = selectVisibleDotIndices(DOT_THINNING_ENGAGEMENT_THRESHOLD + 1, 14);
+      expect(result).not.toBe("all");
+      expect((result as Set<number>).size).toBe(14);
+    });
   });
 
   // §6 error states: guard against a divide-by-zero/NaN-index result for a
