@@ -130,6 +130,15 @@ export function leadInEpoch(firstRealEpoch: number, { realEpochs }: LeadInEpochO
 // measured plot width rather than left as a silent assumption.
 export const MAX_REAL_AXIS_TICKS = 6;
 
+// Chart-table-polish-batch item 5 (docs/plans/chart-table-polish-batch.md
+// §4 item 5, §8 T5): above this many real (non-lead-in) points, every
+// day-of-month tick's text is suppressed entirely ("" per tick) - month/
+// year context then comes solely from DateGroupingOverlay's own span/rule
+// labels. Shared across all three charts so they agree on exactly one
+// cutover; strict `>` per the plan's corner case (30 shows day numbers, 31
+// suppresses them).
+export const DAY_TICK_SUPPRESSION_THRESHOLD = 30;
+
 export interface DisplayTickRow {
   xEpoch: number;
   isLeadIn: boolean;
