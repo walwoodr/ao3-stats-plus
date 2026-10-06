@@ -300,6 +300,73 @@ describe("SyncedDataTable: per-row delta chips via the backward-walk (C3a - the 
   });
 });
 
+// Chart-table-polish-batch item 1 (docs/plans/chart-table-polish-batch.md
+// §4/T1): the pin-comparison delta chip and its sr-only magnitude text both
+// gain en-US comma grouping for a 4+ digit delta - mirroring the cell
+// values' own existing formatCellValue grouping (SyncedDataTable.
+// numberFormatting.test.tsx). A fresh model/fixture, not a reuse of MODEL
+// above, so the pinned/active values are deliberately large (0 -> 12,480)
+// rather than this file's existing single/double-digit fixtures.
+const LARGE_DELTA_MODEL: SyncedTableModel = {
+  columns: [
+    { dateKey: "2014-01-01", label: "Before 2014 (estimated baseline)", isLeadIn: true },
+    { dateKey: "2026-01-01", label: "2026-01-01", isLeadIn: false },
+  ],
+  rows: [
+    {
+      seriesKey: "work-a",
+      title: "Work A",
+      identityDescription: "slate-blue circle marker",
+      colorHex: "#727F8C",
+      shape: "circle",
+      cells: [0, 12480],
+      comparablePoints: [
+        { dateKey: "2014-01-01", value: 0 },
+        { dateKey: "2026-01-01", value: 12480 },
+      ],
+    },
+  ],
+  unitLabel: "Hits",
+};
+
+describe("SyncedDataTable: delta chip + sr-only text comma grouping (chart-table-polish-batch item 1)", () => {
+  it("renders the visible delta chip with comma grouping for a 4+ digit delta", () => {
+    render(
+      <SyncedDataTable
+        title="Hits"
+        rowHeaderLabel="Work"
+        model={LARGE_DELTA_MODEL}
+        activeDateKey="2026-01-01"
+        onActiveDateKeyChange={noop}
+        pinnedDateKey="2014-01-01"
+        onPinnedDateKeyChange={noop}
+      />,
+    );
+
+    const workARow = screen.getByRole("row", { name: /work a/i });
+    const deltaChip = within(workARow).getByTestId("delta-chip");
+    expect(deltaChip.textContent).toBe("+12,480");
+  });
+
+  it("groups the sr-only magnitude text the same way as the visible chip, so spoken and visible numbers agree", () => {
+    render(
+      <SyncedDataTable
+        title="Hits"
+        rowHeaderLabel="Work"
+        model={LARGE_DELTA_MODEL}
+        activeDateKey="2026-01-01"
+        onActiveDateKeyChange={noop}
+        pinnedDateKey="2014-01-01"
+        onPinnedDateKeyChange={noop}
+      />,
+    );
+
+    const workARow = screen.getByRole("row", { name: /work a/i });
+    expect(workARow.textContent).toMatch(/increase of 12,480/i);
+    expect(workARow.textContent).not.toMatch(/increase of 12480\D/i);
+  });
+});
+
 describe("SyncedDataTable: delta chips render correctly under BOTH orientations (d)", () => {
   it("shows the same carried-forward delta for Work A in the flipped (datesAsRows) orientation", () => {
     render(

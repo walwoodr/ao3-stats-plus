@@ -258,6 +258,33 @@ describe("deltaLabel: sign-prefixed label text", () => {
   it("renders exactly '0' for a zero delta, with no sign prefix", () => {
     expect(deltaLabel(0)).toBe("0");
   });
+
+  // Chart-table-polish-batch item 1 (docs/plans/chart-table-polish-
+  // batch.md §4/T1): the comparison delta chip gains en-US thousands-
+  // separator grouping via the shared formatNumber, same as every other
+  // numeric surface this project renders (SyncedDataTableCells.ts's own
+  // formatCellValue). Sign prefix/no-sign-on-zero rules above are
+  // unaffected - only the digit grouping changes, and only once a delta
+  // reaches 4+ digits.
+  it("groups a 4+ digit positive delta with commas, keeping the + sign prefix", () => {
+    expect(deltaLabel(12480)).toBe("+12,480");
+  });
+
+  it("groups a 4+ digit negative delta with commas, keeping the - sign (not a double negative)", () => {
+    expect(deltaLabel(-1205)).toBe("-1,205");
+  });
+
+  it("leaves a small (< 4 digit) positive delta ungrouped - no stray comma", () => {
+    expect(deltaLabel(10)).toBe("+10");
+  });
+
+  it("renders exactly '0' for a zero delta regardless of grouping (no sign, no comma)", () => {
+    expect(deltaLabel(0)).toBe("0");
+  });
+
+  it("groups a large multi-comma delta (6+ digits) correctly, not just the first thousands separator", () => {
+    expect(deltaLabel(1234567)).toBe("+1,234,567");
+  });
 });
 
 describe("elapsedLabel: item 3<->4 elapsed-time annotation", () => {
