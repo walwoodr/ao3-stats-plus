@@ -7,6 +7,8 @@
 // column-level selectability gate; the lead-in is an ordinary comparablePoints
 // entry, never a synthetic special case).
 
+import { formatNumber } from "./formatNumber";
+
 export interface RowComparablePoint {
   dateKey: string;
   value: number;
@@ -89,10 +91,14 @@ export function deltaValence(delta: number): DeltaValence {
 }
 
 // Sign-prefixed label text - the non-color channel so color is never the
-// sole signal (MASTER Chart Guidance + a11y constraint).
+// sole signal (MASTER Chart Guidance + a11y constraint). Chart-table-polish-
+// batch item 1 (docs/plans/chart-table-polish-batch.md §4/§8 T1): the
+// magnitude is comma-grouped via the shared formatNumber, matching the
+// table's own cell values - the sign is built separately so a negative
+// delta never doubles up ("-" + formatNumber's own "-" prefix).
 export function deltaLabel(delta: number): string {
-  if (delta > 0) return `+${delta}`;
-  if (delta < 0) return `${delta}`;
+  if (delta > 0) return `+${formatNumber(delta)}`;
+  if (delta < 0) return `-${formatNumber(Math.abs(delta))}`;
   return "0";
 }
 

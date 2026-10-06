@@ -237,7 +237,9 @@ export function DataCell({
         {deltaLabel(result.delta)}
       </span>
       <span className="sr-only">
-        {valence === "flat" ? " — no change" : ` — ${valenceWord} of ${Math.abs(result.delta)}`}
+        {valence === "flat"
+          ? " — no change"
+          : ` — ${valenceWord} of ${formatNumber(Math.abs(result.delta))}`}
       </span>
       {carriedForward && <span className="sr-only">{` — as of ${result.resolvedDateKeyB}`}</span>}
     </td>
