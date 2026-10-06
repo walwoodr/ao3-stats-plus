@@ -8,7 +8,7 @@ import {
   selectVisibleDotIndices,
   type VisibleDotIndices,
 } from "../../lib/chartDotDensity";
-import { formatNumber } from "../../lib/formatNumber";
+import { formatWholeNumber } from "../../lib/formatNumber";
 import { SERIES_STYLE_SLOTS } from "../../lib/seriesStyles";
 import { buildMultiSeriesTableModel } from "../../lib/syncedTableModel";
 import {
@@ -308,7 +308,13 @@ export function MultiSeriesTrendChart({
                   <YAxis
                     domain={yDomain}
                     width={estimateYAxisWidth(yDomain[1])}
-                    tickFormatter={formatNumber}
+                    // Item 2, OD-1 (chart-table-polish-batch.md §4 item 2):
+                    // see TrendChart's identical comment - count charts
+                    // never show a decimal Y tick; allowDecimals={false}
+                    // forces Recharts' own tick-value generator to integer
+                    // steps.
+                    allowDecimals={false}
+                    tickFormatter={formatWholeNumber}
                     tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
                   />
                   {series.map((s) => {

@@ -4,7 +4,7 @@ import type { MouseHandlerDataParam } from "recharts";
 import { useChartColors } from "../../lib/useChartColors";
 import { useBreakpoint } from "../../lib/useBreakpoint";
 import { maxDotsFor, selectVisibleDotIndices } from "../../lib/chartDotDensity";
-import { formatNumber } from "../../lib/formatNumber";
+import { formatWholeNumber } from "../../lib/formatNumber";
 import { buildTrendTableModel } from "../../lib/syncedTableModel";
 import {
   computeYDomain,
@@ -290,7 +290,15 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
                   <YAxis
                     domain={yDomain}
                     width={estimateYAxisWidth(yDomain[1])}
-                    tickFormatter={formatNumber}
+                    // Item 2, OD-1 (chart-table-polish-batch.md §4 item 2):
+                    // count charts never show a decimal Y tick.
+                    // allowDecimals={false} forces Recharts' tick-VALUE
+                    // generator itself to integer steps (a formatter alone
+                    // can't fix a small-max domain's fractional
+                    // intermediate ticks, e.g. 0, 1.25, 2.5, ... - it would
+                    // just round two distinct ticks to the same label).
+                    allowDecimals={false}
+                    tickFormatter={formatWholeNumber}
                     tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
                   />
                   <Line

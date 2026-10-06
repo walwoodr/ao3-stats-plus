@@ -11,3 +11,18 @@
 export function formatNumber(value: number): string {
   return value.toLocaleString("en-US", { maximumFractionDigits: 20 });
 }
+
+// Chart-table-polish-batch item 2 (docs/plans/chart-table-polish-batch.md
+// §4/§8 T2, OD-1): a sibling formatter for the count charts' (TrendChart,
+// MultiSeriesTrendChart - NOT RatioChart, per OD-1) Y-axis tick labels,
+// which must never show a decimal even when Recharts' own tick-value
+// generation would otherwise produce one for a small-max domain. Comma
+// grouping is preserved; only the fractional-digit behavior differs -
+// rounds to the nearest whole number (maximumFractionDigits: 0) rather
+// than truncating. Guards non-finite input (NaN/Infinity) to a stable "0"
+// rather than leaking a literal "NaN"/"Infinity" string onto a real axis,
+// matching formatDayTick's/toEpoch's existing defense-in-depth precedent.
+export function formatWholeNumber(value: number): string {
+  if (!Number.isFinite(value)) return "0";
+  return Math.round(value).toLocaleString("en-US", { maximumFractionDigits: 0 });
+}
