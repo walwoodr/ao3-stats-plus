@@ -77,25 +77,28 @@ function zeroBasisLabelFor(
   return `Before ${earliestPostYear} (estimated baseline)`;
 }
 
-// Gates a work's computed zero-basis date into a renderable `leadIn`, per
-// the plan's "Decoupling from the date-range slider" slider-interaction
-// gating: only when the work has >=1 currently-visible point, the
-// zero-basis MONTH isn't below the active window's start (docs/plans/date-
-// range-slider-month-granularity.md D3 - `effectiveRange` is now always
-// set, so the old null guard is dropped), and the zero-basis date is
-// strictly before the first visible point (the degenerate-guard, avoiding a
-// zero-width/backwards segment).
+// Gates a work's computed zero-basis date into a renderable `leadIn`. Two
+// guards remain: the work must have >=1 currently-visible point, and the
+// zero-basis date must be strictly before the first visible point (the
+// degenerate-guard, avoiding a zero-width/backwards segment). Chart-table-
+// polish-batch item 4, OD-2 (docs/plans/chart-table-polish-batch.md §4 item
+// 4, resolved 2026-10-06): the THIRD guard this function used to apply -
+// dropping the leadIn entirely when `monthIndexOf(zeroBasisDate) <
+// effectiveRange.start` - is removed here. That was the deliberate
+// pre-batch decision (date-range-slider-month-granularity.md D3); OD-2
+// reverses it so a baseline earlier than the window start now stays in the
+// chart's data and is clipped VISUALLY at the left edge instead (via the
+// windowStartEpoch prop wired below, OD-2a = Option B), rather than being
+// dropped from the model entirely.
 function computeLeadIn(
   work: PerWorkSeries,
   earliestPostYear: number | null,
   visiblePoints: PerWorkPoint[],
-  effectiveRange: MonthWindow,
 ): SeriesLeadIn | undefined {
   if (visiblePoints.length === 0) return undefined;
 
   const zeroBasisDate = zeroBasisDateFor(work, earliestPostYear);
   if (zeroBasisDate === null) return undefined;
-  if (monthIndexOf(zeroBasisDate) < effectiveRange.start) return undefined;
 
   const firstVisiblePoint = visiblePoints[0];
   if (zeroBasisDate >= firstVisiblePoint.capturedOn) return undefined;
@@ -307,9 +310,7 @@ export function WorkComparisonSection({
       const points = visiblePoints
         .map((point) => ({ capturedOn: point.capturedOn, value: valueOf(point) }))
         .filter((point): point is { capturedOn: string; value: number } => point.value !== null);
-      const leadIn = applyLeadIn
-        ? computeLeadIn(work, earliestPostYear, visiblePoints, effectiveRange)
-        : undefined;
+      const leadIn = applyLeadIn ? computeLeadIn(work, earliestPostYear, visiblePoints) : undefined;
       return {
         workId: work.ao3WorkId,
         title: work.title,
@@ -334,7 +335,7 @@ export function WorkComparisonSection({
         .map((point) => ({ capturedOn: point.capturedOn, value: type.valueOf(point) }))
         .filter((point): point is { capturedOn: string; value: number } => point.value !== null);
       const leadIn = type.applyLeadIn
-        ? computeLeadIn(work, earliestPostYear, visiblePoints, effectiveRange)
+        ? computeLeadIn(work, earliestPostYear, visiblePoints)
         : undefined;
       return { workId: styleIndex, title: type.label, styleIndex, points, leadIn };
     }).filter((series) => series.points.length > 0);
