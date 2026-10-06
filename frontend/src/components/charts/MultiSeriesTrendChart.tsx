@@ -22,11 +22,7 @@ import { ActivePointOverlay, type ActivePoint } from "./ActivePointOverlay";
 import { DateGroupingOverlay } from "./DateGroupingOverlay";
 import { createLeadInXAxisTick } from "./LeadInXAxisTick";
 import { createLeadInDot, createSeriesDot } from "./multiSeriesDots";
-import {
-  CHART_CONTAINER_HEIGHT,
-  DAY_TICK_MARGIN,
-  X_AXIS_BAND_HEIGHT,
-} from "./dateGroupingChartLayout";
+import { DAY_TICK_MARGIN, X_AXIS_BAND_HEIGHT } from "./dateGroupingChartLayout";
 import {
   buildChartData,
   seriesValueAt,
@@ -226,112 +222,121 @@ export function MultiSeriesTrendChart({
       <ChartDisclosure>
         <figure role="img" aria-labelledby={headingId}>
           <div aria-hidden="true">
-            <ResponsiveContainer width="100%" height={CHART_CONTAINER_HEIGHT}>
-              <LineChart
-                data={chartData}
-                accessibilityLayer={false}
-                onMouseMove={(state) => setActiveDateKey(resolveDateKey(state))}
-                onMouseLeave={() => setActiveDateKey(null)}
-                onClick={(state) => {
-                  const dateKey = resolveDateKey(state);
-                  if (dateKey) togglePinnedDateKey(dateKey);
-                }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke={colors.inkSoft} strokeOpacity={0.2} />
-                <XAxis
-                  dataKey="xEpoch"
-                  type="number"
-                  scale="time"
-                  domain={[domainMin, Math.max(...chartData.map((row) => row.xEpoch))]}
-                  // EXTERNAL-UNVERIFIED-turned-VERIFIED (see
-                  // MultiSeriesTrendChart.windowClipping.test.tsx's header
-                  // comment): recharts@3.10.0 silently auto-expands an
-                  // explicit numeric domain back to fit every data point
-                  // unless allowDataOverflow is set - without this, a
-                  // windowStartEpoch narrower than the data's own minimum
-                  // would be a silent no-op (the plan's own prose
-                  // undersells this; confirmed directly against the
-                  // installed package, not just inferred from docs).
-                  // Points left of the domain are NOT removed from the DOM
-                  // even with this set - they're only clipped visually via
-                  // an SVG clipPath - which is what makes the baseline's
-                  // dashed line still draw its in-window segment while its
-                  // own dot/axis-tick fall outside the visible clip.
-                  allowDataOverflow
-                  ticks={displayedTicks}
-                  // interval={0}: bypasses Recharts' own tick filtering
-                  // entirely - see chartTimeAxis.ts's selectDisplayedTicks.
-                  // height/tickMargin bumped (dateGroupingChartLayout) to
-                  // reserve the month/year band - the plot rect itself is
-                  // unchanged.
-                  interval={0}
-                  height={X_AXIS_BAND_HEIGHT}
-                  tickMargin={DAY_TICK_MARGIN}
-                  tickFormatter={axisTickFormatter}
-                  tick={createLeadInXAxisTick({
-                    fill: colors.inkSoft,
-                    formatTick: tickFormatter,
-                    isLeadInTick,
+            {/* Item 3 (chart-table-polish-batch.md §4 item 3): see
+                TrendChart's identical comment - 75vh at md+, 300px below
+                it, class string not a computed pixel height. */}
+            <div className="h-[300px] md:h-[75vh]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={chartData}
+                  accessibilityLayer={false}
+                  onMouseMove={(state) => setActiveDateKey(resolveDateKey(state))}
+                  onMouseLeave={() => setActiveDateKey(null)}
+                  onClick={(state) => {
+                    const dateKey = resolveDateKey(state);
+                    if (dateKey) togglePinnedDateKey(dateKey);
+                  }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke={colors.inkSoft}
+                    strokeOpacity={0.2}
+                  />
+                  <XAxis
+                    dataKey="xEpoch"
+                    type="number"
+                    scale="time"
+                    domain={[domainMin, Math.max(...chartData.map((row) => row.xEpoch))]}
+                    // EXTERNAL-UNVERIFIED-turned-VERIFIED (see
+                    // MultiSeriesTrendChart.windowClipping.test.tsx's header
+                    // comment): recharts@3.10.0 silently auto-expands an
+                    // explicit numeric domain back to fit every data point
+                    // unless allowDataOverflow is set - without this, a
+                    // windowStartEpoch narrower than the data's own minimum
+                    // would be a silent no-op (the plan's own prose
+                    // undersells this; confirmed directly against the
+                    // installed package, not just inferred from docs).
+                    // Points left of the domain are NOT removed from the DOM
+                    // even with this set - they're only clipped visually via
+                    // an SVG clipPath - which is what makes the baseline's
+                    // dashed line still draw its in-window segment while its
+                    // own dot/axis-tick fall outside the visible clip.
+                    allowDataOverflow
+                    ticks={displayedTicks}
+                    // interval={0}: bypasses Recharts' own tick filtering
+                    // entirely - see chartTimeAxis.ts's selectDisplayedTicks.
+                    // height/tickMargin bumped (dateGroupingChartLayout) to
+                    // reserve the month/year band - the plot rect itself is
+                    // unchanged.
+                    interval={0}
+                    height={X_AXIS_BAND_HEIGHT}
+                    tickMargin={DAY_TICK_MARGIN}
+                    tickFormatter={axisTickFormatter}
+                    tick={createLeadInXAxisTick({
+                      fill: colors.inkSoft,
+                      formatTick: tickFormatter,
+                      isLeadInTick,
+                    })}
+                  />
+                  <YAxis
+                    domain={yDomain}
+                    width={estimateYAxisWidth(yDomain[1])}
+                    tickFormatter={formatNumber}
+                    tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
+                  />
+                  {series.map((s) => {
+                    const slot = SERIES_STYLE_SLOTS[s.styleIndex];
+                    const color = colors.series[s.styleIndex];
+                    const key = workKey(s.workId);
+                    return (
+                      <Line
+                        key={s.workId}
+                        type="linear"
+                        dataKey={key}
+                        name={s.title}
+                        connectNulls={false}
+                        isAnimationActive={false}
+                        activeDot={false}
+                        stroke={color}
+                        strokeWidth={2}
+                        dot={createSeriesDot({ dataKey: key, shape: slot.shape, color })}
+                      />
+                    );
                   })}
-                />
-                <YAxis
-                  domain={yDomain}
-                  width={estimateYAxisWidth(yDomain[1])}
-                  tickFormatter={formatNumber}
-                  tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
-                />
-                {series.map((s) => {
-                  const slot = SERIES_STYLE_SLOTS[s.styleIndex];
-                  const color = colors.series[s.styleIndex];
-                  const key = workKey(s.workId);
-                  return (
-                    <Line
-                      key={s.workId}
-                      type="linear"
-                      dataKey={key}
-                      name={s.title}
-                      connectNulls={false}
-                      isAnimationActive={false}
-                      activeDot={false}
-                      stroke={color}
-                      strokeWidth={2}
-                      dot={createSeriesDot({ dataKey: key, shape: slot.shape, color })}
-                    />
-                  );
-                })}
-                {series.map((s) => {
-                  if (!s.leadIn) return null;
-                  const key = leadKey(s.workId);
-                  return (
-                    <Line
-                      key={key}
-                      type="linear"
-                      dataKey={key}
-                      name={`${s.title} (before first capture)`}
-                      connectNulls
-                      isAnimationActive={false}
-                      activeDot={false}
-                      strokeDasharray="4 4"
-                      stroke={colors.inkSoft}
-                      strokeWidth={1.5}
-                      dot={createLeadInDot({
-                        dataKey: key,
-                        leadInCapturedOn: s.leadIn.capturedOn,
-                        color: colors.inkSoft,
-                      })}
-                    />
-                  );
-                })}
-                {/* Rendered BEFORE ActivePointOverlay (plan §5.4) - see
+                  {series.map((s) => {
+                    if (!s.leadIn) return null;
+                    const key = leadKey(s.workId);
+                    return (
+                      <Line
+                        key={key}
+                        type="linear"
+                        dataKey={key}
+                        name={`${s.title} (before first capture)`}
+                        connectNulls
+                        isAnimationActive={false}
+                        activeDot={false}
+                        strokeDasharray="4 4"
+                        stroke={colors.inkSoft}
+                        strokeWidth={1.5}
+                        dot={createLeadInDot({
+                          dataKey: key,
+                          leadInCapturedOn: s.leadIn.capturedOn,
+                          color: colors.inkSoft,
+                        })}
+                      />
+                    );
+                  })}
+                  {/* Rendered BEFORE ActivePointOverlay (plan §5.4) - see
                     TrendChart's identical comment. */}
-                <DateGroupingOverlay rows={chartData} />
-                <ActivePointOverlay
-                  activePoints={activePoints}
-                  pinnedPoints={pinnedPoints}
-                  brokenYAxis={brokenYAxis}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+                  <DateGroupingOverlay rows={chartData} />
+                  <ActivePointOverlay
+                    activePoints={activePoints}
+                    pinnedPoints={pinnedPoints}
+                    brokenYAxis={brokenYAxis}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </figure>
       </ChartDisclosure>
