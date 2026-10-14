@@ -2,9 +2,12 @@ import { useState } from "react";
 import type { PerWorkPoint, PerWorkSeries } from "../queries/useStatsForUser";
 import {
   clampWindow,
+  earliestZeroBasisMonthIndex,
+  emptyLeadInGap,
   filterPointsInWindow,
   shouldShowRangeSlider,
   unionCapturedOnDates,
+  windowEntirelyInsideGap,
   type MonthWindow,
 } from "../lib/comparisonSelection";
 import { formatMonthIndex, fromMonthIndex, monthIndexOf, toMonthIndex } from "../lib/monthIndex";
@@ -248,19 +251,43 @@ export function WorkComparisonSection({
   // poisons the domain every other value is clamped/compared against,
   // which is what actually produced the infinite re-render loop (not just
   // the silent-exclusion symptom the finding described). Falls back to
-  // currentYear, matching the existing no-union-dates fallback.
+  // currentYear, matching the existing no-union-dates fallback. Only used
+  // now as the LAST-resort domain-floor fallback below (see Maintenance
+  // comment), when no currently-selected work can form a zero-basis at all.
   const rawEarliestUnionYear = unionDates.length > 0 ? yearOf(unionDates[0]) : currentYear;
   const earliestUnionYear = Number.isFinite(rawEarliestUnionYear)
     ? rawEarliestUnionYear
     : currentYear;
-  const domainStart = Math.min(earliestPostYear ?? earliestUnionYear, currentYear);
-  // Domain floor is January of the earliest post/union year (so the user
-  // can always drag start down into any lead-in month within that year);
-  // ceiling is the current month (docs/plans/date-range-slider-month-
-  // granularity.md D1/§3).
+
+  // Maintenance (2026-10-13, ROADMAP.md "v2 candidates" confirmed
+  // 2026-08-03): the domain (drag-bounds) FLOOR/CEILING now derive from the
+  // CURRENTLY SELECTED works' own data, not the account-wide
+  // `earliestPostYear`/"now" - previously `domainStart` used
+  // `earliestPostYear ?? earliestUnionYear`, which pinned the floor to the
+  // account's full history WHENEVER earliestPostYear was set, regardless of
+  // which works were actually selected (a selection of only recently-
+  // published works could still drag back to the author's very first-ever
+  // post). Floor: earliest zero-basis date among selected works (own
+  // publishedOn, or the earliestPostYear fallback - same `zeroBasisDateFor`
+  // the lead-in itself uses); falls back to the earliest-union-year floor
+  // only when no selected work can form a zero-basis at all (no selection,
+  // or earliestPostYear null with no accurate publishedOn anywhere).
+  // Ceiling: the latest REAL captured date among selected works, not "now"
+  // - there is nothing to show past it either. Both recompute every render
+  // as `orderedSelectedWorks` changes, so changing the selection live
+  // reshapes the draggable range, not just the default window.
+  const currentMonthIndex = toMonthIndex(now.getUTCFullYear(), now.getUTCMonth() + 1);
+  const selectedZeroBasisMonthIndex = earliestZeroBasisMonthIndex(orderedSelectedWorks, (work) =>
+    zeroBasisDateFor(work, earliestPostYear),
+  );
+  const rawDomainEnd =
+    unionDates.length > 0 ? monthIndexOf(unionDates[unionDates.length - 1]) : currentMonthIndex;
+  const domainEndMonthIndex = Number.isFinite(rawDomainEnd) ? rawDomainEnd : currentMonthIndex;
+  const domainStartMonthIndex =
+    selectedZeroBasisMonthIndex ?? toMonthIndex(Math.min(earliestUnionYear, currentYear), 1);
   const domain: MonthWindow = {
-    start: toMonthIndex(domainStart, 1),
-    end: toMonthIndex(now.getUTCFullYear(), now.getUTCMonth() + 1),
+    start: Math.min(domainStartMonthIndex, domainEndMonthIndex),
+    end: Math.max(domainStartMonthIndex, domainEndMonthIndex),
   };
 
   // The LOCKED default (D2): earliest..latest REAL captured month, derived
@@ -296,8 +323,21 @@ export function WorkComparisonSection({
   // NEVER null now - the default window's own edges already bracket every
   // real point, so filtering can always apply unconditionally while
   // `computeLeadIn`'s start-gate hides the lead-in by default.
+  //
+  // ROADMAP.md "v2 candidates", amended 2026-08-04 (Maintenance,
+  // 2026-10-13): also treat a stored window as stale when it falls ENTIRELY
+  // inside the gap between every selected work's own lead-in period and its
+  // first real data (`emptyLeadInGap`) - such a window would show nothing
+  // but flat interpolated lead-in lines, no real data to compare, so it's
+  // corrected the same way an out-of-domain window already is.
+  const emptyGap = emptyLeadInGap(orderedSelectedWorks, (work) =>
+    zeroBasisDateFor(work, earliestPostYear),
+  );
   const effectiveRange: MonthWindow =
-    rawRange === null || rawRange.end < domain.start || rawRange.start > domain.end
+    rawRange === null ||
+    rawRange.end < domain.start ||
+    rawRange.start > domain.end ||
+    windowEntirelyInsideGap(rawRange, emptyGap)
       ? defaultWindow
       : clampWindow(rawRange, domain);
 

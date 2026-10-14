@@ -112,7 +112,7 @@ baseline feature on purpose)
   necessarily sets series lines solid and reserves dash solely for the
   zero-basis lead-in, reaching this same end-state as one piece of work.
   See `docs/plans/usds-dataviz-color-scheme.md`.
-- The date-range slider's default bounds should be the union, across the
+- ~~The date-range slider's default bounds should be the union, across the
   currently-selected works, of (each selected work's own publish date)
   through (the most recent captured date among them) - not the author's
   full earliest-post-year-to-now range as today. Depends on the same
@@ -127,7 +127,18 @@ baseline feature on purpose)
   data to compare. Depends on the per-work zero-basis-dates feature
   (shipped 2026-08-04, see `docs/plans/per-work-zero-basis-dates.md`) for
   both the per-work zero-basis dates and each work's first real captured
-  date.
+  date.~~ **SHIPPED 2026-10-13** (Maintenance): `WorkComparisonSection.tsx`'s
+  `domain` (drag-bounds) now derives its floor from `earliestZeroBasisMonthIndex`
+  (earliest zero-basis date across currently-selected works) and its ceiling
+  from the latest real captured date among them, both recomputed on every
+  render as the selection changes - not the account-wide `earliestPostYear`/
+  "now" it used before. The amendment's gap-exclusion is implemented via
+  `emptyLeadInGap`/`windowEntirelyInsideGap` (`lib/comparisonSelection.ts`):
+  a committed window falling entirely inside the gap where every selected
+  work lacks real data is corrected back to the real-capture default window,
+  the same way an out-of-domain window already was - rather than adding a
+  visually-excluded dead zone to the MUI Slider track itself (a judgment
+  call; see the Maintenance report for the full rationale).
 - ~~Establish a proper data-visualization color scheme for the graphs,
   modeled on the U.S. Digital Service's Data Design Standards color system
   (https://xdgov.github.io/data-design-standards/components/colors) rather
