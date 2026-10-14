@@ -29,6 +29,16 @@ export interface WorkComparisonBookmarksTabProps {
   // with zero points entirely (so an unenriched work's chart shows only its
   // Total line, not empty Public/Private legend entries - plan §4.3).
   buildWorkTypeSeries: (work: PerWorkSeries) => SeriesDatum[];
+  // Maintenance fix (2026-10-13, item 2): the date-range slider's "from"
+  // window start was never threaded through to this tab's own charts - only
+  // the non-Bookmarks metric chart in WorkComparisonSection received
+  // `windowStartEpoch`, so narrowing the slider's start thumb correctly
+  // clipped the lead-in baseline everywhere EXCEPT here, where it kept
+  // rendering all the way back to each work's own zero-basis date
+  // regardless of the window. Forwarded unchanged to every chart below, so
+  // both Bookmarks sub-views stay in sync with the slider the same way the
+  // other metric tabs already are.
+  windowStartEpoch: number | undefined;
 }
 
 const DEFAULT_CHECKED: Record<BookmarkTypeKey, boolean> = {
@@ -41,10 +51,12 @@ function ByType({
   buildTypeSeries,
   checked,
   onToggle,
+  windowStartEpoch,
 }: {
   buildTypeSeries: WorkComparisonBookmarksTabProps["buildTypeSeries"];
   checked: Record<BookmarkTypeKey, boolean>;
   onToggle: (key: BookmarkTypeKey) => void;
+  windowStartEpoch: number | undefined;
 }) {
   return (
     <div className="flex flex-col gap-6">
@@ -83,6 +95,7 @@ function ByType({
               title={`${type.label} bookmarks`}
               valueLabel="Bookmarks"
               series={series}
+              windowStartEpoch={windowStartEpoch}
             />
           );
         })}
@@ -100,9 +113,11 @@ function ByType({
 function ByWork({
   orderedSelectedWorks,
   buildWorkTypeSeries,
+  windowStartEpoch,
 }: {
   orderedSelectedWorks: PerWorkSeries[];
   buildWorkTypeSeries: WorkComparisonBookmarksTabProps["buildWorkTypeSeries"];
+  windowStartEpoch: number | undefined;
 }) {
   if (orderedSelectedWorks.length === 0) {
     return <p className="text-sm text-ink-soft">Select at least one work to compare.</p>;
@@ -116,6 +131,7 @@ function ByWork({
           title={work.title}
           valueLabel="Bookmarks"
           series={buildWorkTypeSeries(work)}
+          windowStartEpoch={windowStartEpoch}
           // D-A: the By-Work sub-view can stack up to 10 charts (one per
           // selected work), so its synced data tables default closed to
           // keep the worst-case page length in check - the one exception
@@ -131,6 +147,7 @@ export function WorkComparisonBookmarksTab({
   orderedSelectedWorks,
   buildTypeSeries,
   buildWorkTypeSeries,
+  windowStartEpoch,
 }: WorkComparisonBookmarksTabProps) {
   // Ephemeral view state (plan §3.4/§4.5) - not persisted; switching away
   // from and back to Bookmarks, or a remount, may reset these, unlike
@@ -150,11 +167,17 @@ export function WorkComparisonBookmarksTab({
       onChange={setSubTab}
     >
       {subTab === "byType" ? (
-        <ByType buildTypeSeries={buildTypeSeries} checked={checked} onToggle={toggleType} />
+        <ByType
+          buildTypeSeries={buildTypeSeries}
+          checked={checked}
+          onToggle={toggleType}
+          windowStartEpoch={windowStartEpoch}
+        />
       ) : (
         <ByWork
           orderedSelectedWorks={orderedSelectedWorks}
           buildWorkTypeSeries={buildWorkTypeSeries}
+          windowStartEpoch={windowStartEpoch}
         />
       )}
     </MetricToggle>

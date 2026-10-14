@@ -467,6 +467,7 @@ export function WorkComparisonSection({
             orderedSelectedWorks={orderedSelectedWorks}
             buildTypeSeries={buildSeries}
             buildWorkTypeSeries={buildWorkTypeSeries}
+            windowStartEpoch={windowStartEpoch}
           />
         ) : (
           <div className="flex flex-col gap-8">
