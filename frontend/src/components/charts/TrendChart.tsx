@@ -201,6 +201,36 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
     );
   }
 
+  // Maintenance (2026-10-13, item 3): distinct from the "no data at all"
+  // case above - real, captured data where EVERY value genuinely happens
+  // to be 0 (e.g. an author with zero subscribers at every snapshot so
+  // far) rendered a confusing all-flat-zero line. Checked against `points`
+  // only (never `leadIn`, which is always a synthetic 0 by construction and
+  // would otherwise poison this check) - a lone real non-zero value still
+  // renders the chart normally.
+  const allRealValuesAreZero = points.length > 0 && points.every((point) => point.value === 0);
+  if (allRealValuesAreZero) {
+    return (
+      <div
+        aria-labelledby={headingId}
+        aria-describedby={description ? descriptionId : undefined}
+        className="w-full rounded-lg border border-ink/12 bg-card p-6 transition-colors duration-200 hover:border-ink/24"
+      >
+        <h3 id={headingId} className="font-display text-base font-semibold text-ink">
+          {title}
+        </h3>
+        {description && (
+          <p id={descriptionId} className="mt-1 text-sm text-ink-soft">
+            {description}
+          </p>
+        )}
+        <p className="mt-4 text-sm text-ink-soft">
+          {`Nothing to see here yet - every snapshot so far has recorded zero ${valueLabel.toLowerCase()}. Check back once that changes.`}
+        </p>
+      </div>
+    );
+  }
+
   const tableModel = buildTrendTableModel({ valueLabel, points, leadIn });
 
   // Item 1/D1's padded y-domain: values INCLUDE the lead-in's literal 0 when

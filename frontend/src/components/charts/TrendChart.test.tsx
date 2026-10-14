@@ -331,4 +331,58 @@ describe("TrendChart", () => {
       expect(screen.getByText(/no data/i)).toBeInTheDocument();
     });
   });
+
+  // Maintenance (2026-10-13, item 3): real, captured data where every
+  // value genuinely happens to be 0 (e.g. an author with zero subscribers
+  // at every snapshot so far) used to render a confusing all-flat-zero
+  // line instead of a message - distinct from "no data at all" (the
+  // describe block above) and from "not enough history" (DashboardPage's
+  // own single-snapshot message), both of which are about snapshot COUNT,
+  // not VALUE. Mirrors the existing "no points" empty-state's exact
+  // mechanism (degrade to a message instead of a chart region) and voice
+  // (text-ink-soft, matching DashboardPage's "No snapshots yet"/"not
+  // enough history" copy).
+  describe("with every real captured value equal to zero", () => {
+    const ALL_ZERO_POINTS = [
+      { capturedOn: "2026-01-01", value: 0 },
+      { capturedOn: "2026-02-01", value: 0 },
+      { capturedOn: "2026-03-01", value: 0 },
+    ];
+
+    it("shows a friendly empty-state message instead of a flat-zero chart", () => {
+      render(<TrendChart title="Subscribers" valueLabel="Subscribers" points={ALL_ZERO_POINTS} />);
+
+      expect(screen.queryByRole("img", { name: /subscribers/i })).not.toBeInTheDocument();
+      expect(screen.getByText(/nothing to see here/i)).toBeInTheDocument();
+      expect(screen.getByText(/zero subscribers/i)).toBeInTheDocument();
+    });
+
+    it("still renders the title and description above the empty-state message", () => {
+      render(
+        <TrendChart
+          title="Subscribers"
+          description="People subscribed to you as an author."
+          valueLabel="Subscribers"
+          points={ALL_ZERO_POINTS}
+        />,
+      );
+
+      expect(screen.getByRole("heading", { name: "Subscribers" })).toBeInTheDocument();
+      expect(screen.getByText("People subscribed to you as an author.")).toBeInTheDocument();
+    });
+
+    it("renders the chart normally when at least one real value is non-zero", () => {
+      const mostlyZero = [...ALL_ZERO_POINTS, { capturedOn: "2026-04-01", value: 3 }];
+      render(<TrendChart title="Subscribers" valueLabel="Subscribers" points={mostlyZero} />);
+
+      expect(screen.getByRole("img", { name: /subscribers/i })).toBeInTheDocument();
+      expect(screen.queryByText(/nothing to see here/i)).not.toBeInTheDocument();
+    });
+
+    it("does not confuse an all-zero series with the separate no-data-at-all empty state", () => {
+      render(<TrendChart title="Subscribers" valueLabel="Subscribers" points={ALL_ZERO_POINTS} />);
+
+      expect(screen.queryByText(/^no data/i)).not.toBeInTheDocument();
+    });
+  });
 });
