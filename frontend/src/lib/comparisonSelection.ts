@@ -154,6 +154,29 @@ export function earliestZeroBasisMonthIndex(
   return indices.length > 0 ? Math.min(...indices) : null;
 }
 
+// Review (adversarial) finding, 2026-10-14 (MEDIUM, confirmed via repro): a
+// selected work's own zero-basis date (publishedOn) isn't guaranteed to
+// predate its own earliest REAL capture - e.g. publish-date scraping that
+// ran after captures already existed. An unclamped zero-basis floor could
+// then sit ABOVE the earliest real captured month, excluding real data the
+// chart is actively showing by default (the slider's min/value, the live
+// readout, and the chart itself would then disagree). `computeLeadIn`
+// (WorkComparisonSection.tsx) already guards this exact inversion per-work
+// (`zeroBasisDate >= firstVisiblePoint.capturedOn`) - this applies the same
+// defensive posture to the domain floor: it can never exceed
+// `earliestRealMonthIndex` (the caller passes `monthIndexOf(unionDates[0])`
+// when real union dates exist), not just the zero-basis derivation alone.
+// `fallbackMonthIndex` is used only when `zeroBasisMonthIndex` is null (no
+// selected work can form a zero-basis at all).
+export function domainFloorMonthIndex(
+  zeroBasisMonthIndex: number | null,
+  earliestRealMonthIndex: number | null,
+  fallbackMonthIndex: number,
+): number {
+  const base = zeroBasisMonthIndex ?? fallbackMonthIndex;
+  return earliestRealMonthIndex !== null ? Math.min(base, earliestRealMonthIndex) : base;
+}
+
 // ROADMAP.md "v2 candidates", amended 2026-08-04: across the currently
 // selected works, the span strictly between (the LATEST zero-basis date
 // among them - the last of them to be "published") and (the EARLIEST real

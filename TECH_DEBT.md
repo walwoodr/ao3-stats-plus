@@ -457,3 +457,38 @@
   `WorkComparisonBookmarksTab.tsx` (`hasData = series.some((s) =>
   s.points.length > 0)`) has the identical gap - it catches "nothing
   captured" but not "captured, and it's all zero."
+
+- [2026-10-14] (stage: Review (adversarial)) `emptyLeadInGap`
+  (`comparisonSelection.ts`, item 1 of the 2026-10-13 Maintenance batch)
+  uses the LATEST zero-basis date across the current selection as the
+  gap's start - matches ROADMAP.md's literal wording, but only partially
+  achieves its stated intent for a STAGGERED-publish-date selection: a
+  window chosen entirely inside an EARLIER-published work's own individual
+  lead-in gap (i.e. before a later-published co-selected work's publish
+  date, but after the earlier work's own publish date) isn't rejected,
+  since that span doesn't qualify as "every selected work lacks data"
+  under the current latest-zero-basis/earliest-real-capture definition.
+  Low severity - the window still shows at least one work's real data in
+  that case, so it isn't the "nothing but flat lead-in lines" failure mode
+  the roadmap item is actually guarding against.
+
+- [2026-10-14] (stage: Review (adversarial)) A window rejected by the
+  empty-lead-in-gap snap-back (`WorkComparisonSection.tsx`'s
+  `effectiveRange` derivation, item 1 above) is corrected only at
+  derivation time, not cleared from the persisted `useWorkComparisonStore`
+  range. If the selection later changes such that the gap dissolves or the
+  previously-rejected window becomes valid again, that window can silently
+  resurface as active. Minor UX surprise, not a correctness hazard (mirrors
+  the pre-existing stale-range-vs-domain fallback's own same non-clearing
+  behavior, so it's consistent with this file's established pattern, not a
+  new inconsistency).
+
+- [2026-10-14] (stage: Review (adversarial)) Informational, no action
+  needed: the empty-lead-in-gap amendment (item 1 above) is implemented as
+  a commit-time snap-back-to-default correction, not a visually-excluded
+  dead zone on the MUI Slider track itself (which has no native support for
+  an interior excluded range). The functional guarantee (a window entirely
+  inside the gap is rejected) is met; it just isn't realized via the
+  roadmap's literal "make unselectable" UI framing. Already an accepted,
+  explicitly-flagged judgment call from that item's own implementation
+  report, re-confirmed here rather than silently relitigated.

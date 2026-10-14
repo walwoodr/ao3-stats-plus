@@ -335,3 +335,66 @@ describe("a committed window entirely inside the empty lead-in gap is corrected 
     expect(screen.getByText(/^Jan 2012\s*[–-]\s*Jan 2016$/)).toBeInTheDocument();
   });
 });
+
+// Review (adversarial) finding, 2026-10-14 (MEDIUM, confirmed via repro):
+// a selected work's own zero-basis date (publishedOn) is not guaranteed to
+// predate its own earliest REAL capture - e.g. publish-date scraping that
+// ran after captures already existed. An unclamped zero-basis floor could
+// then sit ABOVE the earliest real captured month, excluding real data the
+// chart is actively showing by default.
+describe("the domain floor never exceeds the earliest real captured month, even when a work's own publishedOn is later (Review adversarial finding, 2026-10-14)", () => {
+  it("clamps the floor to the earliest real capture when publishedOn postdates it, instead of excluding that real data", () => {
+    const works: PerWorkSeries[] = [
+      work({
+        ao3WorkId: 1,
+        title: "Work One",
+        // publishedOn (Jun 2026) is LATER than this work's own earliest
+        // real captures (Mar/Apr/May 2026) - a data-entry-quirk shape, per
+        // the reviewer's exact repro.
+        publishedOn: "2026-06-15",
+        points: [
+          {
+            capturedOn: "2026-03-01",
+            hits: 1,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-04-01",
+            hits: 2,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+          {
+            capturedOn: "2026-05-01",
+            hits: 3,
+            kudos: 1,
+            comments: 0,
+            bookmarks: 0,
+            subscriptions: 0,
+          },
+        ],
+      }),
+    ];
+
+    renderSection({ perWorkSeries: works, earliestPostYear: null });
+
+    // The floor must reach back to March (the earliest real capture), not
+    // stop at June (the later, inverted publishedOn) - which would exclude
+    // March/April from the draggable range entirely.
+    expect(startThumb()).toHaveAttribute("aria-valuemin", String(mi(2026, 3)));
+    // The slider's own current value must stay inside its own min/max -
+    // confirms the three-way disagreement (min clamps above value) the
+    // reviewer flagged can't happen.
+    const valueNow = Number(startThumb().getAttribute("aria-valuenow"));
+    const valueMin = Number(startThumb().getAttribute("aria-valuemin"));
+    expect(valueNow).toBeGreaterThanOrEqual(valueMin);
+    // The visible readout must agree with the slider's own bounds - no
+    // "May" vs "March" split between the readout and the thumb.
+    expect(screen.getByText(/^Mar 2026\s*[–-]\s*May 2026$/)).toBeInTheDocument();
+  });
+});

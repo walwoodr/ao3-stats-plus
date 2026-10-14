@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { PerWorkPoint, PerWorkSeries } from "../queries/useStatsForUser";
 import {
   clampWindow,
+  domainFloorMonthIndex,
   earliestZeroBasisMonthIndex,
   emptyLeadInGap,
   filterPointsInWindow,
@@ -260,22 +261,14 @@ export function WorkComparisonSection({
     : currentYear;
 
   // Maintenance (2026-10-13, ROADMAP.md "v2 candidates" confirmed
-  // 2026-08-03): the domain (drag-bounds) FLOOR/CEILING now derive from the
-  // CURRENTLY SELECTED works' own data, not the account-wide
-  // `earliestPostYear`/"now" - previously `domainStart` used
-  // `earliestPostYear ?? earliestUnionYear`, which pinned the floor to the
-  // account's full history WHENEVER earliestPostYear was set, regardless of
-  // which works were actually selected (a selection of only recently-
-  // published works could still drag back to the author's very first-ever
-  // post). Floor: earliest zero-basis date among selected works (own
-  // publishedOn, or the earliestPostYear fallback - same `zeroBasisDateFor`
-  // the lead-in itself uses); falls back to the earliest-union-year floor
-  // only when no selected work can form a zero-basis at all (no selection,
-  // or earliestPostYear null with no accurate publishedOn anywhere).
-  // Ceiling: the latest REAL captured date among selected works, not "now"
-  // - there is nothing to show past it either. Both recompute every render
-  // as `orderedSelectedWorks` changes, so changing the selection live
-  // reshapes the draggable range, not just the default window.
+  // 2026-08-03): domain FLOOR/CEILING derive from the CURRENTLY SELECTED
+  // works' own data, not the account-wide earliestPostYear/"now" (a
+  // selection of only recently-published works shouldn't drag back to the
+  // author's very first-ever post). See `earliestZeroBasisMonthIndex`'s
+  // doc comment for the floor rule and `domainFloorMonthIndex`'s for its
+  // earliest-real-capture clamp (Review adversarial finding, 2026-10-14).
+  // Ceiling: the latest REAL captured date among selected works, not "now".
+  // Both recompute every render as `orderedSelectedWorks` changes.
   const currentMonthIndex = toMonthIndex(now.getUTCFullYear(), now.getUTCMonth() + 1);
   const selectedZeroBasisMonthIndex = earliestZeroBasisMonthIndex(orderedSelectedWorks, (work) =>
     zeroBasisDateFor(work, earliestPostYear),
@@ -283,8 +276,16 @@ export function WorkComparisonSection({
   const rawDomainEnd =
     unionDates.length > 0 ? monthIndexOf(unionDates[unionDates.length - 1]) : currentMonthIndex;
   const domainEndMonthIndex = Number.isFinite(rawDomainEnd) ? rawDomainEnd : currentMonthIndex;
-  const domainStartMonthIndex =
-    selectedZeroBasisMonthIndex ?? toMonthIndex(Math.min(earliestUnionYear, currentYear), 1);
+  const rawEarliestRealMonthIndex = unionDates.length > 0 ? monthIndexOf(unionDates[0]) : null;
+  const earliestRealMonthIndex =
+    rawEarliestRealMonthIndex !== null && Number.isFinite(rawEarliestRealMonthIndex)
+      ? rawEarliestRealMonthIndex
+      : null;
+  const domainStartMonthIndex = domainFloorMonthIndex(
+    selectedZeroBasisMonthIndex,
+    earliestRealMonthIndex,
+    toMonthIndex(Math.min(earliestUnionYear, currentYear), 1),
+  );
   const domain: MonthWindow = {
     start: Math.min(domainStartMonthIndex, domainEndMonthIndex),
     end: Math.max(domainStartMonthIndex, domainEndMonthIndex),
