@@ -66,11 +66,6 @@ baseline feature on purpose)
 
 ## v2 candidates (confirmed 2026-08-02)
 
-- Visual improvements for the bookmarklet's injected UI. The success/
-  failure/progress/summary banners (`frontend/src/bookmarklet/banners.ts`,
-  `bannerStyles.ts`, `successBannerTokenField.ts`) are functional and follow
-  MASTER.md's palette/typography tokens via inline styles, but haven't had
-  a dedicated design pass - they're plainer than the rest of the app's UI.
 - ~~A "don't close this page" block/warning while Phase 2 fan-out capture is
   in progress. The fan-out (`fanOut.ts`) walks every scraped work
   sequentially and throttled, which can take a real amount of time for a
@@ -220,7 +215,6 @@ Raised by the user while reviewing the shipped feature (`docs/plans/chart-synced
   point, hover a second to see a colored delta in the table). Housekeeping
   note (2026-10-13): found stale during a roadmap review, verified against
   real code before marking.
-- **True chronological x-axis scale.** Currently a category (not real-time) axis by deliberate design (see `design-system/ao3-stats-plus/MASTER.md`'s Chart Guidance - "settled convention, do not reopen" per this project's own established practice). This item explicitly proposes reopening that convention: space between plotted points would reflect actual elapsed time between captures, not just ordinal position. Needs Discovery/Planning to work through the real consequences (irregular capture cadence produces uneven point spacing; the zero-basis/lead-in synthetic point's placement; existing sparse-series handling) before touching the settled convention.
 - ~~Visual date-hierarchy grouping (year/month/day) for both chart and table.~~
   **SHIPPED** (`docs/plans/date-hierarchy-grouping.md` -
   `DateGroupingOverlay.tsx`, `yearLabelPlacement.ts`,
@@ -264,3 +258,4 @@ Raised by the user while scoping `docs/plans/date-range-slider-month-granularity
 ## v2 candidates (confirmed 2026-10-13)
 
 - **Offer to track a work's "Inspired by this work" relations during capture.** AO3 lets a work declare it was inspired by another work, shown as a listed relationship on the inspired work's own page. Today's Phase 2 fan-out (`fanOut.ts`, `scrapeWorkPage.ts`) walks each already-tracked work's page for enrichment but has no concept of this relationship at all - it isn't scraped, surfaced, or offered anywhere. This item proposes: when `scrapeWorkPage` detects one or more "Inspired by this work" entries on a tracked work's page, explicitly ask the user (via a bookmarklet-injected prompt, in the same visual language as the existing progress/summary banners - `banners.ts`, `bannerStyles.ts`) whether they'd like those inspiring works added to tracking too, rather than silently ignoring the relationship or silently auto-adding it. Needs Discovery/Planning on: whether "inspired by" works (which may belong to a different AO3 author entirely, not the account being tracked) fit this app's single-author `Work`/`Ao3User` data model at all, or need their own representation; what the prompt's interaction model looks like mid-fan-out (a blocking per-work prompt would undercut the fan-out's throttled/sequential/unattended design - more likely a single batched prompt after the run, listing everything discovered); and whether a declined work should be remembered (don't ask again) or asked on every future capture that encounters the same relationship.
+- **"Marketing style" public version of the app, using the `demo/novik-unbranded` branch's synthetic Naomi Novik data.** That branch already has an unbranded static build and a genericized, illustrative "How it works" walkthrough (`InstallPage.tsx`, inline-SVG mockups standing in for real screenshots, deliberately not styled as a real product page - see `DEMO_README.md`). This item proposes going further: a polished, promotional/marketing-oriented presentation (not just unbranded-and-functional) built on that same synthetic dataset, plus real screenshots of the capture phase rather than the current illustrative mockups. Needs Discovery/Planning on: what "marketing style" actually means here (new landing-page copy/visual treatment vs. a fuller site reskin) and - the open question with no obvious answer yet - what the capture-phase screenshots should actually depict, given the demo has no live backend/real AO3 session to genuinely screenshot (candidates: staged/composited screenshots built to look authentic, or screenshots of the demo's own existing illustrative walkthrough rendered as real images instead of inline SVG).
