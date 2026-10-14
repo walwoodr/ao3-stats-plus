@@ -154,31 +154,20 @@ baseline feature on purpose)
 
 ## v2 candidates (confirmed 2026-08-04)
 
-- Display per-work bookmark notes/comments in the UI. **Verified 2026-08-04:
-  this is NOT a new data source**, correcting the 2026-07-22 batch's
-  original framing ("likely requires scraping the work's bookmarks page").
-  `scrapeWorkBookmarks.ts` already scrapes each public bookmark's note
-  (`noteHtml`), bookmarker name, tags, date, and collections from the
-  work's `/works/:id/bookmarks` page; this is already stored (the
-  `work_bookmarks` table) and already exposed via GraphQL
-  (`WorkBookmarkType`, `PerWorkSeriesType#bookmarks`) - all shipped as
-  part of `docs/plans/work-page-enrichment-data-model.md`. That plan
-  explicitly scoped the consuming UI out ("The toggle-graph UI that
-  consumes this data remains explicitly out of scope and needs its own
-  consultation + Planning pass"). What's actually left is pure frontend
-  work: designing and building a UI to list/display this already-captured
-  data - no scraping, backend, or data-model work needed.
+- ~~Display per-work bookmark notes/comments in the UI.~~ **SHIPPED**
+  (`docs/plans/bookmark-notes-feed.md` - `BookmarkFeedPage`/`BookmarkFeed`/
+  `BookmarkFeedItem`). Housekeeping note (2026-10-13): this entry was never
+  struck through when the feature landed - found stale during a roadmap
+  review, verified against real code before marking.
 - ~~Persist the "compare works" selection to browser storage, scoped
   per-username.~~ **SHIPPED** (`useWorkComparisonStore.ts`, a persisted
   Zustand store, per `docs/plans/work-comparison-picker-redesign.md`).
-- The date-range slider (`DateRangeSlider`, currently year-granularity only
-  - a `[number, number]` pair of years) should allow filtering with
-  month-level specificity, not just whole years. Needs Discovery/Planning
-  on the actual UI mechanism (e.g. a finer-grained slider, paired
-  month+year pickers, or a different control entirely) and how
-  month-granularity interacts with the existing `capturedOn`-date-keyed
-  chart axis and the year-only union/domain logic in
-  `comparisonSelection.ts`.
+- ~~The date-range slider should allow filtering with month-level
+  specificity, not just whole years.~~ **SHIPPED**
+  (`docs/plans/date-range-slider-month-granularity.md` -
+  `lib/monthIndex.ts`, `comparisonSelection.ts`). Housekeeping note
+  (2026-10-13): found stale during a roadmap review, verified against real
+  code before marking.
 
 ## v2 candidates (confirmed 2026-08-09)
 
@@ -226,15 +215,19 @@ baseline feature on purpose)
 Raised by the user while reviewing the shipped feature (`docs/plans/chart-synced-data-table.md`) - explicitly flagged as future work, not part of that feature's follow-up bugfix batch.
 
 - **Axis-flip toggle.** Let the user swap which axis (time vs. metric/series) each chart plots against - i.e. flip the chart's orientation. Needs Discovery on what this actually means per chart type (`TrendChart`/`RatioChart` are single-series - flipping axes there is a different operation than for `MultiSeriesTrendChart`) and how it interacts with the synced-data-table's own row/column orientation (Decision D3: time-as-columns).
-- **Time-series point comparison.** Select a point (e.g. by clicking a date on the chart or a column in the table), then hover/select a second point to see a delta (`+47`/`-1`, colored by valence - green for a metric-appropriate improvement, red for decline) rendered next to the second point's value in the table. Needs Discovery on interaction model (click-to-pin vs. a dedicated compare mode), which metrics have a "good direction" (hits/kudos up = good, but does every metric have an obvious valence?), and how this composes with the existing per-work multi-select comparison feature (`WorkComparisonSection`) without confusing two different "compare" concepts.
+- ~~**Time-series point comparison.**~~ **SHIPPED**
+  (`frontend/src/lib/pointComparison.ts`, `syncedTableModel.ts` - pin a
+  point, hover a second to see a colored delta in the table). Housekeeping
+  note (2026-10-13): found stale during a roadmap review, verified against
+  real code before marking.
 - **True chronological x-axis scale.** Currently a category (not real-time) axis by deliberate design (see `design-system/ao3-stats-plus/MASTER.md`'s Chart Guidance - "settled convention, do not reopen" per this project's own established practice). This item explicitly proposes reopening that convention: space between plotted points would reflect actual elapsed time between captures, not just ordinal position. Needs Discovery/Planning to work through the real consequences (irregular capture cadence produces uneven point spacing; the zero-basis/lead-in synthetic point's placement; existing sparse-series handling) before touching the settled convention.
 - ~~Visual date-hierarchy grouping (year/month/day) for both chart and table.~~
-  **DESIGN CONFIRMED 2026-09-26** (design-options session held per the user's
-  standing instruction - three concrete treatments were mocked as an Artifact
-  against this app's real tokens and the account's actual hard case, a 2014/
-  2015 lead-in next to a dense July-August 2026 daily cluster; the user picked
-  a combination, then caught and corrected a flaw in the table mock before
-  signing off). **Ready for Planning** - not yet built. Confirmed design:
+  **SHIPPED** (`docs/plans/date-hierarchy-grouping.md` -
+  `DateGroupingOverlay.tsx`, `yearLabelPlacement.ts`,
+  `SyncedDataTableHeader.tsx`'s three-tier header). Housekeeping note
+  (2026-10-13): found stale during a roadmap review (was still marked
+  "design confirmed, ready for Planning" despite having shipped), verified
+  against real code before marking. Confirmed design, as built:
   - **Chart x-axis**: year boundaries get a vertical dashed rule + year label,
     drawn only where the year actually changes (sparse, doesn't compete with
     the plot). Month groups get a horizontal span line with a month-
