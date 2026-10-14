@@ -221,10 +221,19 @@ export function SyncedDataTable({
         {/* WCAG 2.1.1/axe scrollable-region-focusable: a horizontally
           scrollable region with no naturally focusable content (no links/
           inputs here) must itself be a keyboard-operable tab stop, or
-          keyboard-only users have no way to scroll it. */}
+          keyboard-only users have no way to scroll it.
+          Maintenance (2026-10-13, item 4): `padding-left: 0` per direct
+          instruction - was `px-4` (padding on both sides), stacking an
+          extra left inset nothing else here relies on (every cell, incl.
+          the sticky row-header column, carries its own independent
+          padding/shadow treatment regardless of this container's own).
+          Right/bottom padding (`pr-4`/`pb-4`) are unchanged. Known
+          tradeoff, accepted per explicit instruction: the <summary> toggle
+          label above (still `px-4`) no longer visually aligns with the
+          table's own first column. */}
         <div
           ref={scrollContainerRef}
-          className="overflow-x-auto bg-card px-4 pb-4 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="overflow-x-auto bg-card pr-4 pb-4 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           tabIndex={0}
           role="region"
           aria-label={`${title} data table, scrollable`}
