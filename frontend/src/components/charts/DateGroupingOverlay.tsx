@@ -3,6 +3,7 @@ import { useChartColors } from "../../lib/useChartColors";
 import { buildDateHierarchy, type YearGroup } from "../../lib/dateHierarchy";
 import type { DateAxisEntry } from "../../lib/tableOrientation";
 import { computeYearLabelPlacements, type RawYearLabelMark } from "../../lib/yearLabelPlacement";
+import { computeMonthLabelPlacements, type RawMonthLabelMark } from "../../lib/monthLabelPlacement";
 
 export interface DateGroupingOverlayRow {
   capturedOn: string;
@@ -97,7 +98,7 @@ export function DateGroupingOverlay({ rows }: DateGroupingOverlayProps) {
     return typeof x === "number" ? x : null;
   }
 
-  const monthMarks: { key: string; x1: number; x2: number; label: string }[] = [];
+  const monthMarks: RawMonthLabelMark[] = [];
   const yearRuleMarks: { key: string; x: number }[] = [];
   const rawYearLabelMarks: RawYearLabelMark[] = [];
 
@@ -151,6 +152,18 @@ export function DateGroupingOverlay({ rows }: DateGroupingOverlayProps) {
     maxX: plotMaxX,
   });
 
+  // Maintenance fix (2026-10-15, TECH_DEBT.md 2026-09-29 entry): resolves
+  // the month label's own left-edge/Y-axis collision, mirroring
+  // yearLabelPlacement.ts's edge-safety approach above - see
+  // monthLabelPlacement.ts for the full geometry rationale. monthMarks'
+  // raw x1/x2 (used for the span LINE below) are untouched; only the
+  // LABEL's rendered x/textAnchor come from this placement pass.
+  const monthLabelMarks = computeMonthLabelPlacements(monthMarks, {
+    minX: plotMinX,
+    maxX: plotMaxX,
+  });
+  const monthLabelByKey = new Map(monthLabelMarks.map((mark) => [mark.key, mark]));
+
   return (
     <g aria-hidden="true" data-testid="date-grouping-overlay">
       {monthMarks.map((mark) => (
@@ -174,9 +187,9 @@ export function DateGroupingOverlay({ rows }: DateGroupingOverlayProps) {
               mockup's sans one. Restored to match the locked design exactly. */}
           <text
             data-testid="month-span-label"
-            x={(mark.x1 + mark.x2) / 2}
+            x={monthLabelByKey.get(mark.key)?.x ?? (mark.x1 + mark.x2) / 2}
             y={plotArea.y + plotArea.height + MONTH_LINE_OFFSET - MONTH_LABEL_OFFSET}
-            textAnchor="middle"
+            textAnchor={monthLabelByKey.get(mark.key)?.textAnchor ?? "middle"}
             fill={colors.inkSoft}
             fontFamily="var(--font-sans)"
             fontWeight={600}
