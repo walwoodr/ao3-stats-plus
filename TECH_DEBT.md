@@ -477,3 +477,28 @@
   roadmap's literal "make unselectable" UI framing. Already an accepted,
   explicitly-flagged judgment call from that item's own implementation
   report, re-confirmed here rather than silently relitigated.
+
+- [2026-10-15] (stage: Maintenance) `monthLabelPlacement.ts`'s new left-edge
+  guard (fix for the 2026-09-29 month-label/Y-axis-tick collision entry
+  above) only guards the LEFT edge, mirroring the one confirmed/reported
+  defect. The mirror-image case is unverified/unfixed: a single-point month
+  sitting at the domain MAXIMUM (e.g. the most recent capture date, a
+  plausible and fairly common case) would have the same `textAnchor="middle"`
+  geometry push its text past the plot's RIGHT edge - not into another
+  element the way the left case collided with the Y-axis, but still
+  potentially clipped/overflowing past the chart's right boundary. Not
+  reported, not reproduced live - flagged as a latent, plausible sibling bug
+  worth a dedicated look (and, if real, a `computeMonthLabelPlacements`
+  right-edge guard analogous to yearLabelPlacement.ts's own right-edge
+  Finding 1) rather than fixed inline here, since it's outside this item's
+  confirmed defect.
+
+- [2026-10-15] (stage: Maintenance) `MAX_REAL_AXIS_TICKS_BY_BREAKPOINT`'s
+  per-breakpoint values (`base: 3`, `md: 6`) are named, hardcoded constants
+  carried over/derived by ratio from chartDotDensity.ts's own
+  `PLOT_WIDTH_BY_BREAKPOINT` - not independently verified against a real
+  production build on an actual narrow (~375px) viewport, the same caveat
+  chartDotDensity.ts's own top-of-file comment already carries for its
+  values (and which was never separately tracked here either). Worth a
+  Preview sanity-check on a real narrow viewport before trusting `base: 3`
+  as the right density, not just the ratio math.
