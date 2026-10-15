@@ -41,11 +41,11 @@ function InfoIcon() {
 // value is 0, keeping the data table itself visible alongside it.
 export function InfoBox({ message }: InfoBoxProps) {
   return (
-    <div className="mt-4 flex items-start gap-3 rounded-lg border border-blue-300 bg-blue-50 p-4">
-      <span className="mt-0.5 shrink-0 text-blue-500">
+    <div className="mt-4 flex items-baseline gap-3 rounded-lg border border-blue-300 bg-blue-50 dark:bg-blue-900 p-4">
+      <span className="shrink-0 text-blue-500 ">
         <InfoIcon />
       </span>
-      <p className="text-sm text-blue-800">{message}</p>
+      <p className="text-sm text-blue-800 dark:text-blue-50">{message}</p>
     </div>
   );
 }
