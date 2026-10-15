@@ -332,32 +332,56 @@ describe("TrendChart", () => {
     });
   });
 
-  // Maintenance (2026-10-13, item 3): real, captured data where every
-  // value genuinely happens to be 0 (e.g. an author with zero subscribers
-  // at every snapshot so far) used to render a confusing all-flat-zero
-  // line instead of a message - distinct from "no data at all" (the
-  // describe block above) and from "not enough history" (DashboardPage's
-  // own single-snapshot message), both of which are about snapshot COUNT,
-  // not VALUE. Mirrors the existing "no points" empty-state's exact
-  // mechanism (degrade to a message instead of a chart region) and voice
-  // (text-ink-soft, matching DashboardPage's "No snapshots yet"/"not
-  // enough history" copy).
+  // Maintenance (2026-10-13, item 3; restructured 2026-10-14 per Preview
+  // feedback): real, captured data where every value genuinely happens to
+  // be 0 (e.g. an author with zero subscribers at every snapshot so far)
+  // used to render a confusing all-flat-zero line - distinct from "no data
+  // at all" (the describe block above) and from "not enough history"
+  // (DashboardPage's own single-snapshot message), both of which are
+  // about snapshot COUNT, not VALUE. Per direct Preview feedback: ONLY the
+  // chart/graph (the `role="img"` figure) is omitted, replaced with a blue
+  // "info box" (icon + message) - the visible SyncedDataTable stays
+  // rendered exactly as it would otherwise (showing real zeros), using the
+  // user's own exact, non-interpolated copy.
   describe("with every real captured value equal to zero", () => {
     const ALL_ZERO_POINTS = [
       { capturedOn: "2026-01-01", value: 0 },
       { capturedOn: "2026-02-01", value: 0 },
       { capturedOn: "2026-03-01", value: 0 },
     ];
+    const EXACT_MESSAGE = "Graph has been omitted. All data points for the current graph are 0.";
 
-    it("shows a friendly empty-state message instead of a flat-zero chart", () => {
+    it("omits the chart/graph region, replacing it with the exact info-box message", () => {
       render(<TrendChart title="Subscribers" valueLabel="Subscribers" points={ALL_ZERO_POINTS} />);
 
       expect(screen.queryByRole("img", { name: /subscribers/i })).not.toBeInTheDocument();
-      expect(screen.getByText(/nothing to see here/i)).toBeInTheDocument();
-      expect(screen.getByText(/zero subscribers/i)).toBeInTheDocument();
+      expect(screen.getByText(EXACT_MESSAGE)).toBeInTheDocument();
     });
 
-    it("still renders the title and description above the empty-state message", () => {
+    it("keeps the visible data table rendered (showing the real zeros), not hidden alongside the chart", () => {
+      render(<TrendChart title="Subscribers" valueLabel="Subscribers" points={ALL_ZERO_POINTS} />);
+
+      const table = screen.getByRole("table", { name: /subscribers/i });
+      expect(table).toBeInTheDocument();
+      expect(within(table).getAllByText("0")).toHaveLength(ALL_ZERO_POINTS.length);
+    });
+
+    it("renders the info box with the blue icon-plus-message treatment, not plain text", () => {
+      const { container } = render(
+        <TrendChart title="Subscribers" valueLabel="Subscribers" points={ALL_ZERO_POINTS} />,
+      );
+
+      const messageNode = screen.getByText(EXACT_MESSAGE);
+      const box = messageNode.closest("div");
+      expect(box?.className).toMatch(/bg-blue-50/);
+      expect(box?.className).toMatch(/border-blue-300/);
+      // The icon is a decorative, aria-hidden inline SVG (this app's
+      // established hand-rolled-icon convention) - not asserting its exact
+      // path geometry, just that a blue-colored icon element exists.
+      expect(container.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+    });
+
+    it("still renders the title and description above the info box", () => {
       render(
         <TrendChart
           title="Subscribers"
@@ -371,12 +395,12 @@ describe("TrendChart", () => {
       expect(screen.getByText("People subscribed to you as an author.")).toBeInTheDocument();
     });
 
-    it("renders the chart normally when at least one real value is non-zero", () => {
+    it("renders the chart normally (no info box) when at least one real value is non-zero", () => {
       const mostlyZero = [...ALL_ZERO_POINTS, { capturedOn: "2026-04-01", value: 3 }];
       render(<TrendChart title="Subscribers" valueLabel="Subscribers" points={mostlyZero} />);
 
       expect(screen.getByRole("img", { name: /subscribers/i })).toBeInTheDocument();
-      expect(screen.queryByText(/nothing to see here/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(EXACT_MESSAGE)).not.toBeInTheDocument();
     });
 
     it("does not confuse an all-zero series with the separate no-data-at-all empty state", () => {

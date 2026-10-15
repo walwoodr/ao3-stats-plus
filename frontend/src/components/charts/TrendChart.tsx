@@ -16,9 +16,11 @@ import {
   toEpoch,
 } from "../../lib/chartTimeAxis";
 import { elapsedLabel as computeElapsedLabel } from "../../lib/pointComparison";
+import { GRAPH_OMITTED_ALL_ZERO_MESSAGE } from "../../lib/chartEmptyStateCopy";
 import type { Orientation } from "../../lib/tableOrientation";
 import { SyncedDataTable } from "./SyncedDataTable";
 import { ChartDisclosure } from "./ChartDisclosure";
+import { InfoBox } from "./InfoBox";
 import { PinnedComparisonBar } from "./PinnedComparisonBar";
 import { ActivePointOverlay, type ActivePoint } from "./ActivePointOverlay";
 import { DateGroupingOverlay } from "./DateGroupingOverlay";
@@ -201,35 +203,18 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
     );
   }
 
-  // Maintenance (2026-10-13, item 3): distinct from the "no data at all"
-  // case above - real, captured data where EVERY value genuinely happens
-  // to be 0 (e.g. an author with zero subscribers at every snapshot so
-  // far) rendered a confusing all-flat-zero line. Checked against `points`
-  // only (never `leadIn`, which is always a synthetic 0 by construction and
-  // would otherwise poison this check) - a lone real non-zero value still
-  // renders the chart normally.
+  // Maintenance (2026-10-13, item 3; restructured 2026-10-14 per Preview
+  // feedback): distinct from the "no data at all" case above - real,
+  // captured data where EVERY value genuinely happens to be 0 (e.g. an
+  // author with zero subscribers at every snapshot so far) used to render
+  // a confusing all-flat-zero line. Checked against `points` only (never
+  // `leadIn`, which is always a synthetic 0 by construction and would
+  // otherwise poison this check) - a lone real non-zero value still
+  // renders the chart normally. Per Preview feedback, this no longer
+  // replaces the whole card (which hid the data table too, which the user
+  // wants kept) - only the chart/graph portion below is swapped for an
+  // `InfoBox`; the table still renders (showing all zeros, which is fine).
   const allRealValuesAreZero = points.length > 0 && points.every((point) => point.value === 0);
-  if (allRealValuesAreZero) {
-    return (
-      <div
-        aria-labelledby={headingId}
-        aria-describedby={description ? descriptionId : undefined}
-        className="w-full rounded-lg border border-ink/12 bg-card p-6 transition-colors duration-200 hover:border-ink/24"
-      >
-        <h3 id={headingId} className="font-display text-base font-semibold text-ink">
-          {title}
-        </h3>
-        {description && (
-          <p id={descriptionId} className="mt-1 text-sm text-ink-soft">
-            {description}
-          </p>
-        )}
-        <p className="mt-4 text-sm text-ink-soft">
-          {`Nothing to see here yet - every snapshot so far has recorded zero ${valueLabel.toLowerCase()}. Check back once that changes.`}
-        </p>
-      </div>
-    );
-  }
 
   const tableModel = buildTrendTableModel({ valueLabel, points, leadIn });
 
@@ -262,122 +247,87 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
         </p>
       )}
 
-      <ChartDisclosure>
-        <figure
-          role="img"
-          aria-labelledby={headingId}
-          aria-describedby={description ? descriptionId : undefined}
-        >
-          <div aria-hidden="true">
-            {/* Item 3 (chart-table-polish-batch.md §4 item 3): the figure
+      {allRealValuesAreZero ? (
+        <InfoBox message={GRAPH_OMITTED_ALL_ZERO_MESSAGE} />
+      ) : (
+        <ChartDisclosure>
+          <figure
+            role="img"
+            aria-labelledby={headingId}
+            aria-describedby={description ? descriptionId : undefined}
+          >
+            <div aria-hidden="true">
+              {/* Item 3 (chart-table-polish-batch.md §4 item 3): the figure
                 grows to 75vh tall at the project's md (>=768px) breakpoint,
                 keeping today's compact 300px below it - a wrapper CSS
                 class, not a prop jsdom resolves, so tests assert the class
                 string rather than a computed pixel height.
                 ResponsiveContainer fills whatever this wrapper resolves
                 to. */}
-            <div className="h-[300px] md:h-[75vh]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={chartData}
-                  accessibilityLayer={false}
-                  onMouseMove={(state) => setActiveDateKey(resolveDateKey(state))}
-                  onMouseLeave={() => setActiveDateKey(null)}
-                  onClick={(state) => {
-                    const dateKey = resolveDateKey(state);
-                    if (dateKey) togglePinnedDateKey(dateKey);
-                  }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke={colors.inkSoft}
-                    strokeOpacity={0.2}
-                  />
-                  <XAxis
-                    dataKey="xEpoch"
-                    type="number"
-                    scale="time"
-                    domain={[chartData[0].xEpoch, chartData[chartData.length - 1].xEpoch]}
-                    ticks={selectDisplayedTicks(chartData)}
-                    // interval={0}: bypasses Recharts' own tick-selection/
-                    // filtering entirely (verified against the installed
-                    // recharts@3.10.0 source - see chartTimeAxis.ts's
-                    // selectDisplayedTicks comment) - every value this
-                    // component curates into `ticks` above renders, no more,
-                    // no less. height/tickMargin bumped (dateGroupingChartLayout)
-                    // to reserve the month/year band below the day ticks - the
-                    // plot rect itself is unchanged (see that module's comment).
-                    interval={0}
-                    height={X_AXIS_BAND_HEIGHT}
-                    tickMargin={DAY_TICK_MARGIN}
-                    tickFormatter={axisTickFormatter}
-                    tick={createLeadInXAxisTick({
-                      fill: colors.inkSoft,
-                      formatTick,
-                      isLeadInTick,
-                    })}
-                  />
-                  <YAxis
-                    domain={yDomain}
-                    width={estimateYAxisWidth(yDomain[1])}
-                    // Item 2, OD-1 (chart-table-polish-batch.md §4 item 2):
-                    // count charts never show a decimal Y tick.
-                    // allowDecimals={false} forces Recharts' tick-VALUE
-                    // generator itself to integer steps (a formatter alone
-                    // can't fix a small-max domain's fractional
-                    // intermediate ticks, e.g. 0, 1.25, 2.5, ... - it would
-                    // just round two distinct ticks to the same label).
-                    allowDecimals={false}
-                    tickFormatter={formatWholeNumber}
-                    tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
-                  />
-                  <Line
-                    type="linear"
-                    dataKey="value"
-                    name={valueLabel}
-                    connectNulls={false}
-                    isAnimationActive={false}
-                    activeDot={false}
-                    stroke={colors.ink}
-                    strokeWidth={2}
-                    dot={(dotProps: {
-                      cx?: number;
-                      cy?: number;
-                      payload?: TrendChartRow;
-                      index?: number;
-                    }) => {
-                      const { cx, cy, payload, index } = dotProps;
-                      // Null on the synthetic leadIn row for this series - skip it so
-                      // only real points get a dot here (the leadIn's own dot is drawn
-                      // by the "lead" line below, in accent, not ink).
-                      const realIndex = leadIn ? (index ?? 0) - 1 : (index ?? 0);
-                      const isThinnedOut =
-                        visibleDotIndices !== "all" && !visibleDotIndices.has(realIndex);
-                      if (payload?.value == null || cx == null || cy == null || isThinnedOut) {
-                        return <g key={`value-dot-${index}`} />;
-                      }
-                      return (
-                        <circle
-                          key={`value-dot-${index}`}
-                          cx={cx}
-                          cy={cy}
-                          r={3.5}
-                          fill={colors.ink}
-                        />
-                      );
+              <div className="h-[300px] md:h-[75vh]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={chartData}
+                    accessibilityLayer={false}
+                    onMouseMove={(state) => setActiveDateKey(resolveDateKey(state))}
+                    onMouseLeave={() => setActiveDateKey(null)}
+                    onClick={(state) => {
+                      const dateKey = resolveDateKey(state);
+                      if (dateKey) togglePinnedDateKey(dateKey);
                     }}
-                  />
-                  {leadIn && (
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke={colors.inkSoft}
+                      strokeOpacity={0.2}
+                    />
+                    <XAxis
+                      dataKey="xEpoch"
+                      type="number"
+                      scale="time"
+                      domain={[chartData[0].xEpoch, chartData[chartData.length - 1].xEpoch]}
+                      ticks={selectDisplayedTicks(chartData)}
+                      // interval={0}: bypasses Recharts' own tick-selection/
+                      // filtering entirely (verified against the installed
+                      // recharts@3.10.0 source - see chartTimeAxis.ts's
+                      // selectDisplayedTicks comment) - every value this
+                      // component curates into `ticks` above renders, no more,
+                      // no less. height/tickMargin bumped (dateGroupingChartLayout)
+                      // to reserve the month/year band below the day ticks - the
+                      // plot rect itself is unchanged (see that module's comment).
+                      interval={0}
+                      height={X_AXIS_BAND_HEIGHT}
+                      tickMargin={DAY_TICK_MARGIN}
+                      tickFormatter={axisTickFormatter}
+                      tick={createLeadInXAxisTick({
+                        fill: colors.inkSoft,
+                        formatTick,
+                        isLeadInTick,
+                      })}
+                    />
+                    <YAxis
+                      domain={yDomain}
+                      width={estimateYAxisWidth(yDomain[1])}
+                      // Item 2, OD-1 (chart-table-polish-batch.md §4 item 2):
+                      // count charts never show a decimal Y tick.
+                      // allowDecimals={false} forces Recharts' tick-VALUE
+                      // generator itself to integer steps (a formatter alone
+                      // can't fix a small-max domain's fractional
+                      // intermediate ticks, e.g. 0, 1.25, 2.5, ... - it would
+                      // just round two distinct ticks to the same label).
+                      allowDecimals={false}
+                      tickFormatter={formatWholeNumber}
+                      tick={{ fill: colors.inkSoft, fontFamily: "var(--font-mono)", fontSize: 12 }}
+                    />
                     <Line
                       type="linear"
-                      dataKey="lead"
-                      name={`${valueLabel} (estimated baseline)`}
-                      connectNulls
+                      dataKey="value"
+                      name={valueLabel}
+                      connectNulls={false}
                       isAnimationActive={false}
                       activeDot={false}
-                      strokeDasharray="4 4"
-                      stroke={colors.inkSoft}
-                      strokeWidth={1.5}
+                      stroke={colors.ink}
+                      strokeWidth={2}
                       dot={(dotProps: {
                         cx?: number;
                         cy?: number;
@@ -385,40 +335,79 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
                         index?: number;
                       }) => {
                         const { cx, cy, payload, index } = dotProps;
-                        // This series also carries the first real point's value (to
-                        // close the dashed segment) - only draw a dot for the
-                        // synthetic row itself, the "value" line's dot already
-                        // covers the first real point, in ink rather than accent.
-                        if (!payload?.isLeadIn || cx == null || cy == null) {
-                          return <g key={`lead-dot-${index}`} />;
+                        // Null on the synthetic leadIn row for this series - skip it so
+                        // only real points get a dot here (the leadIn's own dot is drawn
+                        // by the "lead" line below, in accent, not ink).
+                        const realIndex = leadIn ? (index ?? 0) - 1 : (index ?? 0);
+                        const isThinnedOut =
+                          visibleDotIndices !== "all" && !visibleDotIndices.has(realIndex);
+                        if (payload?.value == null || cx == null || cy == null || isThinnedOut) {
+                          return <g key={`value-dot-${index}`} />;
                         }
                         return (
                           <circle
-                            key={`lead-dot-${index}`}
+                            key={`value-dot-${index}`}
                             cx={cx}
                             cy={cy}
-                            r={4}
-                            fill={colors.accent}
+                            r={3.5}
+                            fill={colors.ink}
                           />
                         );
                       }}
                     />
-                  )}
-                  {/* Rendered BEFORE ActivePointOverlay (plan §5.4) so the
+                    {leadIn && (
+                      <Line
+                        type="linear"
+                        dataKey="lead"
+                        name={`${valueLabel} (estimated baseline)`}
+                        connectNulls
+                        isAnimationActive={false}
+                        activeDot={false}
+                        strokeDasharray="4 4"
+                        stroke={colors.inkSoft}
+                        strokeWidth={1.5}
+                        dot={(dotProps: {
+                          cx?: number;
+                          cy?: number;
+                          payload?: TrendChartRow;
+                          index?: number;
+                        }) => {
+                          const { cx, cy, payload, index } = dotProps;
+                          // This series also carries the first real point's value (to
+                          // close the dashed segment) - only draw a dot for the
+                          // synthetic row itself, the "value" line's dot already
+                          // covers the first real point, in ink rather than accent.
+                          if (!payload?.isLeadIn || cx == null || cy == null) {
+                            return <g key={`lead-dot-${index}`} />;
+                          }
+                          return (
+                            <circle
+                              key={`lead-dot-${index}`}
+                              cx={cx}
+                              cy={cy}
+                              r={4}
+                              fill={colors.accent}
+                            />
+                          );
+                        }}
+                      />
+                    )}
+                    {/* Rendered BEFORE ActivePointOverlay (plan §5.4) so the
                     decorative month/year marks sit beneath the active/pinned
                     guide lines, not on top of them. */}
-                  <DateGroupingOverlay rows={chartData} />
-                  <ActivePointOverlay
-                    activePoints={activePoints}
-                    pinnedPoints={pinnedPoints}
-                    brokenYAxis={brokenYAxis}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+                    <DateGroupingOverlay rows={chartData} />
+                    <ActivePointOverlay
+                      activePoints={activePoints}
+                      pinnedPoints={pinnedPoints}
+                      brokenYAxis={brokenYAxis}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
-        </figure>
-      </ChartDisclosure>
+          </figure>
+        </ChartDisclosure>
+      )}
 
       {pinnedLabel && (
         <PinnedComparisonBar

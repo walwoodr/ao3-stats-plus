@@ -299,4 +299,97 @@ describe("MultiSeriesTrendChart", () => {
       expect(within(table).getAllByRole("rowheader")).toHaveLength(10);
     });
   });
+
+  // Maintenance (2026-10-14 - Preview feedback on item 3, batch fix/
+  // maintenance-2026-10-13): closes the gap TECH_DEBT.md previously
+  // flagged - TrendChart's own all-real-values-zero empty state never
+  // extended to this per-work comparison chart. Pooled across every
+  // selected work's own real points; the data table (and its real zeros)
+  // stays visible, only the chart/graph region is omitted.
+  describe("with every real captured value across every selected work equal to zero", () => {
+    const EXACT_MESSAGE = "Graph has been omitted. All data points for the current graph are 0.";
+    const ALL_ZERO_WORK_A: SeriesDatum = {
+      workId: 1,
+      title: "Work A",
+      styleIndex: 0,
+      points: [
+        { capturedOn: "2026-01-01", value: 0 },
+        { capturedOn: "2026-01-08", value: 0 },
+      ],
+    };
+    const ALL_ZERO_WORK_B: SeriesDatum = {
+      workId: 2,
+      title: "Work B",
+      styleIndex: 1,
+      points: [{ capturedOn: "2026-01-08", value: 0 }],
+    };
+
+    it("omits the chart/graph region, replacing it with the exact info-box message", () => {
+      render(
+        <MultiSeriesTrendChart
+          title="Subscriptions"
+          valueLabel="Subscriptions"
+          series={[ALL_ZERO_WORK_A, ALL_ZERO_WORK_B]}
+        />,
+      );
+
+      expect(screen.queryByRole("img", { name: /subscriptions/i })).not.toBeInTheDocument();
+      expect(screen.getByText(EXACT_MESSAGE)).toBeInTheDocument();
+    });
+
+    it("keeps the visible data table rendered (showing the real zeros), not hidden alongside the chart", () => {
+      render(
+        <MultiSeriesTrendChart
+          title="Subscriptions"
+          valueLabel="Subscriptions"
+          series={[ALL_ZERO_WORK_A, ALL_ZERO_WORK_B]}
+        />,
+      );
+
+      const table = screen.getByRole("table", { name: /subscriptions/i });
+      expect(table).toBeInTheDocument();
+      expect(within(table).getAllByRole("rowheader")).toHaveLength(2);
+    });
+
+    it("hides the visible legend alongside the chart (nothing to match its glyphs against)", () => {
+      render(
+        <MultiSeriesTrendChart
+          title="Subscriptions"
+          valueLabel="Subscriptions"
+          series={[ALL_ZERO_WORK_A, ALL_ZERO_WORK_B]}
+        />,
+      );
+
+      // ComparisonLegend is the only <ul> (role="list") this component
+      // renders - scoped this way since "Work A"/"Work B" text also
+      // legitimately appears in the (still-visible) table's row headers.
+      expect(screen.queryByRole("list")).not.toBeInTheDocument();
+    });
+
+    it("renders the chart normally when at least one selected work has a non-zero real value", () => {
+      render(
+        <MultiSeriesTrendChart
+          title="Subscriptions"
+          valueLabel="Subscriptions"
+          series={[WORK_A, ALL_ZERO_WORK_B]}
+        />,
+      );
+
+      expect(screen.getByRole("img", { name: /subscriptions/i })).toBeInTheDocument();
+      expect(screen.queryByText(EXACT_MESSAGE)).not.toBeInTheDocument();
+    });
+
+    it("does not fire when no selected work has any real data at all (the separate, pre-existing empty-series case)", () => {
+      const noPoints: SeriesDatum = { workId: 3, title: "Work C", styleIndex: 2, points: [] };
+      render(
+        <MultiSeriesTrendChart
+          title="Subscriptions"
+          valueLabel="Subscriptions"
+          series={[noPoints]}
+        />,
+      );
+
+      expect(screen.queryByText(EXACT_MESSAGE)).not.toBeInTheDocument();
+    });
+  });
 });

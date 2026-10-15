@@ -443,21 +443,6 @@
   state/page, mirroring this project's other `*.test.ts` per-concern
   splits) the next time this file is touched.
 
-- [2026-10-13] (stage: Maintenance) `TrendChart.tsx` now shows a friendly
-  empty-state message when every real captured value is exactly 0 (item 3
-  of this batch), but `MultiSeriesTrendChart.tsx` (the per-work comparison
-  charts - Hits/Kudos/Comments/Subscriptions tabs, plus both Bookmarks
-  sub-views) only short-circuits on `series.length === 0` (no selected
-  works at all) - an all-zero scenario across every currently-selected
-  work's series (e.g. every selected work has 0 subscriptions at every
-  capture) still renders a flat-zero multi-line chart with no equivalent
-  message. Same underlying defect class, different component; deferred as
-  out of scope for this batch's specifically-reported Subscribers-tab
-  defect. The per-series "no data at all" check already in
-  `WorkComparisonBookmarksTab.tsx` (`hasData = series.some((s) =>
-  s.points.length > 0)`) has the identical gap - it catches "nothing
-  captured" but not "captured, and it's all zero."
-
 - [2026-10-14] (stage: Review (adversarial)) `emptyLeadInGap`
   (`comparisonSelection.ts`, item 1 of the 2026-10-13 Maintenance batch)
   uses the LATEST zero-basis date across the current selection as the
