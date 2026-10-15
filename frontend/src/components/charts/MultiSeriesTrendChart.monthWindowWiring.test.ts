@@ -1,19 +1,28 @@
 import { describe, expect, it } from "vitest";
 import { buildChartData, type SeriesDatum } from "./MultiSeriesTrendChart";
 import { filterPointsInWindow } from "../../lib/comparisonSelection";
-import { MAX_REAL_AXIS_TICKS, selectDisplayedTicks, toEpoch } from "../../lib/chartTimeAxis";
+import {
+  MAX_REAL_AXIS_TICKS_BY_BREAKPOINT,
+  selectDisplayedTicks,
+  toEpoch,
+} from "../../lib/chartTimeAxis";
 import type { PerWorkPoint } from "../../queries/useStatsForUser";
 
 // Testing task T6 (docs/plans/date-range-slider-month-granularity.md D3):
 // regression guard proving the filter-only integration claim - narrowing a
 // work's points via the month-index-aware `filterPointsInWindow` changes
 // ONLY which real points reach `buildChartData`/`selectDisplayedTicks`, with
-// NO change needed to chartTimeAxis.ts (`selectDisplayedTicks`,
-// `MAX_REAL_AXIS_TICKS`) or the tick-selection algorithm itself - the
-// round-5 tick-machinery fix stays untouched. This is a genuine end-to-end
-// wiring check across comparisonSelection.ts -> MultiSeriesTrendChart's
-// buildChartData -> chartTimeAxis's selectDisplayedTicks, independent of any
-// single module's own unit tests.
+// NO change needed to chartTimeAxis.ts's tick-selection algorithm itself -
+// the round-5 tick-machinery fix stays untouched. This is a genuine
+// end-to-end wiring check across comparisonSelection.ts ->
+// MultiSeriesTrendChart's buildChartData -> chartTimeAxis's
+// selectDisplayedTicks, independent of any single module's own unit tests.
+// Deliberately calls selectDisplayedTicks with the `md` tier's cap
+// (MAX_REAL_AXIS_TICKS_BY_BREAKPOINT.md, 6 - the module's prior single
+// hardcoded value before the 2026-10-15 per-breakpoint fix) rather than
+// wiring through useBreakpoint() - this file's whole point is proving the
+// filter is transparent to the cap, not re-testing breakpoint selection
+// itself (see chartTimeAxis.test.ts for that).
 function mi(year: number, month: number): number {
   return year * 12 + (month - 1);
 }
@@ -56,7 +65,10 @@ describe("month-index filtering is transparent to buildChartData/selectDisplayed
 
     const windowed = filterPointsInWindow(allPoints, { start: mi(2020, 1), end: mi(2020, 12) });
     const { rows } = buildChartData([seriesFrom(windowed)]);
-    const ticks = selectDisplayedTicks(rows.map((r) => ({ xEpoch: r.xEpoch, isLeadIn: false })));
+    const ticks = selectDisplayedTicks(
+      rows.map((r) => ({ xEpoch: r.xEpoch, isLeadIn: false })),
+      MAX_REAL_AXIS_TICKS_BY_BREAKPOINT.md,
+    );
 
     expect(ticks).toEqual([toEpoch("2020-01-15"), toEpoch("2020-06-01")]);
     expect(ticks).not.toContain(toEpoch("2019-06-01"));
@@ -76,9 +88,12 @@ describe("month-index filtering is transparent to buildChartData/selectDisplayed
     expect(windowed).toHaveLength(12);
 
     const { rows } = buildChartData([seriesFrom(windowed)]);
-    const ticks = selectDisplayedTicks(rows.map((r) => ({ xEpoch: r.xEpoch, isLeadIn: false })));
+    const ticks = selectDisplayedTicks(
+      rows.map((r) => ({ xEpoch: r.xEpoch, isLeadIn: false })),
+      MAX_REAL_AXIS_TICKS_BY_BREAKPOINT.md,
+    );
 
-    expect(ticks.length).toBeLessThanOrEqual(MAX_REAL_AXIS_TICKS);
+    expect(ticks.length).toBeLessThanOrEqual(MAX_REAL_AXIS_TICKS_BY_BREAKPOINT.md);
     // Edges are always kept exact (chartTimeAxis.ts's own documented rule).
     expect(ticks[0]).toBe(toEpoch("2020-01-01"));
     expect(ticks[ticks.length - 1]).toBe(toEpoch("2020-12-01"));
@@ -92,10 +107,16 @@ describe("month-index filtering is transparent to buildChartData/selectDisplayed
 
     const { rows } = buildChartData([seriesFrom(windowed)]);
     expect(() =>
-      selectDisplayedTicks(rows.map((r) => ({ xEpoch: r.xEpoch, isLeadIn: false }))),
+      selectDisplayedTicks(
+        rows.map((r) => ({ xEpoch: r.xEpoch, isLeadIn: false })),
+        MAX_REAL_AXIS_TICKS_BY_BREAKPOINT.md,
+      ),
     ).not.toThrow();
-    expect(selectDisplayedTicks(rows.map((r) => ({ xEpoch: r.xEpoch, isLeadIn: false })))).toEqual(
-      [],
-    );
+    expect(
+      selectDisplayedTicks(
+        rows.map((r) => ({ xEpoch: r.xEpoch, isLeadIn: false })),
+        MAX_REAL_AXIS_TICKS_BY_BREAKPOINT.md,
+      ),
+    ).toEqual([]);
   });
 });

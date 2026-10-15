@@ -12,6 +12,7 @@ import {
   estimateYAxisWidth,
   formatDayTick,
   leadInEpoch,
+  maxRealAxisTicksFor,
   selectDisplayedTicks,
   toEpoch,
 } from "../../lib/chartTimeAxis";
@@ -286,7 +287,7 @@ export function TrendChart({ title, description, valueLabel, points, leadIn }: T
                       type="number"
                       scale="time"
                       domain={[chartData[0].xEpoch, chartData[chartData.length - 1].xEpoch]}
-                      ticks={selectDisplayedTicks(chartData)}
+                      ticks={selectDisplayedTicks(chartData, maxRealAxisTicksFor(breakpoint))}
                       // interval={0}: bypasses Recharts' own tick-selection/
                       // filtering entirely (verified against the installed
                       // recharts@3.10.0 source - see chartTimeAxis.ts's

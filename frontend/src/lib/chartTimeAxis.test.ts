@@ -6,6 +6,9 @@ import {
   formatDayTick,
   formatLeadInTick,
   leadInEpoch,
+  MAX_REAL_AXIS_TICKS_BY_BREAKPOINT,
+  maxRealAxisTicksFor,
+  selectDisplayedTicks,
   toEpoch,
 } from "./chartTimeAxis";
 
@@ -276,10 +279,66 @@ describe("computeYDomain: nice-rounded ceiling, realistic non-round magnitudes (
 // Chart-table-polish-batch item 5 (docs/plans/chart-table-polish-batch.md
 // §4/§8 T5): a single shared threshold, so all three charts' day-of-month
 // tick suppression agree and this constant is tested in exactly one place
-// (the plan's own wording), mirroring MAX_REAL_AXIS_TICKS's existing
-// precedent in this same module.
+// (the plan's own wording), mirroring MAX_REAL_AXIS_TICKS_BY_BREAKPOINT's
+// existing precedent in this same module.
 describe("DAY_TICK_SUPPRESSION_THRESHOLD: the shared >30-points cutover", () => {
   it("is exactly 30 - day-of-month ticks suppress above this many real points", () => {
     expect(DAY_TICK_SUPPRESSION_THRESHOLD).toBe(30);
+  });
+});
+
+// Maintenance fix (2026-10-15, TECH_DEBT.md 2026-09-25 entry: "MAX_REAL_
+// AXIS_TICKS hardcoded constant, never verified per-breakpoint"). Prior to
+// this fix, selectDisplayedTicks's real-tick sampling cap was never
+// directly unit-tested in this file at all - only indirectly, through
+// component-level tests hardcoded to the single desktop constant (6).
+// These tests cover the module directly, mirroring chartDotDensity.ts's
+// own maxDotsFor/selectVisibleDotIndices unit-test precedent.
+describe("maxRealAxisTicksFor: per-breakpoint real-tick cap (replaces the single hardcoded MAX_REAL_AXIS_TICKS)", () => {
+  it("keeps the prior desktop (md) value unchanged at 6", () => {
+    expect(maxRealAxisTicksFor("md")).toBe(6);
+  });
+
+  it("uses a smaller, named value for the narrower base breakpoint", () => {
+    expect(maxRealAxisTicksFor("base")).toBe(3);
+    expect(maxRealAxisTicksFor("base")).toBeLessThan(maxRealAxisTicksFor("md"));
+  });
+
+  it("MAX_REAL_AXIS_TICKS_BY_BREAKPOINT is the single source of truth maxRealAxisTicksFor reads from", () => {
+    expect(maxRealAxisTicksFor("base")).toBe(MAX_REAL_AXIS_TICKS_BY_BREAKPOINT.base);
+    expect(maxRealAxisTicksFor("md")).toBe(MAX_REAL_AXIS_TICKS_BY_BREAKPOINT.md);
+  });
+});
+
+describe("selectDisplayedTicks: caps real ticks at the caller-supplied maxRealTicks (per-breakpoint, not a single hardcoded constant)", () => {
+  function rowsFor(days: number[]): { xEpoch: number; isLeadIn: boolean }[] {
+    return days.map((day) => ({
+      xEpoch: toEpoch(`2026-01-${String(day).padStart(2, "0")}`),
+      isLeadIn: false,
+    }));
+  }
+
+  it("caps a dense 12-point series at exactly 3 ticks under the base breakpoint's cap", () => {
+    const days = Array.from({ length: 12 }, (_, i) => i + 1);
+    const ticks = selectDisplayedTicks(rowsFor(days), maxRealAxisTicksFor("base"));
+
+    expect(ticks.length).toBeLessThanOrEqual(3);
+    expect(ticks[0]).toBe(toEpoch("2026-01-01"));
+    expect(ticks[ticks.length - 1]).toBe(toEpoch("2026-01-12"));
+  });
+
+  it("the SAME dense series shows more real ticks under the md breakpoint's cap than under base", () => {
+    const days = Array.from({ length: 12 }, (_, i) => i + 1);
+    const baseTicks = selectDisplayedTicks(rowsFor(days), maxRealAxisTicksFor("base"));
+    const mdTicks = selectDisplayedTicks(rowsFor(days), maxRealAxisTicksFor("md"));
+
+    // The exact confirmed defect: before this fix, both breakpoints would
+    // have shown the SAME single hardcoded count (6), never genuinely
+    // differing by viewport width.
+    expect(mdTicks.length).toBeGreaterThan(baseTicks.length);
+  });
+
+  it("never throws for the base breakpoint's smaller cap, even for a single real point", () => {
+    expect(() => selectDisplayedTicks(rowsFor([1]), maxRealAxisTicksFor("base"))).not.toThrow();
   });
 });

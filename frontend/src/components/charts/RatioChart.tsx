@@ -12,6 +12,7 @@ import {
   estimateYAxisWidth,
   formatDayTick,
   leadInEpoch,
+  maxRealAxisTicksFor,
   selectDisplayedTicks,
   toEpoch,
 } from "../../lib/chartTimeAxis";
@@ -254,7 +255,7 @@ export function RatioChart({ title, description, points, leadIn }: RatioChartPro
                     type="number"
                     scale="time"
                     domain={[chartData[0].xEpoch, chartData[chartData.length - 1].xEpoch]}
-                    ticks={selectDisplayedTicks(chartData)}
+                    ticks={selectDisplayedTicks(chartData, maxRealAxisTicksFor(breakpoint))}
                     // interval={0}: see TrendChart's identical comment -
                     // bypasses Recharts' own tick-selection/filtering
                     // entirely, verified against the installed recharts@3.10.0
