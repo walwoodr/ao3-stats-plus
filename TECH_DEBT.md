@@ -477,3 +477,48 @@
   roadmap's literal "make unselectable" UI framing. Already an accepted,
   explicitly-flagged judgment call from that item's own implementation
   report, re-confirmed here rather than silently relitigated.
+
+- [2026-10-15] (stage: Maintenance) **CI-red-state (2026-08-28 entry above)
+  resolved** on `fix/ci-red-state-2026-10`, recovered from three stalled
+  Maintenance attempts' stash via `git stash apply` plus fresh fixes for
+  staleness introduced by work that landed after the stash (chart-table-
+  polish-batch, work-comparison-picker-refinements.md) in the time between:
+  1. `.github/workflows/ci.yml` now installs Playwright's chromium before
+     the Vitest step (carried over from the stash unchanged) - root cause
+     was `vite.config.ts`'s "storybook" Vitest project running component
+     tests in a real chromium browser via `@vitest/browser-playwright`,
+     which this job never installed (the `frontend-e2e` job's own
+     Playwright install is separate and doesn't cover this one).
+  2. `entrypoint.test.ts` + 2 sibling files now mock `./fanOut` away
+     (carried over from the stash unchanged) - root cause was a
+     success-path test firing `startFanOut()` fire-and-forget into the
+     real, unmocked module, racing each test's own teardown under CI's
+     timing/load.
+  3. Of the stash's 5 fixed e2e files, 3 carried over unchanged (`home.spec.ts`'s
+     heading text, the `getByRole`/`exact: true` fixes, the comma-joined-string
+     bookmark fixture fields) but 2 needed correction against decisions that
+     landed AFTER the stash's 2026-10-05 snapshot: `WorkComparisonSection.tsx`'s
+     lead-in gating changed again via chart-table-polish-batch.md §4 item 4
+     (OD-2, 2026-10-06) - a lead-in is now unconditionally present in the
+     data (clipped visually, never dropped), so `dashboard-populated.spec.ts`
+     and `accessibility.spec.ts`'s lead-in-dependent tests no longer need (or
+     correctly pass with) the stash's slider-widening dance; and the stash's
+     `mockGraphql.ts` fixture change (adding a 3rd point to Work A to make
+     the slider widenable) was reverted because it broke a newer, LOCKED
+     requirement added by `work-comparison-picker-refinements.md` §3.2
+     (`accessibility.pickerRefinements.spec.ts`'s disabled-slider-at-exactly-
+     2-captures test), which depends on this exact fixture staying at 2
+     points.
+  Verified locally (not CI): `npm run test` - 159 files/1539 tests passed.
+  `npx playwright test --reporter=line` - 174-175 passed, 1 intentionally
+  skipped (WebKit-only), across 3 repeated full runs. The only remaining
+  failures are the already-tracked, pre-existing, WebKit-only
+  `color-contrast` flake (2026-07-30 entry above, unrelated root cause,
+  reproduces independent of this fix and NOT attempted here - its own entry
+  already flags it as needing dedicated Testing-stage investigation, bigger
+  than a routine Maintenance patch) plus one one-off timeout and one
+  one-off slider-focus flake seen on isolated reruns, consistent with this
+  project's documented WebKit/CI timing flakiness elsewhere in this file.
+  GitHub Actions' actual greenness is NOT verified here - only a real push
+  confirms that; flagging this explicitly rather than claiming more than
+  was checked.

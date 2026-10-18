@@ -113,14 +113,14 @@ test.describe("accessibility - keyboard nav, focus order, ARIA", () => {
       "true",
     );
 
-    const startThumb = page.getByRole("slider", { name: /range start \(year\)/i });
+    const startThumb = page.getByRole("slider", { name: /range start/i });
     await startThumb.focus();
     await expect(startThumb).toBeFocused();
     const startBefore = await startThumb.getAttribute("aria-valuenow");
     await page.keyboard.press("ArrowRight");
     await expect(startThumb).not.toHaveAttribute("aria-valuenow", startBefore ?? "");
 
-    const endThumb = page.getByRole("slider", { name: /range end \(year\)/i });
+    const endThumb = page.getByRole("slider", { name: /range end/i });
     await endThumb.focus();
     await expect(endThumb).toBeFocused();
     const endBefore = await endThumb.getAttribute("aria-valuenow");
@@ -231,33 +231,48 @@ test.describe("accessibility - automated axe scans", () => {
   // the new 3-tier (Year -> Month -> Day) table header adds genuinely new
   // ACCESSIBLE content (real th[scope=colgroup] year/month cells, per §6's
   // "genuine header content, not decorative" design), distinct from the
-  // purely decorative aria-hidden chart overlay. Red today: the "Total
-  // hits" chart's table (POPULATED_STATS_RESPONSE gives it a 2025 lead-in
-  // alongside 2026 real captures, per DashboardPage's earliestPostYear
-  // logic - a genuine two-year, multi-tier case) still renders today's
-  // single-row thead, so no th[scope=colgroup] exists yet and the day
-  // header's visible text is still the full ISO/worded label, not the
-  // bare day-of-month this test also checks for.
+  // purely decorative aria-hidden chart overlay.
+  //
+  // Maintenance fix (2026-10-15): this originally targeted the account-
+  // level "Total hits" chart, relying on it getting a default 2025 lead-in
+  // from earliestPostYear. Two LOCKED decisions since removed that path
+  // entirely: date-range-slider-month-granularity.md D5 stopped the three
+  // account-level TrendChart instances from ever receiving a leadIn prop
+  // (bb09e29), and D2 originally hid every lead-in by default until the
+  // slider was widened below it - but chart-table-polish-batch.md §4 item
+  // 4 (OD-2, resolved 2026-10-06, after D2) removed that drop-gate
+  // entirely, so a lead-in now renders unconditionally (clipped visually
+  // at the window's left edge, never dropped from the data - see
+  // WorkComparisonSection.leadIn.test.tsx). The per-work "Hits" chart (Work
+  // A, publishedOn 2025-06-01) still has its own real leadIn machinery
+  // (per-work-zero-basis-dates.md), so this now targets that instead - no
+  // slider interaction needed post-OD-2 - same multi-year, multi-tier case
+  // the test always wanted, just reached via the only chart that still has
+  // a lead-in at all.
   test("the populated dashboard's 3-tier date header exposes colgroup scope semantics, keeps the day tier's full accessible name, and introduces no new summary-focusable-descendant regression", async ({
     page,
   }) => {
     await mockStatsForUser(page, POPULATED_STATS_RESPONSE);
     await page.goto("/u/testauthor?token=tok_valid123");
-    await expect(page.getByRole("img", { name: /total hits/i })).toBeVisible();
+    await expect(page.getByRole("img", { name: /^hits$/i })).toBeVisible();
 
-    const totalHitsDisclosure = page
+    const hitsDisclosure = page
       .locator("details")
-      .filter({ has: page.getByRole("table", { name: /total hits/i }) });
-    const table = totalHitsDisclosure.getByRole("table", { name: /total hits/i });
+      .filter({ has: page.getByRole("table", { name: /^hits$/i }) });
+    const table = hitsDisclosure.getByRole("table", { name: /^hits$/i });
 
     // Year tier: a real th[scope=colgroup] grouping cell for the 2025
     // lead-in year (distinct from the unchanged day tier's scope=col).
     await expect(table.locator('th[scope="colgroup"]').first()).toBeVisible();
 
     // Belt-and-suspenders (§6/D2): the day tier's ACCESSIBLE name stays the
-    // full worded lead-in label even though its VISIBLE text is now just
-    // the bare day-of-month.
-    const dayHeader = table.getByRole("columnheader", { name: /before 2025.*estimated baseline/i });
+    // lead-in's full date even though its VISIBLE text is now just the bare
+    // day-of-month. Confirmed live (not assumed) that a per-work leadIn's
+    // day cell uses the raw capturedOn date as its aria-label here, not the
+    // worded "Published <date>" caption text shown separately below the
+    // chart (see SyncedDataTableHeader.test.tsx for the fallback-label
+    // case, which does use the worded form).
+    const dayHeader = table.getByRole("columnheader", { name: "2025-06-01" });
     await expect(dayHeader).toBeVisible();
     await expect(dayHeader).toHaveText(/^\d{2}$/);
 
@@ -266,7 +281,7 @@ test.describe("accessibility - automated axe scans", () => {
     // focusable descendants (axe's own scan below also covers this, but
     // this asserts the specific structural property directly).
     await expect(
-      totalHitsDisclosure.locator("summary :is(button, a, input, select, textarea, [tabindex])"),
+      hitsDisclosure.locator("summary :is(button, a, input, select, textarea, [tabindex])"),
     ).toHaveCount(0);
 
     const results = await new AxeBuilder({ page }).analyze();
@@ -330,7 +345,7 @@ test.describe("accessibility - automated axe scans", () => {
     await page.getByRole("combobox", { name: /works to compare/i }).click();
     await page.getByRole("option", { name: "Comparison Work 2" }).click();
     await expect(page.getByLabel("Remove Comparison Work 2")).toBeVisible();
-    await expect(page.getByRole("slider", { name: /range start \(year\)/i })).toBeVisible();
+    await expect(page.getByRole("slider", { name: /range start/i })).toBeVisible();
 
     const results = await new AxeBuilder({ page }).analyze();
 
@@ -454,7 +469,7 @@ test.describe("accessibility - automated axe scans (dark mode)", () => {
     await page.getByRole("combobox", { name: /works to compare/i }).click();
     await page.getByRole("option", { name: "Comparison Work 2" }).click();
     await expect(page.getByLabel("Remove Comparison Work 2")).toBeVisible();
-    await expect(page.getByRole("slider", { name: /range start \(year\)/i })).toBeVisible();
+    await expect(page.getByRole("slider", { name: /range start/i })).toBeVisible();
 
     const results = await new AxeBuilder({ page }).analyze();
 
