@@ -522,3 +522,26 @@
   GitHub Actions' actual greenness is NOT verified here - only a real push
   confirms that; flagging this explicitly rather than claiming more than
   was checked.
+
+- [2026-10-19] (stage: Review (adversarial)) `entrypoint.test.ts`'s new
+  "does not leak the success path into the real (unmocked) fan-out module"
+  regression test presents `expect(consoleErrorSpy).not.toHaveBeenCalled()`
+  as its leak detector, but with the fix removed the test actually dies one
+  assertion earlier (`expect(runFanOut).toHaveBeenCalled()`, since the real
+  `runFanOut` isn't a spy) - execution never reaches the console.error
+  check. It still correctly goes red if the `vi.mock("./fanOut", ...)` line
+  is removed (no false-pass), but it's closer to "assert the mock is in
+  place" than "assert no leak into the real module" despite the comment's
+  framing. Consider dropping the `runFanOut` spy assertion or reordering so
+  the console.error check is reachable on the failure path.
+
+- [2026-10-19] (stage: Review (adversarial)) Two comments now contradict
+  behavior the CI-fix (2026-08-28 entry above) relies on, pre-existing and
+  not introduced by that fix: `WorkComparisonSection.tsx`'s comment near
+  line 326 still describes `computeLeadIn`'s start-gate hiding the lead-in
+  by default (removed by OD-2, 2026-10-06 - see the chart-table-polish-batch
+  plan); `DateRangeSlider.tsx`'s comment near line 113 still references a
+  `"Range start/end (year)"` aria-label (the "(year)" suffix was dropped).
+  Both are outside any single commit's scope but worth fixing next time
+  either file is touched, since they'd mislead a future reader into
+  "fixing" already-correct behavior.
