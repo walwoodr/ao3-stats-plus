@@ -204,6 +204,133 @@ describe("animateScrollLeft", () => {
     expect(container.scrollLeft).toBe(1000);
     expect(requestFrame).toHaveBeenCalledTimes(2);
   });
+
+  it("returns a real, callable cancel handle for the instant-jump (prefersReducedMotion) path, never undefined", () => {
+    const container = { scrollLeft: 0 } as HTMLElement;
+    const cancel = animateScrollLeft({
+      container,
+      targetScrollLeft: 500,
+      prefersReducedMotion: true,
+      requestFrame: vi.fn(),
+    });
+
+    expect(typeof cancel).toBe("function");
+    expect(() => cancel()).not.toThrow();
+  });
+
+  it("returns a real, callable cancel handle for the already-at-target no-op path, never undefined", () => {
+    const container = { scrollLeft: 300 } as HTMLElement;
+    const cancel = animateScrollLeft({
+      container,
+      targetScrollLeft: 300,
+      requestFrame: vi.fn(),
+    });
+
+    expect(typeof cancel).toBe("function");
+    expect(() => cancel()).not.toThrow();
+  });
+
+  // Maintenance fix regression (2026-10-15, TECH_DEBT.md 2026-09-23 entry:
+  // "SyncedDataTable zombie scroll-animation leak"). Before this fix,
+  // animateScrollLeft returned void - nothing could stop an in-flight
+  // animation, so a caller whose target DOM node got detached (e.g. a
+  // React unmount) kept having `container.scrollLeft` written to by a
+  // zombie rAF loop for up to its remaining ~1.5s.
+  describe("cancel handle (regression, TECH_DEBT.md 2026-09-23)", () => {
+    function harness() {
+      const container = { scrollLeft: 0 } as HTMLElement;
+      const frame: { callback: FrameRequestCallback | null } = { callback: null };
+      let nextHandle = 1;
+      const requestFrame = vi.fn((cb: FrameRequestCallback) => {
+        frame.callback = cb;
+        return nextHandle++;
+      });
+      const cancelFrame = vi.fn();
+      let currentTime = 1000;
+      const now = () => currentTime;
+      return {
+        container,
+        frame,
+        requestFrame,
+        cancelFrame,
+        now,
+        advance: (ms: number) => (currentTime += ms),
+      };
+    }
+
+    it("calling cancel() stops the animation - no further scrollLeft writes once a cancelled frame would have fired", () => {
+      const { container, frame, requestFrame, cancelFrame, now, advance } = harness();
+
+      const cancel = animateScrollLeft({
+        container,
+        targetScrollLeft: 1000,
+        durationMs: 1500,
+        now,
+        requestFrame,
+        cancelFrame,
+      });
+
+      advance(750);
+      frame.callback?.(now());
+      const scrollLeftAtCancelTime = container.scrollLeft;
+      expect(scrollLeftAtCancelTime).toBeGreaterThan(0);
+
+      cancel();
+
+      // The real cancelAnimationFrame-equivalent must be invoked with the
+      // handle from the most recent requestFrame call, so the browser
+      // itself never fires the pending callback.
+      expect(cancelFrame).toHaveBeenCalledTimes(1);
+      expect(cancelFrame).toHaveBeenCalledWith(requestFrame.mock.results[1].value);
+
+      // Defense-in-depth: even if a frame callback already in flight fires
+      // anyway (the `cancelled` flag guard), it must be a no-op rather than
+      // writing to scrollLeft - proving against the exact "zombie write to
+      // a detached node" failure mode, not just that cancelFrame was called.
+      advance(100);
+      frame.callback?.(now());
+      expect(container.scrollLeft).toBe(scrollLeftAtCancelTime);
+    });
+
+    it("is a safe no-op when called after the animation already completed on its own", () => {
+      const { container, frame, requestFrame, cancelFrame, now, advance } = harness();
+
+      const cancel = animateScrollLeft({
+        container,
+        targetScrollLeft: 1000,
+        durationMs: 1500,
+        now,
+        requestFrame,
+        cancelFrame,
+      });
+
+      advance(1600);
+      frame.callback?.(now());
+      expect(container.scrollLeft).toBe(1000);
+
+      expect(() => cancel()).not.toThrow();
+      // No frame is pending anymore (the animation finished and stopped
+      // scheduling) - cancelFrame has nothing to cancel.
+      expect(cancelFrame).not.toHaveBeenCalled();
+    });
+
+    it("calling cancel() twice is safe (idempotent)", () => {
+      const { container, requestFrame, cancelFrame, now } = harness();
+
+      const cancel = animateScrollLeft({
+        container,
+        targetScrollLeft: 1000,
+        durationMs: 1500,
+        now,
+        requestFrame,
+        cancelFrame,
+      });
+
+      cancel();
+      expect(() => cancel()).not.toThrow();
+      expect(cancelFrame).toHaveBeenCalledTimes(1);
+    });
+  });
 });
 
 describe("prefersReducedMotion", () => {

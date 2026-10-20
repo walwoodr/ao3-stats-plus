@@ -29,7 +29,12 @@ function noop() {}
 
 describe("SyncedDataTable: auto-scroll on externally-triggered activeDateKey (Maintenance item 5)", () => {
   beforeEach(() => {
-    vi.spyOn(scrollColumnIntoView, "animateScrollLeft").mockImplementation(() => {});
+    // Returns a real (trackable) no-op cancel handle, matching
+    // animateScrollLeft's actual contract (see scrollColumnIntoView.ts's
+    // 2026-10-15 fix) - a mock that returned undefined here would make the
+    // component's own effect-cleanup call `undefined()` and throw as soon
+    // as React unmounts/re-runs the effect.
+    vi.spyOn(scrollColumnIntoView, "animateScrollLeft").mockImplementation(() => vi.fn());
     vi.spyOn(scrollColumnIntoView, "prefersReducedMotion").mockReturnValue(false);
   });
 
@@ -156,6 +161,107 @@ describe("SyncedDataTable: auto-scroll on externally-triggered activeDateKey (Ma
   // headers with data-date-key). It still earns its place once orientation
   // ships, catching a future regression that drops the attribute under the
   // flip specifically.
+  // Regression tests (2026-10-15, TECH_DEBT.md 2026-09-23 entry: "SyncedDataTable
+  // zombie scroll-animation leak"). Before this fix, the auto-scroll effect
+  // neither stored animateScrollLeft's (then-nonexistent) cancel handle nor
+  // cleaned it up - a hover sweep across several dates in quick succession
+  // could leave multiple bounded (~1.5s) rAF loops running concurrently, one
+  // of which kept writing to the scroll container (or a now-detached node,
+  // post-unmount) until it self-terminated.
+  describe("cancels a prior in-flight animation (regression, TECH_DEBT.md 2026-09-23)", () => {
+    it("cancels the previous animation's handle when activeDateKey changes again before it would have finished", () => {
+      const firstCancel = vi.fn();
+      const secondCancel = vi.fn();
+      vi.mocked(scrollColumnIntoView.animateScrollLeft)
+        .mockImplementationOnce(() => firstCancel)
+        .mockImplementationOnce(() => secondCancel);
+
+      const { rerender } = render(
+        <SyncedDataTable
+          title="Hits"
+          rowHeaderLabel="Metric"
+          model={MODEL}
+          activeDateKey={null}
+          onActiveDateKeyChange={noop}
+        />,
+      );
+
+      rerender(
+        <SyncedDataTable
+          title="Hits"
+          rowHeaderLabel="Metric"
+          model={MODEL}
+          activeDateKey="2026-01-04"
+          onActiveDateKeyChange={noop}
+        />,
+      );
+      expect(scrollColumnIntoView.animateScrollLeft).toHaveBeenCalledTimes(1);
+      expect(firstCancel).not.toHaveBeenCalled();
+
+      // A second EXTERNAL activeDateKey change arrives (e.g. a fast hover
+      // sweep) before the first animation would have finished - the first
+      // animation's own cancel handle must be invoked as part of starting
+      // the second, not left running concurrently.
+      rerender(
+        <SyncedDataTable
+          title="Hits"
+          rowHeaderLabel="Metric"
+          model={MODEL}
+          activeDateKey="2026-01-05"
+          onActiveDateKeyChange={noop}
+        />,
+      );
+
+      expect(scrollColumnIntoView.animateScrollLeft).toHaveBeenCalledTimes(2);
+      expect(firstCancel).toHaveBeenCalledTimes(1);
+      expect(secondCancel).not.toHaveBeenCalled();
+    });
+
+    it("cancels the in-flight animation on unmount, so it never writes to a detached node", () => {
+      const cancelScroll = vi.fn();
+      vi.mocked(scrollColumnIntoView.animateScrollLeft).mockImplementationOnce(() => cancelScroll);
+
+      const { rerender, unmount } = render(
+        <SyncedDataTable
+          title="Hits"
+          rowHeaderLabel="Metric"
+          model={MODEL}
+          activeDateKey={null}
+          onActiveDateKeyChange={noop}
+        />,
+      );
+
+      rerender(
+        <SyncedDataTable
+          title="Hits"
+          rowHeaderLabel="Metric"
+          model={MODEL}
+          activeDateKey="2026-01-04"
+          onActiveDateKeyChange={noop}
+        />,
+      );
+      expect(cancelScroll).not.toHaveBeenCalled();
+
+      unmount();
+
+      expect(cancelScroll).toHaveBeenCalledTimes(1);
+    });
+
+    it("never throws on unmount when no animation is in flight (null activeDateKey - the early-return cleanup path)", () => {
+      const { unmount } = render(
+        <SyncedDataTable
+          title="Hits"
+          rowHeaderLabel="Metric"
+          model={MODEL}
+          activeDateKey={null}
+          onActiveDateKeyChange={noop}
+        />,
+      );
+
+      expect(() => unmount()).not.toThrow();
+    });
+  });
+
   it("still tags each date header with data-date-key when it renders as a ROW header (datesAsRows) - structural precondition for auto-scroll targeting", () => {
     render(
       <SyncedDataTable

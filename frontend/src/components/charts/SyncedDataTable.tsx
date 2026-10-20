@@ -105,14 +105,22 @@ export function SyncedDataTable({
     onActiveDateKeyChange(dateKey);
   }
 
+  // Maintenance fix (2026-10-15, TECH_DEBT.md 2026-09-23 entry: "SyncedDataTable
+  // zombie scroll-animation leak"). animateScrollLeft now returns a cancel
+  // handle (see scrollColumnIntoView.ts); this effect's cleanup calls it
+  // unconditionally on every re-run (a new activeDateKey arriving mid-
+  // animation) AND on unmount, so a still-running ~1.5s animation targeting
+  // this effect's OWN container/targetScrollLeft is always stopped before
+  // either a new one starts or the DOM node is torn down - no more writes to
+  // a detached node from a prior hover's zombie rAF loop.
   useEffect(() => {
     const wasSelfTriggered = selfTriggeredRef.current;
     selfTriggeredRef.current = false;
-    if (wasSelfTriggered || activeDateKey === null) return;
+    if (wasSelfTriggered || activeDateKey === null) return undefined;
 
     const container = scrollContainerRef.current;
     const stickyCorner = stickyCornerRef.current;
-    if (!container || !stickyCorner) return;
+    if (!container || !stickyCorner) return undefined;
 
     const columnElements = container.querySelectorAll<HTMLTableCellElement>("th[data-date-key]");
     const columns: ColumnLayout[] = Array.from(columnElements).map((element) => ({
@@ -127,13 +135,17 @@ export function SyncedDataTable({
       stickyColumnWidth: stickyCorner.offsetWidth,
       maxScrollLeft: Math.max(container.scrollWidth - container.clientWidth, 0),
     });
-    if (targetScrollLeft === null) return;
+    if (targetScrollLeft === null) return undefined;
 
-    animateScrollLeft({
+    const cancelScroll = animateScrollLeft({
       container,
       targetScrollLeft,
       prefersReducedMotion: prefersReducedMotion(),
     });
+
+    return () => {
+      cancelScroll();
+    };
   }, [activeDateKey]);
 
   function toggleOpen(event: MouseEvent | KeyboardEvent) {

@@ -52,7 +52,20 @@ export const POPULATED_STATS_RESPONSE = {
           // Before its first capture (2026-01-01) - exercises the
           // per-work zero-basis lead-in + visible caption in the default
           // single-work populated dashboard state (see
-          // docs/plans/per-work-zero-basis-dates.md).
+          // docs/plans/per-work-zero-basis-dates.md). Deliberately exactly
+          // two real points: work-comparison-picker-refinements.md
+          // requirement 3 (§3.2) needs this exact fixture's default
+          // single-work selection to land on the `unionPointCount <= 2`
+          // disabled-slider boundary (DateRangeSlider.tsx) - see
+          // accessibility.pickerRefinements.spec.ts. A third point would
+          // push this past that boundary and break that (newer, LOCKED)
+          // test. The lead-in itself doesn't need the slider widened to
+          // render - chart-table-polish-batch.md §4 item 4 (OD-2, resolved
+          // 2026-10-06) removed computeLeadIn's old window-start drop-gate,
+          // so a work's lead-in is present regardless of slider position
+          // (clipped visually at the window's left edge, never dropped from
+          // the data) - see WorkComparisonSection.leadIn.test.tsx's own
+          // top-of-file note.
           publishedOn: "2025-06-01",
           points: [
             {
@@ -161,9 +174,15 @@ function syntheticBookmark(overrides: {
   return {
     bookmarkerName: overrides.bookmarkerName,
     noteHtml: overrides.noteHtml ?? "<p>Loved this fic!</p>",
-    bookmarkerTags: ["favorite"],
+    // bookmarkerTags/collections are comma-joined scalar strings on the wire
+    // (String, null: true - backend/app/graphql/types/work_bookmark_type.rb),
+    // not arrays - see bookmarkFeed.ts's parseCommaList() and its own
+    // "Maintenance fix (2026-09-15)" comment. This fixture previously sent
+    // arrays, which crashed BookmarkFeed (parseCommaList called .split() on
+    // an array) on every real page load of /u/:username/bookmarks in e2e.
+    bookmarkerTags: "favorite",
     bookmarkedOn: overrides.bookmarkedOn,
-    collections: [],
+    collections: null,
   };
 }
 

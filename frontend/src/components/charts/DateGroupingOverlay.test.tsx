@@ -412,6 +412,57 @@ describe("DateGroupingOverlay: lead-in/first-real-year label collision (regressi
   });
 });
 
+describe("DateGroupingOverlay: month-label left-edge Y-axis collision (regression, TECH_DEBT.md 2026-09-29 entry)", () => {
+  installRechartsLayoutPolyfill();
+
+  const MONTH_LABEL_CHAR_WIDTH_PX = 6.7;
+  function estimatedMonthLeftEdge(anchorX: number, textAnchor: string | null, label: string) {
+    const width = label.length * MONTH_LABEL_CHAR_WIDTH_PX;
+    return textAnchor === "start" ? anchorX : anchorX - width / 2;
+  }
+
+  it("never renders a month-span-label's estimated text extent left of the plot's own left edge, for a single-point month at the domain minimum", async () => {
+    // Exact reproduction of the reported defect: a single-point month
+    // (here, the lead-in point itself) sitting at the domain minimum - its
+    // first and last day collapse to the same x, which is exactly the
+    // plot's left edge pixel. Centering the label there bled half its text
+    // into the Y-axis's own reserved width, rendering on top of the
+    // Y-axis's leftmost tick label ("0Sep" with no gap).
+    const { container } = renderOverlay(HAPPY_PATH_ROWS);
+
+    await waitFor(() => {
+      const gridLine = container.querySelector(".recharts-cartesian-grid-horizontal line");
+      expect(gridLine).not.toBeNull();
+      const plotMinX = Number(gridLine!.getAttribute("x1"));
+
+      const sepLabel = Array.from(
+        container.querySelectorAll('[data-testid="month-span-label"]'),
+      ).find((el) => el.textContent === "Sep");
+      expect(sepLabel).toBeDefined();
+
+      const anchorX = Number(sepLabel!.getAttribute("x"));
+      const textAnchor = sepLabel!.getAttribute("text-anchor");
+      const left = estimatedMonthLeftEdge(anchorX, textAnchor, "Sep");
+
+      // The regression: the old always-"middle" textAnchor would put this
+      // well left of plotMinX (the Y-axis-reserved area).
+      expect(left).toBeGreaterThanOrEqual(plotMinX);
+    });
+  });
+
+  it("keeps a month label centered (textAnchor='middle') when it has room away from the left edge", async () => {
+    const { container } = renderOverlay(HAPPY_PATH_ROWS);
+
+    await waitFor(() => {
+      const julLabel = Array.from(
+        container.querySelectorAll('[data-testid="month-span-label"]'),
+      ).find((el) => el.textContent === "Jul");
+      expect(julLabel).toBeDefined();
+      expect(julLabel!.getAttribute("text-anchor")).toBe("middle");
+    });
+  });
+});
+
 describe("DateGroupingOverlay: empty rows", () => {
   installRechartsLayoutPolyfill();
 

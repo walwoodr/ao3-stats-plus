@@ -477,3 +477,96 @@
   roadmap's literal "make unselectable" UI framing. Already an accepted,
   explicitly-flagged judgment call from that item's own implementation
   report, re-confirmed here rather than silently relitigated.
+
+- [2026-10-15] (stage: Maintenance) `monthLabelPlacement.ts`'s new left-edge
+  guard (fix for the 2026-09-29 month-label/Y-axis-tick collision entry
+  above) only guards the LEFT edge, mirroring the one confirmed/reported
+  defect. The mirror-image case is unverified/unfixed: a single-point month
+  sitting at the domain MAXIMUM (e.g. the most recent capture date, a
+  plausible and fairly common case) would have the same `textAnchor="middle"`
+  geometry push its text past the plot's RIGHT edge - not into another
+  element the way the left case collided with the Y-axis, but still
+  potentially clipped/overflowing past the chart's right boundary. Not
+  reported, not reproduced live - flagged as a latent, plausible sibling bug
+  worth a dedicated look (and, if real, a `computeMonthLabelPlacements`
+  right-edge guard analogous to yearLabelPlacement.ts's own right-edge
+  Finding 1) rather than fixed inline here, since it's outside this item's
+  confirmed defect.
+
+- [2026-10-15] (stage: Maintenance) `MAX_REAL_AXIS_TICKS_BY_BREAKPOINT`'s
+  per-breakpoint values (`base: 3`, `md: 6`) are named, hardcoded constants
+  carried over/derived by ratio from chartDotDensity.ts's own
+  `PLOT_WIDTH_BY_BREAKPOINT` - not independently verified against a real
+  production build on an actual narrow (~375px) viewport, the same caveat
+  chartDotDensity.ts's own top-of-file comment already carries for its
+  values (and which was never separately tracked here either). Worth a
+  Preview sanity-check on a real narrow viewport before trusting `base: 3`
+  as the right density, not just the ratio math.
+
+- [2026-10-15] (stage: Maintenance) **CI-red-state (2026-08-28 entry above)
+  resolved** on `fix/ci-red-state-2026-10`, recovered from three stalled
+  Maintenance attempts' stash via `git stash apply` plus fresh fixes for
+  staleness introduced by work that landed after the stash (chart-table-
+  polish-batch, work-comparison-picker-refinements.md) in the time between:
+  1. `.github/workflows/ci.yml` now installs Playwright's chromium before
+     the Vitest step (carried over from the stash unchanged) - root cause
+     was `vite.config.ts`'s "storybook" Vitest project running component
+     tests in a real chromium browser via `@vitest/browser-playwright`,
+     which this job never installed (the `frontend-e2e` job's own
+     Playwright install is separate and doesn't cover this one).
+  2. `entrypoint.test.ts` + 2 sibling files now mock `./fanOut` away
+     (carried over from the stash unchanged) - root cause was a
+     success-path test firing `startFanOut()` fire-and-forget into the
+     real, unmocked module, racing each test's own teardown under CI's
+     timing/load.
+  3. Of the stash's 5 fixed e2e files, 3 carried over unchanged (`home.spec.ts`'s
+     heading text, the `getByRole`/`exact: true` fixes, the comma-joined-string
+     bookmark fixture fields) but 2 needed correction against decisions that
+     landed AFTER the stash's 2026-10-05 snapshot: `WorkComparisonSection.tsx`'s
+     lead-in gating changed again via chart-table-polish-batch.md §4 item 4
+     (OD-2, 2026-10-06) - a lead-in is now unconditionally present in the
+     data (clipped visually, never dropped), so `dashboard-populated.spec.ts`
+     and `accessibility.spec.ts`'s lead-in-dependent tests no longer need (or
+     correctly pass with) the stash's slider-widening dance; and the stash's
+     `mockGraphql.ts` fixture change (adding a 3rd point to Work A to make
+     the slider widenable) was reverted because it broke a newer, LOCKED
+     requirement added by `work-comparison-picker-refinements.md` §3.2
+     (`accessibility.pickerRefinements.spec.ts`'s disabled-slider-at-exactly-
+     2-captures test), which depends on this exact fixture staying at 2
+     points.
+  Verified locally (not CI): `npm run test` - 159 files/1539 tests passed.
+  `npx playwright test --reporter=line` - 174-175 passed, 1 intentionally
+  skipped (WebKit-only), across 3 repeated full runs. The only remaining
+  failures are the already-tracked, pre-existing, WebKit-only
+  `color-contrast` flake (2026-07-30 entry above, unrelated root cause,
+  reproduces independent of this fix and NOT attempted here - its own entry
+  already flags it as needing dedicated Testing-stage investigation, bigger
+  than a routine Maintenance patch) plus one one-off timeout and one
+  one-off slider-focus flake seen on isolated reruns, consistent with this
+  project's documented WebKit/CI timing flakiness elsewhere in this file.
+  GitHub Actions' actual greenness is NOT verified here - only a real push
+  confirms that; flagging this explicitly rather than claiming more than
+  was checked.
+
+- [2026-10-19] (stage: Review (adversarial)) `entrypoint.test.ts`'s new
+  "does not leak the success path into the real (unmocked) fan-out module"
+  regression test presents `expect(consoleErrorSpy).not.toHaveBeenCalled()`
+  as its leak detector, but with the fix removed the test actually dies one
+  assertion earlier (`expect(runFanOut).toHaveBeenCalled()`, since the real
+  `runFanOut` isn't a spy) - execution never reaches the console.error
+  check. It still correctly goes red if the `vi.mock("./fanOut", ...)` line
+  is removed (no false-pass), but it's closer to "assert the mock is in
+  place" than "assert no leak into the real module" despite the comment's
+  framing. Consider dropping the `runFanOut` spy assertion or reordering so
+  the console.error check is reachable on the failure path.
+
+- [2026-10-19] (stage: Review (adversarial)) Two comments now contradict
+  behavior the CI-fix (2026-08-28 entry above) relies on, pre-existing and
+  not introduced by that fix: `WorkComparisonSection.tsx`'s comment near
+  line 326 still describes `computeLeadIn`'s start-gate hiding the lead-in
+  by default (removed by OD-2, 2026-10-06 - see the chart-table-polish-batch
+  plan); `DateRangeSlider.tsx`'s comment near line 113 still references a
+  `"Range start/end (year)"` aria-label (the "(year)" suffix was dropped).
+  Both are outside any single commit's scope but worth fixing next time
+  either file is touched, since they'd mislead a future reader into
+  "fixing" already-correct behavior.

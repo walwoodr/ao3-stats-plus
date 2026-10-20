@@ -76,8 +76,29 @@ export interface AnimateScrollLeftOptions {
   // Injectable for deterministic testing (default to the real globals).
   now?: () => number;
   requestFrame?: (callback: FrameRequestCallback) => number;
+  cancelFrame?: (handle: number) => void;
 }
 
+// A caller-held handle to stop an in-flight animateScrollLeft run. Always a
+// real, callable no-op (never undefined) even for the instant-jump path
+// below, so a caller (e.g. SyncedDataTable's effect cleanup) never needs to
+// optionally-chain it - every call site can call it unconditionally.
+export type CancelScrollAnimation = () => void;
+
+// Maintenance fix (2026-10-15, TECH_DEBT.md 2026-09-23 entry: "SyncedDataTable
+// zombie scroll-animation leak"). Previously returned void - a caller had no
+// way to stop an in-flight animation, so SyncedDataTable's auto-scroll effect
+// could neither cancel a still-running animation when a new activeDateKey
+// arrived nor stop writing to `container.scrollLeft` after the component
+// unmounted (a detached DOM node kept getting written to for up to the
+// remaining ~1.5s of its bounded rAF loop). Now returns a cancel handle: the
+// SAME requestFrame handle this function schedules is tracked internally and
+// handed to `cancelFrame` (defaults to the real `cancelAnimationFrame`) when
+// the caller invokes it, and a `cancelled` flag additionally guards the
+// `step` callback itself in case a frame already in flight (requested but
+// not yet cancelled) still fires before the browser's own cancellation takes
+// effect.
+//
 // Drives `container.scrollLeft` from its current value to targetScrollLeft
 // over durationMs, eased via easeInOutCubic. Jumps instantly (no frames
 // scheduled) when prefersReducedMotion is set or the container is already
@@ -92,27 +113,37 @@ export function animateScrollLeft({
   prefersReducedMotion = false,
   now = () => performance.now(),
   requestFrame = (callback) => requestAnimationFrame(callback),
-}: AnimateScrollLeftOptions): void {
+  cancelFrame = (handle) => cancelAnimationFrame(handle),
+}: AnimateScrollLeftOptions): CancelScrollAnimation {
   const startScrollLeft = container.scrollLeft;
   const distance = targetScrollLeft - startScrollLeft;
 
   if (prefersReducedMotion || distance === 0) {
     container.scrollLeft = targetScrollLeft;
-    return;
+    return () => {};
   }
 
   const startTime = now();
+  let cancelled = false;
+  let frameHandle: number | null = null;
 
   function step(currentTime: number) {
+    if (cancelled) return;
     const elapsed = currentTime - startTime;
     const progress = Math.min(elapsed / durationMs, 1);
     container.scrollLeft = startScrollLeft + distance * easeInOutCubic(progress);
-    if (progress < 1) {
-      requestFrame(step);
-    }
+    frameHandle = progress < 1 ? requestFrame(step) : null;
   }
 
-  requestFrame(step);
+  frameHandle = requestFrame(step);
+
+  return () => {
+    cancelled = true;
+    if (frameHandle !== null) {
+      cancelFrame(frameHandle);
+      frameHandle = null;
+    }
+  };
 }
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";

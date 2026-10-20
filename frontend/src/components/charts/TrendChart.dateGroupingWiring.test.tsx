@@ -1,6 +1,8 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import { TrendChart } from "./TrendChart";
+import { maxRealAxisTicksFor } from "../../lib/chartTimeAxis";
+import type { Breakpoint } from "../../lib/useBreakpoint";
 
 // Testing task T6 (docs/plans/date-hierarchy-grouping.md §10, §2.2, §5.4,
 // D1): TrendChart.tsx must wire in <DateGroupingOverlay> as a <LineChart>
@@ -123,21 +125,60 @@ describe("TrendChart: real day ticks print bare day-of-month, not full ISO (D1)"
   });
 });
 
+// Maintenance fix (2026-10-15, adversarial Review finding on the
+// chart-polish-batch-2 cycle): this suite's global jsdom matchMedia stub
+// (src/test/setup.ts) always reports `matches: false`, so useBreakpoint()
+// silently resolves to "base" in every test here that doesn't override it -
+// the test below, titled "...at MAX_REAL_AXIS_TICKS (6)...", was actually
+// exercising the "base" tier's cap (3) the whole time its assertion stayed a
+// loose `<=6`, which a cap of 3 also satisfies vacuously. That left the "md"
+// tier's cap (6) - what this desktop-first dashboard's primary users
+// actually see - with ZERO coverage through the real component/useBreakpoint
+// wiring (only chartTimeAxis.test.ts's isolated unit test, which passes `6`
+// in by hand rather than resolving it from a real breakpoint). Fixed by
+// explicitly covering BOTH tiers via installMatchMediaMock (mirrors
+// TrendChart.dotThinning.test.tsx's own query-aware convention for forcing
+// the "md" breakpoint in jsdom - NOT a blanket "every query matches" stub,
+// since useChartColors also reads matchMedia for prefers-color-scheme) and
+// tightening each assertion to the EXACT expected count rather than a loose
+// upper bound.
+function installMatchMediaMock(mdMatches: boolean) {
+  const MD_QUERY = "(min-width: 768px)";
+  window.matchMedia = (query: string) =>
+    ({
+      matches: query === MD_QUERY ? mdMatches : false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }) as unknown as MediaQueryList;
+}
+
 describe("TrendChart: the sampled-tick cap still applies under the new day-of-month text (regression fence for selectDisplayedTicks)", () => {
   installRechartsSizePolyfill();
 
-  it("still caps real x-axis ticks at MAX_REAL_AXIS_TICKS (6) for a dense >6-point history, now rendered as day-of-month text", () => {
-    const densePoints = Array.from({ length: 12 }, (_, i) => ({
-      capturedOn: `2026-01-${String(i + 1).padStart(2, "0")}`,
-      value: (i + 1) * 10,
-    }));
-
-    const { container } = render(
-      <TrendChart title="Total hits" valueLabel="Hits" points={densePoints} />,
-    );
-
-    const tickTexts = xAxisTickTexts(container).filter((text) => text !== "");
-    expect(tickTexts.length).toBeLessThanOrEqual(6);
-    tickTexts.forEach((text) => expect(text).toMatch(/^\d{2}$/));
+  afterEach(() => {
+    delete (window as { matchMedia?: typeof window.matchMedia }).matchMedia;
   });
+
+  it.each<[Breakpoint, number]>([
+    ["base", maxRealAxisTicksFor("base")],
+    ["md", maxRealAxisTicksFor("md")],
+  ])(
+    "caps real x-axis ticks at EXACTLY maxRealAxisTicksFor('%s') (%i) for a dense >6-point history, now rendered as day-of-month text",
+    (breakpoint, expectedTickCount) => {
+      installMatchMediaMock(breakpoint === "md");
+      const densePoints = Array.from({ length: 12 }, (_, i) => ({
+        capturedOn: `2026-01-${String(i + 1).padStart(2, "0")}`,
+        value: (i + 1) * 10,
+      }));
+
+      const { container } = render(
+        <TrendChart title="Total hits" valueLabel="Hits" points={densePoints} />,
+      );
+
+      const tickTexts = xAxisTickTexts(container).filter((text) => text !== "");
+      expect(tickTexts.length).toBe(expectedTickCount);
+      tickTexts.forEach((text) => expect(text).toMatch(/^\d{2}$/));
+    },
+  );
 });

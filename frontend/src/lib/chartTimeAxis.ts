@@ -4,6 +4,7 @@
 // dependency here; the chart components consume these directly.
 
 import { formatNumber } from "./formatNumber";
+import type { Breakpoint } from "./useBreakpoint";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -117,18 +118,32 @@ export function leadInEpoch(firstRealEpoch: number, { realEpochs }: LeadInEpochO
 // ticks render as small markers (LeadInXAxisTick.tsx), not text, so they
 // carry none of the width-collision risk this cap exists for.
 //
-// MAX_REAL_AXIS_TICKS is a deterministic constant, not a live pixel
-// measurement - consistent with this module's existing
-// estimateYAxisWidth precedent (also deterministic, for the same reason:
-// jsdom never lays out real text, and Recharts' own "auto" DOM measurement
-// has now been shown untrustworthy across 4 rounds of this bug). Sized
-// generously for this dashboard's current desktop-oriented fixed-width
-// layout; the project's own design-context snapshot targets narrower
-// (375px) viewports as a checklist item that the existing dashboard hasn't
-// migrated to yet (see CLAUDE.md's "Design context" section) - if/when
-// that migration happens, this cap should be revisited against real
-// measured plot width rather than left as a silent assumption.
-export const MAX_REAL_AXIS_TICKS = 6;
+// Maintenance fix (2026-10-15, TECH_DEBT.md 2026-09-25 entry): the prior
+// single hardcoded MAX_REAL_AXIS_TICKS=6 was sized only for this
+// dashboard's desktop-oriented fixed-width layout, never checked against
+// the project's own narrower (375px) responsive design target. Replaced
+// with a per-breakpoint value, mirroring chartDotDensity.ts's established
+// maxDotsFor/PLOT_WIDTH_BY_BREAKPOINT pattern exactly (same `base`/`md`
+// tiers, wired through the same useBreakpoint() hook at each chart's call
+// site) rather than inventing a new shape. Still a deterministic constant
+// per tier, not a live pixel measurement - same rationale as
+// estimateYAxisWidth and chartDotDensity.ts's own values (jsdom never lays
+// out real text, and Recharts' own "auto" DOM measurement has been shown
+// untrustworthy across 4 rounds of this project's tick-machinery history).
+// `md` keeps the prior verified value (6) unchanged; `base` is scaled down
+// proportionate to chartDotDensity.ts's own base/md plot-width ratio
+// (280/700 of `md`'s value), rounded to keep the edge-preserving sample
+// meaningful at a handful of ticks. Needs the same Preview sanity-check
+// chartDotDensity.ts's own comment already calls for on real narrow
+// viewports, not just assumed correct from this ratio.
+export const MAX_REAL_AXIS_TICKS_BY_BREAKPOINT: Record<Breakpoint, number> = {
+  base: 3,
+  md: 6,
+};
+
+export function maxRealAxisTicksFor(breakpoint: Breakpoint): number {
+  return MAX_REAL_AXIS_TICKS_BY_BREAKPOINT[breakpoint];
+}
 
 // Chart-table-polish-batch item 5 (docs/plans/chart-table-polish-batch.md
 // §4 item 5, §8 T5): above this many real (non-lead-in) points, every
@@ -148,25 +163,37 @@ export interface DisplayTickRow {
 // Recharts' own filtering (interval={0}) is bypassed - see the comment
 // above. `rows` may contain duplicate xEpoch values (e.g. a publish-date
 // lead-in that coincides with a real capture date); the result is
-// deduplicated and sorted ascending.
-export function selectDisplayedTicks(rows: DisplayTickRow[]): number[] {
+// deduplicated and sorted ascending. `maxRealTicks` is a required,
+// explicit argument (mirroring selectVisibleDotIndices's own `maxDots`
+// param in chartDotDensity.ts) - every call site is expected to pass
+// `maxRealAxisTicksFor(useBreakpoint())`, not rely on a silent default.
+export function selectDisplayedTicks(rows: DisplayTickRow[], maxRealTicks: number): number[] {
   const leadInEpochs = rows.filter((row) => row.isLeadIn).map((row) => row.xEpoch);
   const realEpochsSorted = [
     ...new Set(rows.filter((row) => !row.isLeadIn).map((row) => row.xEpoch)),
   ].sort((a, b) => a - b);
 
   let selectedReal: number[];
-  if (realEpochsSorted.length <= MAX_REAL_AXIS_TICKS) {
+  if (realEpochsSorted.length <= maxRealTicks) {
     selectedReal = realEpochsSorted;
   } else {
-    // Evenly sample MAX_REAL_AXIS_TICKS indices across the sorted real
-    // epochs. Always keeping index 0 and the last index (the domain's real
-    // edges) exact - rounding elsewhere in the sampled sequence is fine,
-    // but the edges must never drift.
+    // Evenly sample maxRealTicks indices across the sorted real epochs.
+    // Always keeping index 0 and the last index (the domain's real edges)
+    // exact - rounding elsewhere in the sampled sequence is fine, but the
+    // edges must never drift. maxRealTicks === 1 would otherwise divide by
+    // zero (i / (maxRealTicks - 1)) - degrades to just the first real
+    // epoch, mirroring selectVisibleDotIndices's identical
+    // `maxDots === 1` guard (chartDotDensity.ts) rather than a NaN index.
+    // Not reachable with this module's current per-breakpoint values (3/6)
+    // but exposed now that maxRealTicks is caller-supplied rather than a
+    // single hardcoded constant.
     const lastIndex = realEpochsSorted.length - 1;
+    if (maxRealTicks <= 1) {
+      return [...new Set([...leadInEpochs, realEpochsSorted[0]])].sort((a, b) => a - b);
+    }
     const pickedIndices = new Set<number>();
-    for (let i = 0; i < MAX_REAL_AXIS_TICKS; i += 1) {
-      const fraction = i / (MAX_REAL_AXIS_TICKS - 1);
+    for (let i = 0; i < maxRealTicks; i += 1) {
+      const fraction = i / (maxRealTicks - 1);
       pickedIndices.add(Math.round(fraction * lastIndex));
     }
     selectedReal = [...pickedIndices].sort((a, b) => a - b).map((index) => realEpochsSorted[index]);

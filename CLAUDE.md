@@ -8,8 +8,13 @@ the global `~/.claude/CLAUDE.md`, this project-level spec is the more
 specific authority for ao3-stats-plus: check it before treating anything as
 "out of stack" here.
 
-No project-specific overrides exist yet for `SDLC_PROCESS.md` or
-`CODE_STANDARDS.md` - the global versions in `~/.claude/` apply as-is.
+No project-specific override exists yet for `SDLC_PROCESS.md` - the global
+version in `~/.claude/` applies as-is.
+
+See @CODE_STANDARDS.md for this project's code/commit standards. It extends
+the global `~/.claude/CODE_STANDARDS.md` with one explicitly approved
+exception (TECH_DEBT.md exempt from the max-file-length budgets) - see that
+file for the full rationale.
 
 ## Design context
 

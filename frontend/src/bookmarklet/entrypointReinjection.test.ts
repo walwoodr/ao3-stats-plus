@@ -39,6 +39,10 @@ vi.mock("./banners", () => ({
   renderUnauthorizedBanner: vi.fn(),
   removeBannerStack: vi.fn(),
 }));
+// A success result fires startFanOut() (entrypoint.ts) fire-and-forget into
+// ./fanOut - see entrypoint.test.ts's identical mock for the full rationale
+// (fan-out itself is covered by entrypointFanOut.test.ts).
+vi.mock("./fanOut", () => ({ runFanOut: vi.fn() }));
 
 describe("bookmarklet entrypoint - re-injection guard", () => {
   beforeEach(async () => {

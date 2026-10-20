@@ -16,6 +16,7 @@ import {
   DAY_TICK_SUPPRESSION_THRESHOLD,
   estimateYAxisWidth,
   formatDayTick,
+  maxRealAxisTicksFor,
   selectDisplayedTicks,
 } from "../../lib/chartTimeAxis";
 import { elapsedLabel as computeElapsedLabel } from "../../lib/pointComparison";
@@ -171,6 +172,7 @@ export function MultiSeriesTrendChart({
   // chartTimeAxis.ts's selectDisplayedTicks for the full rationale.
   const displayedTicks = selectDisplayedTicks(
     chartData.map((row) => ({ xEpoch: row.xEpoch, isLeadIn: isLeadInTick(row.xEpoch) })),
+    maxRealAxisTicksFor(breakpoint),
   );
 
   // Chart -> table sync (§2.3): item 4 switches the XAxis from categorical
