@@ -83,6 +83,15 @@ jobs:
       - name: Prettier check
         run: npm run format:check
 
+      # vite.config.ts's "storybook" Vitest project runs Storybook's
+      # component tests in a real browser (@vitest/browser-playwright,
+      # chromium only - see the `instances` list there), separate from the
+      # Playwright *e2e* browsers the frontend-e2e job below installs. This
+      # job needs its own install or the Vitest run fails trying to launch
+      # chromium_headless_shell, which was never downloaded.
+      - name: Install Playwright Chromium (for Storybook's Vitest browser tests)
+        run: npx playwright install --with-deps chromium
+
       - name: Vitest
         run: npm run test
 

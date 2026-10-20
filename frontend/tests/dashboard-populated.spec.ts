@@ -54,6 +54,18 @@ test.describe("dashboard with a seeded snapshot history", () => {
   // default-selected work ("Work A") carries a publishedOn before its
   // first capture, so the visible lead-in caption should render beneath
   // the comparison chart pair in the default populated dashboard state.
+  //
+  // Maintenance fix (2026-10-15): date-range-slider-month-granularity.md
+  // D2 originally gated this at the data level (hidden until the slider
+  // widened below the lead-in month) - but chart-table-polish-batch.md §4
+  // item 4 (OD-2, resolved 2026-10-06, i.e. after D2) removed that
+  // drop-gate: `WorkComparisonSection`'s `hasRenderedLeadIn` is now purely
+  // data-presence-based (`currentSeries.some((s) => s.leadIn !==
+  // undefined)`), never window-position-based - see
+  // WorkComparisonSection.leadIn.test.tsx's own top-of-file note and
+  // WorkComparisonSection.tsx's `computeLeadIn`. So the caption is back to
+  // showing on first load with no slider interaction needed, same as
+  // before D2 ever existed.
   test("shows the dashed-lead-in caption once a selected work has a zero-basis leadIn", async ({
     page,
   }) => {
@@ -123,7 +135,11 @@ test.describe("dashboard with a seeded snapshot history", () => {
     await page.getByRole("tab", { name: "Bookmarks" }).click();
     await page.getByRole("tab", { name: "By Work" }).click();
 
-    await expect(page.getByRole("img", { name: "Work A" })).toBeVisible();
+    // exact: true - the works-to-compare chip's delete icon has its own
+    // role=img accessible name ("Remove Work A"), which a non-exact match
+    // on "Work A" also matches, making the locator ambiguous (strict-mode
+    // violation) without it.
+    await expect(page.getByRole("img", { name: "Work A", exact: true })).toBeVisible();
     const results = await new AxeBuilder({ page }).analyze();
     expect(results.violations).toEqual([]);
   });

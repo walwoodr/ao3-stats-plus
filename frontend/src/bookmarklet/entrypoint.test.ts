@@ -59,6 +59,12 @@ vi.mock("./banners", () => ({
   renderUnauthorizedBanner: vi.fn(),
   removeBannerStack: vi.fn(),
 }));
+// A success result fires startFanOut() (entrypoint.ts) fire-and-forget into
+// ./fanOut - this file isn't testing fan-out itself (see
+// entrypointFanOut.test.ts for that, which mocks this the same way), so it's
+// mocked away here too rather than letting the real module run unobserved
+// against this file's (deliberately narrower) ./banners mock.
+vi.mock("./fanOut", () => ({ runFanOut: vi.fn() }));
 
 describe("bookmarklet entrypoint", () => {
   beforeEach(async () => {
@@ -122,6 +128,45 @@ describe("bookmarklet entrypoint", () => {
         username: "someauthor",
         onSaveToken: expect.any(Function),
       });
+    });
+
+    // Regression test for a latent bug: a successful capture fires
+    // startFanOut() (entrypoint.ts) fire-and-forget into the REAL (unmocked)
+    // ./fanOut module, which in turn calls the real banners.ts's
+    // renderProgressBanner - an export this file's own "./banners" mock
+    // never stubbed (fan-out's own banner coverage was deliberately split
+    // out into entrypointFanOut.test.ts, which does mock "./fanOut" away -
+    // see that file's top-level vi.mock calls). The resulting thrown error
+    // is caught by startFanOut's own .catch and only ever reaches
+    // console.error, so it never fails an assertion or surfaces as an
+    // unhandled rejection - but it's a real, reproducible leak of this
+    // spec's success-path tests into the real fan-out module, racing each
+    // test's own teardown (vi.resetModules() in the next test's beforeEach),
+    // which is what made it look CI-only/non-reproducing under a quick local
+    // single-file run with the default (non-verbose) reporter.
+    it("does not leak the success path into the real (unmocked) fan-out module", async () => {
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const { scrapeStats } = await import("./scrapeStats");
+      const { postIngest } = await import("./ingestClient");
+      const { getStoredReadToken } = await import("./tokenStorage");
+      const { generateTokenSuggestion } = await import("./tokenSuggestion");
+      const { renderSuccessBanner } = await import("./banners");
+      const { runFanOut } = await import("./fanOut");
+      vi.mocked(scrapeStats).mockReturnValue({ ok: true, data: scrapedData } as ScrapeResult);
+      vi.mocked(getStoredReadToken).mockReturnValue(undefined);
+      vi.mocked(generateTokenSuggestion).mockReturnValue("cat-dog");
+      vi.mocked(postIngest).mockResolvedValue({
+        status: "success",
+        readToken: "cat-dog",
+        capturedOn: "2026-07-23",
+        deduped: false,
+      } as IngestResult);
+
+      await import("./entrypoint");
+      await vi.waitFor(() => expect(renderSuccessBanner).toHaveBeenCalled());
+      await vi.waitFor(() => expect(runFanOut).toHaveBeenCalled());
+
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 
     it("encodes the username when building the dashboard URL and the token-storage key", async () => {
