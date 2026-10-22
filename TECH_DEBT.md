@@ -580,6 +580,27 @@
   either file is touched, since they'd mislead a future reader into
   "fixing" already-correct behavior.
 
+- [2026-10-22] (stage: Review (adversarial)) `DashboardPage.tsx`'s
+  `isBackendConfirmedRejection` (item 2, tech-debt-batch-2026-10) treats
+  any 2xx `ClientError` as a confirmed token rejection - but a GraphQL
+  QUERY-VALIDATION error (malformed query, or a non-null/`String!`
+  variable-coercion failure, e.g. a null/empty token) is ALSO returned at
+  HTTP 200 with an `errors` array, and graphql-request wraps that as a 2xx
+  `ClientError` too - which this logic would misclassify as a real token
+  mismatch and incorrectly clear a valid token. No live production trigger
+  found (the dashboard always sends a fixed query with string variables),
+  so this is theoretical/unconfirmed, not a reproduced bug. Candidate
+  tightening: also require the `errors` array's shape/message to match a
+  genuine resolver-level rejection, not just "any 2xx GraphQL error."
+
+- [2026-10-22] (stage: Review (adversarial)) Exporting `flattenDateAxisRows`
+  from `SyncedDataTableHeader.tsx` (item 9, tech-debt-batch-2026-10) trips
+  the `react-refresh/only-export-components` ESLint warning (warning only,
+  0 errors) - follows the same already-tolerated pattern this codebase
+  already has at `MultiSeriesTrendChart.tsx:49` (`buildChartData`, flagged
+  2026-08-04 above). No action needed; noted for whoever eventually
+  extracts shared pure helpers into non-component modules.
+
 - [2026-10-22] (stage: Maintenance) `backend`'s RSpec run prints a Rack
   deprecation warning on every `have_http_status(:unprocessable_entity)`
   assertion ("Status code :unprocessable_entity is deprecated... use
