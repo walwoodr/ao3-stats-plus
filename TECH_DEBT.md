@@ -412,8 +412,15 @@
      already-diagnosed "By Work sub-tab axe-clean" `getByRole` strict-mode
      collision (2026-08-09 entry above) is part of this same failing e2e
      batch.
-  Needs a dedicated Maintenance pass to reproduce and fix both outstanding
-  causes so CI is actually green again, not just locally-green.
+  **UPDATE 2026-10-21**: both of the above are now fixed and CONFIRMED
+  GREEN on a real push (`fix/ci-red-state-2026-10`, merged to main as
+  `fc8eef3`; GitHub Actions run #39473577763, Backend and Playwright e2e
+  jobs both passed). A third, previously-unreachable failure mode surfaced
+  on that same real push once the first two were fixed - see the dedicated
+  2026-10-21 entry below rather than folding it into this one, since it's
+  a genuinely distinct problem (the `frontend-lint-and-unit` job's Vitest
+  step, not RSpec or Playwright e2e) that was only reachable after this
+  entry's fixes landed.
 
 - [2026-10-06] (stage: Implementation) 4 of the `accessibility.spec.ts`
   e2e failures (on top of the already-tracked webkit color-contrast and
@@ -569,3 +576,55 @@
   Both are outside any single commit's scope but worth fixing next time
   either file is touched, since they'd mislead a future reader into
   "fixing" already-correct behavior.
+
+- [2026-10-21] (stage: Maintenance) **Third CI failure mode, cross-ref the
+  2026-08-28 entry above** (reachable only once that entry's two fixes
+  landed - this job's earlier steps block on them). On the same real push
+  that confirmed the Backend and Playwright e2e jobs green (run
+  #39473577763), the `frontend-lint-and-unit` ("Frontend (ESLint +
+  Vitest)") job's Vitest step hung indefinitely (over an hour, manually
+  cancelled) - everything before it, including the Chromium install step,
+  succeeded. Fixed on `fix/ci-vitest-hang-2026-10`:
+  - The incoming working hypothesis (GitHub Actions' default 64MB
+    `/dev/shm` + headless Chromium with no `--disable-dev-shm-usage` flag)
+    was investigated and **ruled out on two independent grounds**: (1)
+    `playwright-core`'s own default chromium launch args already
+    unconditionally include `--disable-dev-shm-usage` (confirmed by
+    reading `node_modules/playwright-core/lib/coreBundle.js` directly -
+    there is no missing flag to add), and (2) this job doesn't run inside
+    a `container:` on `ubuntu-latest`, so the Docker-specific 64MB-shm
+    default this hypothesis depends on doesn't even apply here.
+  - Better-supported match found instead: an open, unresolved upstream bug
+    (vitest-dev/vitest#10831, PR #10832 not yet merged as of 2026-10-21) -
+    `page.viewport()` awaits a `requestAnimationFrame` with no timeout,
+    which Chromium never delivers to a backgrounded (non-composited)
+    browser-mode context when several contexts share one browser
+    instance; `@storybook/addon-vitest`'s `testStory` calls `setViewport`
+    unconditionally for every story, making this reachable on any
+    Storybook-in-Vitest-browser-mode suite, which matches this project's
+    `vite.config.ts` "storybook" project almost exactly.
+  - Mitigation applied in `frontend/vite.config.ts`'s "storybook" project:
+    `browser.fileParallelism: false` (keeps at most one browser context -
+    always the visible one - active at a time, removing the "backgrounded
+    context" precondition the bug depends on), plus `testTimeout`/
+    `hookTimeout: 30_000` as defense-in-depth so a hang fails the job
+    loudly within 30s rather than running until manually cancelled, in
+    case some other hang variant isn't covered by the `fileParallelism`
+    change.
+  - **Verified locally only**: the "storybook" project (16 files/79 tests)
+    and the full `npm run test` (160 files/1562 tests) both pass, with and
+    without the fix, at effectively the same wall-clock time locally (this
+    project's story count is too small for sequential-vs-parallel browser
+    contexts to show a meaningful local difference) - consistent with the
+    hang being CI-environment-specific, not reproduced locally either
+    before or after the fix. **GitHub Actions' actual greenness on this
+    specific job is NOT verified here** - the root-cause match is
+    well-supported (exact library/plugin/provider combination, an open
+    upstream issue, no merged fix to test against) but this is genuinely
+    unconfirmable without a real push, unlike the 2026-08-28 entry's two
+    fixes, which already got that real-push confirmation. If CI is still
+    red on this job after this fix lands, escalate past a routine
+    Maintenance patch - the next lever (reducing `browser.instances` to
+    literally one shared context some other way, or sharding/serializing
+    the whole job) starts to look like it needs a Planning-level call, not
+    another ad hoc patch.

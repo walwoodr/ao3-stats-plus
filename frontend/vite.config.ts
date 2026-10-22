@@ -71,6 +71,12 @@ export default defineConfig(({ command, mode }) => {
           ],
           test: {
             name: "storybook",
+            // Bounded fallbacks so a hang here fails the CI job loudly
+            // instead of running until the job's own hard timeout (see the
+            // fileParallelism comment below for why a hang is possible at
+            // all despite this).
+            testTimeout: 30_000,
+            hookTimeout: 30_000,
             browser: {
               enabled: true,
               headless: true,
@@ -80,6 +86,33 @@ export default defineConfig(({ command, mode }) => {
                   browser: "chromium",
                 },
               ],
+              // Run story test files one at a time rather than Vitest's
+              // browser-mode default of several files/contexts in parallel
+              // sharing one Chromium instance. This CI job hung
+              // indefinitely on this step (over an hour, manually
+              // cancelled) even though Chromium installs and launches
+              // fine. The /dev/shm-exhaustion theory that motivated adding
+              // a Playwright launch flag here was investigated and
+              // RULED OUT: `playwright-core`'s own default chromium launch
+              // args already unconditionally include
+              // `--disable-dev-shm-usage` (confirmed by reading
+              // node_modules/playwright-core/lib/coreBundle.js directly) -
+              // there is no flag Vitest's config is missing. The better-
+              // supported match is an open, unresolved upstream Vitest bug
+              // (vitest-dev/vitest#10831): when several browser contexts
+              // share one browser instance, non-visible/backgrounded
+              // "orchestrator" pages can simply never receive the
+              // `requestAnimationFrame` callback `page.viewport()` waits
+              // on, with no timeout on that wait - and
+              // @storybook/addon-vitest's `testStory` calls `setViewport`
+              // unconditionally for every story. Disabling
+              // browser-mode file parallelism keeps at most one context
+              // (always the visible one) active at a time, which removes
+              // the "backgrounded page" condition the bug depends on. Not
+              // independently confirmed against a real CI run (that open
+              // upstream issue has no merged fix to verify against) - see
+              // TECH_DEBT.md's 2026-10-21 entry.
+              fileParallelism: false,
             },
           },
         },
