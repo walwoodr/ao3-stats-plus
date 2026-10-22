@@ -117,6 +117,60 @@ describe("SyncedDataTable: auto-scroll on externally-triggered activeDateKey (Ma
     expect(scrollColumnIntoView.animateScrollLeft).toHaveBeenCalledTimes(1);
   });
 
+  // Regression test (TECH_DEBT.md, 2026-09-23 entry: "SyncedDataTable
+  // selfTriggeredRef stuck-true flaw"). Before this fix, the suppression
+  // flag was set unconditionally on every table-originated notify call,
+  // then cleared by the auto-scroll effect's next run. A table-originated
+  // hover on the column that's ALREADY active notifies with the SAME
+  // dateKey the parent already holds - a same-value setState the parent
+  // bails as a no-op, so activeDateKey never actually changes and the
+  // effect (keyed on [activeDateKey]) never reruns to clear the flag. It
+  // stayed stuck true until the next genuine external change happened to
+  // arrive, silently suppressing that one auto-scroll.
+  it("does not suppress a later genuine external auto-scroll after a table-originated hover on the already-active column", () => {
+    const { rerender } = render(
+      <SyncedDataTable
+        title="Hits"
+        rowHeaderLabel="Metric"
+        model={MODEL}
+        activeDateKey={null}
+        onActiveDateKeyChange={noop}
+      />,
+    );
+
+    // First genuine external change - establishes "2026-01-04" as active.
+    rerender(
+      <SyncedDataTable
+        title="Hits"
+        rowHeaderLabel="Metric"
+        model={MODEL}
+        activeDateKey="2026-01-04"
+        onActiveDateKeyChange={noop}
+      />,
+    );
+    expect(scrollColumnIntoView.animateScrollLeft).toHaveBeenCalledTimes(1);
+
+    // Table-originated hover on the SAME column - a no-op notify (the
+    // dateKey it reports already equals activeDateKey), exactly the case
+    // that used to get stuck setting the suppression flag permanently.
+    const sameColumnHeader = document.querySelector('[data-date-key="2026-01-04"]') as HTMLElement;
+    fireEvent.mouseEnter(sameColumnHeader);
+    expect(scrollColumnIntoView.animateScrollLeft).toHaveBeenCalledTimes(1);
+
+    // A second genuine external change must still auto-scroll, not be
+    // silently suppressed by a flag stuck true from the no-op hover above.
+    rerender(
+      <SyncedDataTable
+        title="Hits"
+        rowHeaderLabel="Metric"
+        model={MODEL}
+        activeDateKey="2026-01-05"
+        onActiveDateKeyChange={noop}
+      />,
+    );
+    expect(scrollColumnIntoView.animateScrollLeft).toHaveBeenCalledTimes(2);
+  });
+
   it("passes prefersReducedMotion() through to animateScrollLeft", () => {
     vi.mocked(scrollColumnIntoView.prefersReducedMotion).mockReturnValue(true);
     const { rerender } = render(

@@ -100,8 +100,23 @@ export function SyncedDataTable({
   // jarring self-scroll loop, so table-originated changes are suppressed.
   const selfTriggeredRef = useRef(false);
 
+  // Maintenance fix (TECH_DEBT.md, 2026-09-23 entry: "selfTriggeredRef
+  // stuck-true flaw"). The flag used to be set unconditionally here, then
+  // reset by the auto-scroll effect below on its next run. But when the
+  // table hovers a column whose dateKey the parent ALREADY holds, the
+  // parent's setState is a same-value no-op - React bails that re-render,
+  // so this component's own activeDateKey prop never changes, and the
+  // effect (keyed on [activeDateKey]) never reruns to clear the flag. It
+  // then stayed stuck true until the next genuine external chart-hover
+  // change happened to arrive, silently suppressing that one auto-scroll.
+  // Only set the flag when this actually WILL change the prop (dateKey !==
+  // the current activeDateKey) - exactly the cases where the effect is
+  // guaranteed to rerun afterward and clear it again, so it can never get
+  // stuck: a no-op notify now never sets it in the first place.
   function notifyActiveDateKeyChange(dateKey: string | null) {
-    selfTriggeredRef.current = true;
+    if (dateKey !== activeDateKey) {
+      selfTriggeredRef.current = true;
+    }
     onActiveDateKeyChange(dateKey);
   }
 
