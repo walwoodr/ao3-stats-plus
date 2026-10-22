@@ -15,7 +15,11 @@ import {
   type ColumnLayout,
 } from "../../lib/scrollColumnIntoView";
 import { DataCell, SeriesHeaderCell } from "./SyncedDataTableCells";
-import { DateAxisRowCells, SyncedDataTableHeader } from "./SyncedDataTableHeader";
+import {
+  DateAxisRowCells,
+  flattenDateAxisRows,
+  SyncedDataTableHeader,
+} from "./SyncedDataTableHeader";
 import { TableOrientationToggle } from "./TableOrientationToggle";
 
 export interface SyncedDataTableProps {
@@ -204,6 +208,12 @@ export function SyncedDataTable({
   // each tbody row's leading date-tier cells (DateAxisRowCells) - a single
   // source of truth for the grouping, not two divergent implementations.
   const dateHierarchy = buildDateHierarchy(normalized.dateAxis);
+  // Maintenance fix (TECH_DEBT.md, 2026-09-27 entry: "flattenDateAxisRows
+  // O(N^2)"). Flattened ONCE per render here, then passed to every
+  // DateAxisRowCells instance below - previously each of the N per-row
+  // instantiations recomputed this same flatten itself just to read its
+  // own one row (O(N) work x N rows = O(N^2) total for N date rows).
+  const flattenedDateAxisRows = flattenDateAxisRows(dateHierarchy);
   // In datesAsRows, EVERY rowSlot is a date slot (rowSlots is built from
   // dateSlots(dedupedDateAxis) above) - each one's position among just the
   // date slots now always equals the hierarchy's own flattened day-row
@@ -296,7 +306,7 @@ export function SyncedDataTable({
                 <tr key={slotKey(rowSlot)}>
                   {rowSlot.kind === "date" ? (
                     <DateAxisRowCells
-                      hierarchy={dateHierarchy}
+                      rows={flattenedDateAxisRows}
                       rowIndex={dateRowIndex}
                       activeDateKey={activeDateKey}
                       pinnedDateKey={pinnedDateKey}
