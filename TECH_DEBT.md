@@ -493,15 +493,14 @@
   Finding 1) rather than fixed inline here, since it's outside this item's
   confirmed defect.
 
-- [2026-10-15] (stage: Maintenance) `MAX_REAL_AXIS_TICKS_BY_BREAKPOINT`'s
+- ~~[2026-10-15] (stage: Maintenance) `MAX_REAL_AXIS_TICKS_BY_BREAKPOINT`'s
   per-breakpoint values (`base: 3`, `md: 6`) are named, hardcoded constants
   carried over/derived by ratio from chartDotDensity.ts's own
   `PLOT_WIDTH_BY_BREAKPOINT` - not independently verified against a real
-  production build on an actual narrow (~375px) viewport, the same caveat
-  chartDotDensity.ts's own top-of-file comment already carries for its
-  values (and which was never separately tracked here either). Worth a
-  Preview sanity-check on a real narrow viewport before trusting `base: 3`
-  as the right density, not just the ratio math.
+  production build on an actual narrow (~375px) viewport.~~ **VERIFIED
+  2026-10-20** (Preview, `integrate-batch2-and-ci-fix`): real production
+  build measured exactly 3 real-axis ticks at 375px and exactly 6 at
+  1024px, matching the constants precisely - no longer open.
 
 - [2026-10-15] (stage: Maintenance) **CI-red-state (2026-08-28 entry above)
   resolved** on `fix/ci-red-state-2026-10`, recovered from three stalled
