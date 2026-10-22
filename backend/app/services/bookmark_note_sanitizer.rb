@@ -17,15 +17,26 @@
 #
 # Built on Loofah/Nokogiri - already-bundled transitive dependencies of
 # rails-html-sanitizer/actionview, not a new gem (see TECH_STACK.md). A
-# custom Loofah::Scrubber is used instead of Rails::Html::SafeListSanitizer's
-# own default allowlist, because that default (and Loofah's own broader
-# built-in element allowlist) is itself allowlist-shaped and, notably,
-# already PERMITS form/input/button/textarea/select/option - the same gap
-# DOMPurify's stock default had on the frontend before this fix. The
-# element-level blocklist below is this class's own; attribute-level
-# scrubbing (event handlers, URI-scheme validation, CSS) reuses Loofah's
-# already-audited Loofah::HTML5::Scrub.scrub_attributes rather than
-# reimplementing that validation.
+# custom Loofah::Scrubber is used instead of either Rails'/Loofah's own
+# default allowlist, for two DIFFERENT reasons (each independently verified
+# via `rails runner` against the real gem - TECH_DEBT.md, 2026-09-22 entry:
+# an earlier version of this comment incorrectly attributed both to the
+# same cause):
+#   - Rails::Html::SafeListSanitizer's own default allowlist does NOT
+#     permit the form-element family (confirmed: none of
+#     form/input/button/textarea/select/option appear in its 43-tag list).
+#     Its real problem is the opposite direction - that narrow list also
+#     excludes <details>/<summary>, which this app explicitly needs
+#     preserved (bookmark notes commonly use them for spoiler text).
+#   - Loofah's own broader built-in element allowlist (what its default
+#     :strip/:prune scrubbers fall back on) genuinely DOES permit the
+#     form-element family (confirmed true) - the same gap DOMPurify's
+#     stock default had on the frontend before that fix.
+# The element-level blocklist below is this class's own, chosen to avoid
+# both gaps at once; attribute-level scrubbing (event handlers, URI-scheme
+# validation, CSS) reuses Loofah's already-audited
+# Loofah::HTML5::Scrub.scrub_attributes rather than reimplementing that
+# validation.
 class BookmarkNoteSanitizer
   DANGEROUS_TAGS = %w[
     script style iframe object embed applet base noscript
