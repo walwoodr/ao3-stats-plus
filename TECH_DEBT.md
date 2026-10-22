@@ -579,3 +579,15 @@
   Both are outside any single commit's scope but worth fixing next time
   either file is touched, since they'd mislead a future reader into
   "fixing" already-correct behavior.
+
+- [2026-10-22] (stage: Maintenance) `backend`'s RSpec run prints a Rack
+  deprecation warning on every `have_http_status(:unprocessable_entity)`
+  assertion ("Status code :unprocessable_entity is deprecated... use
+  :unprocessable_content instead") - pre-existing, not introduced by this
+  batch's own new test (`spec/requests/ingest_work_spec.rb`), which
+  deliberately matched the symbol already used throughout this codebase's
+  specs AND in `IngestController`'s own production `render ... status:
+  :unprocessable_entity` calls, rather than fixing only the new test and
+  leaving it inconsistent with everything else. A real future rename (spec
+  assertions + controller `status:` values together, in one pass) would
+  need to touch every `/ingest*` action and its specs at once.
