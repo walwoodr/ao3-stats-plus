@@ -68,3 +68,50 @@ describe("monthLabelPlacement: left-edge Y-axis collision (regression, TECH_DEBT
     expect(computeMonthLabelPlacements([], BOUNDS)).toEqual([]);
   });
 });
+
+describe("monthLabelPlacement: right-edge plot-boundary overflow (regression, TECH_DEBT.md 2026-10-15)", () => {
+  it("flips to textAnchor='end' when a single-point month sits exactly at the plot's right edge (the most-recent-capture-date reproduction)", () => {
+    // x1 === x2 === bounds.maxX: a single-point month at the domain
+    // maximum (e.g. the most recent capture date) - the midpoint under the
+    // old always-"middle"/only-left-guarded behavior sat exactly on
+    // bounds.maxX, so half the rendered text overflowed past the plot's
+    // right boundary.
+    const marks: RawMonthLabelMark[] = [
+      { key: "2026-10", x1: BOUNDS.maxX, x2: BOUNDS.maxX, label: "Oct" },
+    ];
+    const [placed] = computeMonthLabelPlacements(marks, BOUNDS);
+
+    expect(placed.textAnchor).toBe("end");
+    // The anchor itself never moves - only which side the text renders on.
+    expect(placed.x).toBe(BOUNDS.maxX);
+
+    const width = estimateMonthLabelWidth("Oct");
+    const right = placed.textAnchor === "end" ? placed.x : placed.x + width / 2;
+    expect(right).toBeLessThanOrEqual(BOUNDS.maxX);
+  });
+
+  it("flips to textAnchor='end' for a multi-point month whose midpoint still overflows the right edge", () => {
+    const marks: RawMonthLabelMark[] = [
+      { key: "2026-12", x1: BOUNDS.maxX - 2, x2: BOUNDS.maxX, label: "Dec" },
+    ];
+    const [placed] = computeMonthLabelPlacements(marks, BOUNDS);
+    expect(placed.textAnchor).toBe("end");
+  });
+
+  it("never renders text right of bounds.maxX, swept across a range of right-edge-adjacent positions", () => {
+    for (let offset = 0; offset <= 20; offset += 1) {
+      const x = BOUNDS.maxX - offset;
+      const marks: RawMonthLabelMark[] = [{ key: "m", x1: x, x2: x, label: "Sep" }];
+      const [placed] = computeMonthLabelPlacements(marks, BOUNDS);
+      const width = estimateMonthLabelWidth("Sep");
+      const right = placed.textAnchor === "end" ? placed.x : placed.x + width / 2;
+      expect(right).toBeLessThanOrEqual(BOUNDS.maxX + 1e-9);
+    }
+  });
+
+  it("keeps textAnchor='middle' for a label with room on both sides (no regression on the already-covered case)", () => {
+    const marks: RawMonthLabelMark[] = [{ key: "2026-7", x1: 300, x2: 320, label: "Jul" }];
+    const [placed] = computeMonthLabelPlacements(marks, BOUNDS);
+    expect(placed.textAnchor).toBe("middle");
+  });
+});

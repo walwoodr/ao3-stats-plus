@@ -451,7 +451,20 @@ describe("DateGroupingOverlay: month-label left-edge Y-axis collision (regressio
   });
 
   it("keeps a month label centered (textAnchor='middle') when it has room away from the left edge", async () => {
-    const { container } = renderOverlay(HAPPY_PATH_ROWS);
+    // A row set with a clearly mid-domain month (Jul 2026, with months of
+    // real-point margin on both sides) - distinct from HAPPY_PATH_ROWS,
+    // where Jul's own mark sits close enough to the domain maximum (Aug 10,
+    // a single-point month immediately after it) to legitimately trigger
+    // the right-edge guard instead (see the right-edge describe block
+    // below). Using a fixture with real margin on both sides keeps this
+    // test about the "room on both sides" case it names.
+    const midDomainRows: DateGroupingOverlayRow[] = [
+      { capturedOn: "2026-01-10", xEpoch: toEpoch("2026-01-10") },
+      { capturedOn: "2026-07-01", xEpoch: toEpoch("2026-07-01") },
+      { capturedOn: "2026-07-15", xEpoch: toEpoch("2026-07-15") },
+      { capturedOn: "2026-12-20", xEpoch: toEpoch("2026-12-20") },
+    ];
+    const { container } = renderOverlay(midDomainRows);
 
     await waitFor(() => {
       const julLabel = Array.from(
@@ -459,6 +472,62 @@ describe("DateGroupingOverlay: month-label left-edge Y-axis collision (regressio
       ).find((el) => el.textContent === "Jul");
       expect(julLabel).toBeDefined();
       expect(julLabel!.getAttribute("text-anchor")).toBe("middle");
+    });
+  });
+});
+
+describe("DateGroupingOverlay: month-label right-edge plot-boundary overflow (regression, TECH_DEBT.md 2026-10-15 entry)", () => {
+  installRechartsLayoutPolyfill();
+
+  const MONTH_LABEL_CHAR_WIDTH_PX = 6.7;
+  function estimatedMonthRightEdge(anchorX: number, textAnchor: string | null, label: string) {
+    const width = label.length * MONTH_LABEL_CHAR_WIDTH_PX;
+    return textAnchor === "end" ? anchorX : anchorX + width / 2;
+  }
+
+  it("never renders a month-span-label's estimated text extent right of the plot's own right edge, for Jul (whose mark sits close enough to the Aug-at-domain-max single point to overflow under the old always-'middle'-unless-left-guarded behavior)", async () => {
+    const { container } = renderOverlay(HAPPY_PATH_ROWS);
+
+    await waitFor(() => {
+      const gridLine = container.querySelector(".recharts-cartesian-grid-horizontal line");
+      expect(gridLine).not.toBeNull();
+      const plotMinX = Number(gridLine!.getAttribute("x1"));
+      const plotWidth = Number(gridLine!.getAttribute("x2")) - plotMinX;
+      const plotMaxX = plotMinX + plotWidth;
+
+      const julLabel = Array.from(
+        container.querySelectorAll('[data-testid="month-span-label"]'),
+      ).find((el) => el.textContent === "Jul");
+      expect(julLabel).toBeDefined();
+
+      const anchorX = Number(julLabel!.getAttribute("x"));
+      const textAnchor = julLabel!.getAttribute("text-anchor");
+      // The regression: an unguarded "middle" would put this past plotMaxX.
+      expect(textAnchor).toBe("end");
+      const right = estimatedMonthRightEdge(anchorX, textAnchor, "Jul");
+      expect(right).toBeLessThanOrEqual(plotMaxX);
+    });
+  });
+
+  it("flips a single-point month at the domain maximum (Aug) to a right-safe textAnchor too", async () => {
+    const { container } = renderOverlay(HAPPY_PATH_ROWS);
+
+    await waitFor(() => {
+      const gridLine = container.querySelector(".recharts-cartesian-grid-horizontal line");
+      expect(gridLine).not.toBeNull();
+      const plotMinX = Number(gridLine!.getAttribute("x1"));
+      const plotWidth = Number(gridLine!.getAttribute("x2")) - plotMinX;
+      const plotMaxX = plotMinX + plotWidth;
+
+      const augLabel = Array.from(
+        container.querySelectorAll('[data-testid="month-span-label"]'),
+      ).find((el) => el.textContent === "Aug");
+      expect(augLabel).toBeDefined();
+
+      const anchorX = Number(augLabel!.getAttribute("x"));
+      const textAnchor = augLabel!.getAttribute("text-anchor");
+      const right = estimatedMonthRightEdge(anchorX, textAnchor, "Aug");
+      expect(right).toBeLessThanOrEqual(plotMaxX);
     });
   });
 });
