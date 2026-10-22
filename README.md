@@ -79,7 +79,7 @@ See `/Users/walwoodr/.claude/TECH_STACK.md` (or your own project-level
 
 ## Prerequisites
 
-- Ruby 3.3.5 via [rvm](https://rvm.io/) (`rvm use 3.3.5`)
+- Ruby 3.3.12 via [rvm](https://rvm.io/) (`rvm use 3.3.12`)
 - Node 22.x and npm (installed via [Homebrew](https://brew.sh/): `brew install node@22`)
 - PostgreSQL 16 (via Homebrew: `brew install postgresql@16`, then
   `brew services start postgresql@16`)
