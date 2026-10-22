@@ -97,6 +97,22 @@ describe("generateTokenSuggestion", () => {
     });
   });
 
+  // Regression test (TECH_DEBT.md, 2026-08-02 entry): the reject-and-retry
+  // loop was previously unbounded. An adversarial/buggy rng that always
+  // returns the same value (always picking the same word index) would
+  // retry forever - this must terminate instead, deterministically, with
+  // a distinct pair.
+  it("terminates with a distinct pair against an rng that always collides (adversarial/buggy injected rng)", () => {
+    const alwaysSameIndexRng = () => 0;
+
+    const result = generateTokenSuggestion(alwaysSameIndexRng);
+    const [first, second] = result.split("-");
+
+    expect(first).not.toBe(second);
+    expect(MOCK_WORDLIST).toContain(first);
+    expect(MOCK_WORDLIST).toContain(second);
+  });
+
   it("does not call Math.random when an rng is explicitly provided", () => {
     const randomSpy = vi.spyOn(Math, "random");
 
