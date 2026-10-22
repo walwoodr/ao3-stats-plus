@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import type { MouseHandlerDataParam } from "recharts";
 import { useChartColors } from "../../lib/useChartColors";
@@ -102,6 +102,21 @@ export function MultiSeriesTrendChart({
   const [activeDateKey, setActiveDateKey] = useState<string | null>(null);
   const [pinnedDateKey, setPinnedDateKey] = useState<string | null>(null);
   const [orientation, setOrientation] = useState<Orientation>("datesAsColumns");
+
+  // Maintenance fix (TECH_DEBT.md, 2026-09-23 entry: "MultiSeriesTrendChart
+  // rebuilds the full table model on every render"). buildMultiSeriesTableModel
+  // sorts the union of dates, re-sorts series by latest value, and rebuilds
+  // every row's cells/comparablePoints - O(series x dates) work that
+  // previously reran on every render, including every chart-hover
+  // activeDateKey/pinnedDateKey change (both local state on THIS
+  // component). The output only actually depends on series/seriesColors/
+  // valueLabel, none of which change on a hover - memoized on exactly
+  // those. Must stay ABOVE the early-return below (Rules of Hooks - every
+  // hook call has to run unconditionally on every render).
+  const tableModel = useMemo(
+    () => buildMultiSeriesTableModel({ valueLabel, series, seriesColors: colors.series }),
+    [valueLabel, series, colors.series],
+  );
 
   if (series.length === 0) {
     return (
@@ -216,12 +231,6 @@ export function MultiSeriesTrendChart({
         })
         .filter((point): point is ActivePoint => point != null)
     : [];
-
-  const tableModel = buildMultiSeriesTableModel({
-    valueLabel,
-    series,
-    seriesColors: colors.series,
-  });
 
   // Maintenance (2026-10-14 - Preview feedback on item 3, batch fix/
   // maintenance-2026-10-13): closes the gap TECH_DEBT.md previously

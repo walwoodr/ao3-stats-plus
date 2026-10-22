@@ -24,6 +24,18 @@
 // logic) - month labels aren't reported/observed to collide with each
 // other's own mark the way a lead-in's and the first real year's label can;
 // this fix is scoped to the one confirmed defect.
+//
+// Maintenance fix (2026-10-21, TECH_DEBT.md 2026-10-15 entry: "Month-label
+// right-edge overflow"). The mirror-image case of the left-edge guard above:
+// a single-point month sitting at the domain MAXIMUM (e.g. the most recent
+// capture date) has its midpoint land on bounds.maxX, the plot's right
+// edge - a centered label there renders half its text past that edge. This
+// flips `textAnchor` to "end" (mirroring yearLabelPlacement.ts's own
+// right-edge guard, Finding 1 there) so the text renders leftward from the
+// center instead of overflowing right. Both edge checks are independent (a
+// mark can only realistically overflow one side at once for any plausible
+// plot width), so left is checked first and takes precedence if a
+// pathologically narrow bounds ever made both true.
 
 export interface RawMonthLabelMark {
   key: string;
@@ -36,7 +48,7 @@ export interface PlacedMonthLabelMark {
   key: string;
   x: number;
   label: string;
-  textAnchor: "start" | "middle";
+  textAnchor: "start" | "middle" | "end";
 }
 
 export interface PlotBoundsX {
@@ -58,14 +70,15 @@ export function estimateMonthLabelWidth(label: string): number {
   return label.length * MONTH_LABEL_CHAR_WIDTH_PX;
 }
 
-// `bounds.minX` is the plot's own left edge (plotArea.x) - everything left
-// of it is the Y-axis's reserved width, where the Y-axis's own tick labels
-// render. A month mark's anchor (the midpoint of its x1/x2 span) can never
-// itself sit left of bounds.minX, since x1 is always an in-domain plotted
-// point (DateGroupingOverlay's own bounds guard already filters anything
-// else out before this runs) - so switching textAnchor to "start" always
-// fully resolves the overflow, the same way yearLabelPlacement.ts's flip to
-// "end" always fully resolves its right-edge case.
+// `bounds.minX`/`bounds.maxX` are the plot's own left/right edges
+// (plotArea.x / plotArea.x + plotArea.width). A month mark's anchor (the
+// midpoint of its x1/x2 span) can never itself sit outside [minX, maxX],
+// since x1/x2 are always in-domain plotted points (DateGroupingOverlay's own
+// bounds guard already filters anything else out before this runs) - so
+// switching textAnchor to "start" (left overflow) or "end" (right overflow)
+// always fully resolves the respective case, the same way
+// yearLabelPlacement.ts's flip to "end" always fully resolves its
+// right-edge case.
 export function computeMonthLabelPlacements(
   marks: RawMonthLabelMark[],
   bounds: PlotBoundsX,
@@ -74,7 +87,12 @@ export function computeMonthLabelPlacements(
     const x = (mark.x1 + mark.x2) / 2;
     const width = estimateMonthLabelWidth(mark.label);
     const overflowsLeft = x - width / 2 < bounds.minX;
-    const textAnchor: "start" | "middle" = overflowsLeft ? "start" : "middle";
+    const overflowsRight = x + width / 2 > bounds.maxX;
+    const textAnchor: "start" | "middle" | "end" = overflowsLeft
+      ? "start"
+      : overflowsRight
+        ? "end"
+        : "middle";
     return { key: mark.key, x, label: mark.label, textAnchor };
   });
 }

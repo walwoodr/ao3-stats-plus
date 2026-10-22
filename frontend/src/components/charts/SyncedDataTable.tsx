@@ -7,7 +7,7 @@ import {
   type Orientation,
   type SeriesAxisEntry,
 } from "../../lib/tableOrientation";
-import { buildDateHierarchy } from "../../lib/dateHierarchy";
+import { buildDateHierarchy, dedupeDateAxisEntries } from "../../lib/dateHierarchy";
 import {
   animateScrollLeft,
   computeTargetScrollLeft,
@@ -15,7 +15,11 @@ import {
   type ColumnLayout,
 } from "../../lib/scrollColumnIntoView";
 import { DataCell, SeriesHeaderCell } from "./SyncedDataTableCells";
-import { DateAxisRowCells, SyncedDataTableHeader } from "./SyncedDataTableHeader";
+import {
+  DateAxisRowCells,
+  flattenDateAxisRows,
+  SyncedDataTableHeader,
+} from "./SyncedDataTableHeader";
 import { TableOrientationToggle } from "./TableOrientationToggle";
 
 export interface SyncedDataTableProps {
@@ -100,8 +104,23 @@ export function SyncedDataTable({
   // jarring self-scroll loop, so table-originated changes are suppressed.
   const selfTriggeredRef = useRef(false);
 
+  // Maintenance fix (TECH_DEBT.md, 2026-09-23 entry: "selfTriggeredRef
+  // stuck-true flaw"). The flag used to be set unconditionally here, then
+  // reset by the auto-scroll effect below on its next run. But when the
+  // table hovers a column whose dateKey the parent ALREADY holds, the
+  // parent's setState is a same-value no-op - React bails that re-render,
+  // so this component's own activeDateKey prop never changes, and the
+  // effect (keyed on [activeDateKey]) never reruns to clear the flag. It
+  // then stayed stuck true until the next genuine external chart-hover
+  // change happened to arrive, silently suppressing that one auto-scroll.
+  // Only set the flag when this actually WILL change the prop (dateKey !==
+  // the current activeDateKey) - exactly the cases where the effect is
+  // guaranteed to rerun afterward and clear it again, so it can never get
+  // stuck: a no-op notify now never sets it in the first place.
   function notifyActiveDateKeyChange(dateKey: string | null) {
-    selfTriggeredRef.current = true;
+    if (dateKey !== activeDateKey) {
+      selfTriggeredRef.current = true;
+    }
     onActiveDateKeyChange(dateKey);
   }
 
@@ -166,24 +185,43 @@ export function SyncedDataTable({
 
   const normalized: NormalizedTableModel = normalizeTableModel(model);
   const isDatesAsColumns = orientation === "datesAsColumns";
+  // Maintenance fix (TECH_DEBT.md, 2026-09-27 entry: "duplicate-dateKey
+  // header/body misalignment"). The <tbody> below renders from
+  // columnSlots/rowSlots - previously built straight off
+  // normalized.dateAxis, undeduplicated - while the header
+  // (SyncedDataTableHeader) renders off dateHierarchy, which already
+  // dedupes via buildDateHierarchy's own first-occurrence-wins rule. If
+  // dateAxis ever carried a duplicate dateKey, the header would have fewer
+  // date columns/rows than the body, silently misaligning the two. Applying
+  // the SAME dedupeDateAxisEntries rule here closes that gap at the source,
+  // rather than each of this component's two consumers of dateAxis having
+  // to independently agree not to diverge.
+  const dedupedDateAxis = dedupeDateAxisEntries(normalized.dateAxis);
   const columnSlots: AxisSlot[] = isDatesAsColumns
-    ? dateSlots(normalized.dateAxis)
+    ? dateSlots(dedupedDateAxis)
     : seriesSlots(normalized.seriesAxis);
   const rowSlots: AxisSlot[] = isDatesAsColumns
     ? seriesSlots(normalized.seriesAxis)
-    : dateSlots(normalized.dateAxis);
+    : dateSlots(dedupedDateAxis);
   // The shared Year->Month->Day model (docs/plans/date-hierarchy-grouping.md
   // §3) drives BOTH the thead (SyncedDataTableHeader) and, in datesAsRows,
   // each tbody row's leading date-tier cells (DateAxisRowCells) - a single
   // source of truth for the grouping, not two divergent implementations.
   const dateHierarchy = buildDateHierarchy(normalized.dateAxis);
+  // Maintenance fix (TECH_DEBT.md, 2026-09-27 entry: "flattenDateAxisRows
+  // O(N^2)"). Flattened ONCE per render here, then passed to every
+  // DateAxisRowCells instance below - previously each of the N per-row
+  // instantiations recomputed this same flatten itself just to read its
+  // own one row (O(N) work x N rows = O(N^2) total for N date rows).
+  const flattenedDateAxisRows = flattenDateAxisRows(dateHierarchy);
   // In datesAsRows, EVERY rowSlot is a date slot (rowSlots is built from
-  // dateSlots(...) above) - each one's position among just the date slots
-  // already equals the hierarchy's own flattened day-row index (barring the
-  // accepted duplicate-dateKey model-level edge case dateHierarchy.ts's
-  // dedup rule documents, §7). Computed functionally (no mutable counter,
-  // per this codebase's render-purity lint rule) rather than incremented
-  // inside the JSX .map() below.
+  // dateSlots(dedupedDateAxis) above) - each one's position among just the
+  // date slots now always equals the hierarchy's own flattened day-row
+  // index exactly, including under a duplicate dateKey (both rowSlots and
+  // dateHierarchy dedup via the same dedupeDateAxisEntries rule - see the
+  // Maintenance fix above). Computed functionally (no mutable counter, per
+  // this codebase's render-purity lint rule) rather than incremented inside
+  // the JSX .map() below.
   const rowSlotsWithDateIndex = rowSlots.reduce<{ rowSlot: AxisSlot; dateRowIndex: number }[]>(
     (acc, rowSlot) => {
       const previousDateIndex = acc.length > 0 ? acc[acc.length - 1].dateRowIndex : -1;
@@ -268,7 +306,7 @@ export function SyncedDataTable({
                 <tr key={slotKey(rowSlot)}>
                   {rowSlot.kind === "date" ? (
                     <DateAxisRowCells
-                      hierarchy={dateHierarchy}
+                      rows={flattenedDateAxisRows}
                       rowIndex={dateRowIndex}
                       activeDateKey={activeDateKey}
                       pinnedDateKey={pinnedDateKey}

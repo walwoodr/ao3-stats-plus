@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, within } from "@testing-library/react";
-import { SyncedDataTableHeader, DateAxisRowCells } from "./SyncedDataTableHeader";
+import {
+  SyncedDataTableHeader,
+  DateAxisRowCells,
+  flattenDateAxisRows,
+} from "./SyncedDataTableHeader";
 import { buildDateHierarchy } from "../../lib/dateHierarchy";
 import type { DateAxisEntry, SeriesAxisEntry } from "../../lib/tableOrientation";
 
@@ -232,12 +236,13 @@ describe("SyncedDataTableHeader: datesAsRows - single thead row, series as colum
 describe("DateAxisRowCells: datesAsRows leading date-tier cells per tbody row (T4)", () => {
   function renderRow(rowIndex: number, dateAxis: DateAxisEntry[] = DATE_AXIS) {
     const hierarchy = buildDateHierarchy(dateAxis);
+    const rows = flattenDateAxisRows(hierarchy);
     return render(
       <table>
         <tbody>
           <tr>
             <DateAxisRowCells
-              hierarchy={hierarchy}
+              rows={rows}
               rowIndex={rowIndex}
               activeDateKey={null}
               pinnedDateKey={null}
@@ -323,12 +328,13 @@ describe("DateAxisRowCells: datesAsRows leading date-tier cells per tbody row (T
   it("calls togglePin with the day's dateKey when its pin button is clicked in datesAsRows mode too", () => {
     const togglePin = vi.fn();
     const hierarchy = buildDateHierarchy(DATE_AXIS);
+    const rows = flattenDateAxisRows(hierarchy);
     const { container } = render(
       <table>
         <tbody>
           <tr>
             <DateAxisRowCells
-              hierarchy={hierarchy}
+              rows={rows}
               rowIndex={1}
               activeDateKey={null}
               pinnedDateKey={null}

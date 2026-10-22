@@ -375,3 +375,75 @@ describe("SyncedDataTable: disclosure (T5, D-A)", () => {
     expect(details).toHaveProperty("open", true);
   });
 });
+
+// Regression tests (TECH_DEBT.md, 2026-09-27 entry: "duplicate-dateKey
+// header/body misalignment"). Unreachable today (DashboardPage enforces no
+// duplicate dateKey ever reaches this component) - pinned here directly
+// against a model that DOES carry one, independent of any caller's own
+// guarantee, matching the existing dateHierarchy.test.ts precedent for
+// testing the dedup rule at the unit it's actually enforced.
+describe("SyncedDataTable: duplicate-dateKey header/body alignment (regression, TECH_DEBT.md 2026-09-27)", () => {
+  const DUPLICATE_DATE_KEY_MODEL: SyncedTableModel = {
+    columns: [
+      { dateKey: "2026-01-03", label: "2026-01-03", isLeadIn: false },
+      // A duplicate dateKey (e.g. a lead-in coinciding with a real capture
+      // date) - buildDateHierarchy's header-side dedup (first occurrence
+      // wins) would otherwise render one FEWER date column than the
+      // <tbody> below, if the <tbody> itself didn't also dedup.
+      { dateKey: "2026-01-03", label: "2026-01-03 (duplicate)", isLeadIn: false },
+      { dateKey: "2026-02-20", label: "2026-02-20", isLeadIn: false },
+    ],
+    rows: [
+      {
+        seriesKey: "value",
+        title: "Hits",
+        cells: [100, 999, 300],
+        comparablePoints: [
+          { dateKey: "2026-01-03", value: 100 },
+          { dateKey: "2026-01-03", value: 999 },
+          { dateKey: "2026-02-20", value: 300 },
+        ],
+      },
+    ],
+    unitLabel: "Hits",
+  };
+
+  it("renders exactly one leaf column header per UNIQUE dateKey, not one per raw column entry", () => {
+    render(
+      <SyncedDataTable
+        title="Total hits"
+        rowHeaderLabel="Metric"
+        model={DUPLICATE_DATE_KEY_MODEL}
+        activeDateKey={null}
+        onActiveDateKeyChange={noop}
+      />,
+    );
+
+    const table = screen.getByRole("table", { name: /total hits/i });
+    const columnHeaders = leafColumnHeaders(table);
+    const dateKeys = columnHeaders.map((header) => header.getAttribute("data-date-key"));
+
+    // 2 unique dateKeys + 1 corner cell - not 3 raw columns + 1.
+    expect(columnHeaders).toHaveLength(3);
+    expect(new Set(dateKeys).size).toBe(dateKeys.length);
+  });
+
+  it("never renders more <td> data cells in a row than there are leaf column headers (the actual misalignment guard)", () => {
+    const { container } = render(
+      <SyncedDataTable
+        title="Total hits"
+        rowHeaderLabel="Metric"
+        model={DUPLICATE_DATE_KEY_MODEL}
+        activeDateKey={null}
+        onActiveDateKeyChange={noop}
+      />,
+    );
+
+    const table = screen.getByRole("table", { name: /total hits/i });
+    const headerCount = leafColumnHeaders(table).length - 1; // exclude the corner cell
+    const dataRow = container.querySelector("tbody tr") as HTMLElement;
+    const dataCellCount = dataRow.querySelectorAll("td").length;
+
+    expect(dataCellCount).toBe(headerCount);
+  });
+});

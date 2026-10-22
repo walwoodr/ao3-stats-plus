@@ -109,6 +109,41 @@ RSpec.describe "POST /ingest/work", type: :request do
     end
   end
 
+  # Regression test (TECH_DEBT.md, 2026-08-01 entry): a scraped payload
+  # that violates a WorkStat validation (here, a negative publicBookmarks,
+  # which fails WorkStat's `numericality: { greater_than_or_equal_to: 0 }`)
+  # previously raised an unrescued ActiveRecord::RecordInvalid -> HTTP 500,
+  # instead of the typed 422 every other malformed-payload case already
+  # gets.
+  context "with a scraped payload that fails a WorkStat validation" do
+    it "returns 422, not 500" do
+      token = capture_phase_one(username: "worker_invalid_workstat")
+      payload = valid_work_detail_payload(
+        username: "worker_invalid_workstat",
+        read_token: token,
+        work_stats: { "publicBookmarks" => -1, "visibleComments" => 14, "chapterCount" => 3, "chaptersExpected" => 12 },
+      )
+
+      post_ingest_work(payload)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it "persists no partial write (the transaction rolls back)" do
+      token = capture_phase_one(username: "worker_invalid_workstat_rollback")
+      work_stat = WorkStat.where(work: Work.find_by(ao3_work_id: 111)).first
+      payload = valid_work_detail_payload(
+        username: "worker_invalid_workstat_rollback",
+        read_token: token,
+        work_stats: { "publicBookmarks" => -1, "visibleComments" => 14, "chapterCount" => 3, "chaptersExpected" => 12 },
+      )
+
+      expect {
+        post_ingest_work(payload)
+      }.not_to change { work_stat.reload.updated_at }
+    end
+  end
+
   context "with an unsupported schemaVersion" do
     it "returns 426" do
       token = capture_phase_one(username: "worker_426")

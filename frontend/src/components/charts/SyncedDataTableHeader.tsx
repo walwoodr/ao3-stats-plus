@@ -114,7 +114,7 @@ export function SyncedDataTableHeader({
   );
 }
 
-interface DateAxisRow {
+export interface DateAxisRow {
   day: DayEntry;
   year: string;
   isFirstOfYear: boolean;
@@ -128,8 +128,13 @@ interface DateAxisRow {
 // each tagged with whether it's the first row of its year/month group (the
 // only row that actually emits that tier's <th>, per standard HTML rowSpan
 // pivoting - §4) and that group's total rowSpan (year = every day under it
-// across all its months; month = its own day count).
-function flattenDateAxisRows(hierarchy: YearGroup[]): DateAxisRow[] {
+// across all its months; month = its own day count). Exported (TECH_DEBT.md,
+// 2026-09-27 entry: "flattenDateAxisRows O(N^2)") so SyncedDataTable.tsx can
+// call this ONCE per render and pass the already-flattened rows down to
+// every DateAxisRowCells instance, instead of each of the N per-row
+// instantiations below recomputing the full flatten just to read its own
+// one row.
+export function flattenDateAxisRows(hierarchy: YearGroup[]): DateAxisRow[] {
   const rows: DateAxisRow[] = [];
   hierarchy.forEach((year) => {
     const yearRowSpan = year.months.reduce((sum, month) => sum + month.days.length, 0);
@@ -151,7 +156,12 @@ function flattenDateAxisRows(hierarchy: YearGroup[]): DateAxisRow[] {
 }
 
 export interface DateAxisRowCellsProps {
-  hierarchy: YearGroup[];
+  // Maintenance fix (TECH_DEBT.md, 2026-09-27 entry): takes the already-
+  // flattened rows (via flattenDateAxisRows above), not the raw hierarchy -
+  // the caller (SyncedDataTable.tsx) flattens ONCE per render and passes
+  // the same array to every row instance, turning what used to be an O(N)
+  // re-flatten per instantiation into an O(1) index lookup.
+  rows: DateAxisRow[];
   rowIndex: number;
   activeDateKey: string | null;
   pinnedDateKey: string | null;
@@ -168,7 +178,7 @@ export interface DateAxisRowCellsProps {
 // visible while scrolling; year/month scroll with the body, a deliberate,
 // lower-risk choice over fragile cumulative sticky-left offsets).
 export function DateAxisRowCells({
-  hierarchy,
+  rows,
   rowIndex,
   activeDateKey,
   pinnedDateKey,
@@ -176,7 +186,6 @@ export function DateAxisRowCells({
   notifyActiveDateKeyChange,
   togglePin,
 }: DateAxisRowCellsProps) {
-  const rows = flattenDateAxisRows(hierarchy);
   const row = rows[rowIndex];
   if (!row) return null;
 

@@ -284,17 +284,26 @@
   visibly reorders, but the O(series x dates) work reruns each hover
   frame. A `useMemo` keyed on `series`/`seriesColors` would remove it.
 
-- [2026-09-24] (stage: Review (adversarial)) Delta chips aren't run
+- ~~[2026-09-24] (stage: Review (adversarial)) Delta chips aren't run
   through `formatNumber` - a large count delta can read e.g. `+10000` next
   to a cell reading `10,000` (same gap in the sr-only text; worse for the
-  ratio metric's raw float precision). Cosmetic, low severity.
+  ratio metric's raw float precision). Cosmetic, low severity.~~ —
+  **RESOLVED 2026-10-06** (chart-table-polish-batch.md §4/§8 T1,
+  `04e66b5`): `deltaLabel`/the sr-only increase-decrease text in
+  `SyncedDataTableCells.tsx` both now run the magnitude through the shared
+  `formatNumber`. Re-verified directly against the live code during the
+  2026-10-21/22 Maintenance batch rather than taken on faith.
 
-- [2026-09-24] (stage: Review (adversarial)) The carried-forward clarifier
+- ~~[2026-09-24] (stage: Review (adversarial)) The carried-forward clarifier
   only covers the hovered (B) side of a pin comparison, not the pinned (A)
   side - a row whose A basis was itself carried forward gives a
   screen-reader user a signed delta with no disclosure the A basis isn't
   literally the pinned date. Minor a11y-transparency gap, not a wrong
-  number.
+  number.~~ — **RESOLVED 2026-10-21/22** (Maintenance): `SyncedDataTableCells.tsx`'s
+  `DataCell` now checks `resolvedDateKeyA !== pinnedDateKey` independently
+  of the existing B-side check, rendering a distinctly-worded ("pinned
+  basis as of ...") sr-only clarifier when the pinned side itself carried
+  forward - either, neither, or both sides' clarifiers can now render.
 
 - [2026-09-24] (stage: Review (adversarial)) Theoretical, unconfirmed
   reachable: empty `points` + a present `leadIn` yields a `NaN` axis
@@ -662,8 +671,39 @@
   tooling-unavailable `ruby-3.3.5`. Independent of, and unrelated to, the
   other three CI failure modes tracked above (Playwright/Vitest-hang/
   CI-red-state entries) - this one is purely a runner-image/toolchain-
-  availability break, not an app or test defect. Not yet fixed. Candidate
-  fix: bump `backend/.ruby-version` to `3.3.12` (or `3.3` to float the
-  latest patch) and confirm `Gemfile.lock`/native extensions still build
-  under it - worth a quick Maintenance pass rather than leaving CI red on a
-  fourth, distinct front.
+  availability break, not an app or test defect. **FIXED by
+  tech-debt-batch-2026-10** - `backend/.ruby-version` bumped to `3.3.12`,
+  confirmed to build and boot on Render's production environment with the
+  new Ruby version.
+- [2026-10-22] (stage: Review (adversarial)) `DashboardPage.tsx`'s
+  `isBackendConfirmedRejection` (item 2, tech-debt-batch-2026-10) treats
+  any 2xx `ClientError` as a confirmed token rejection - but a GraphQL
+  QUERY-VALIDATION error (malformed query, or a non-null/`String!`
+  variable-coercion failure, e.g. a null/empty token) is ALSO returned at
+  HTTP 200 with an `errors` array, and graphql-request wraps that as a 2xx
+  `ClientError` too - which this logic would misclassify as a real token
+  mismatch and incorrectly clear a valid token. No live production trigger
+  found (the dashboard always sends a fixed query with string variables),
+  so this is theoretical/unconfirmed, not a reproduced bug. Candidate
+  tightening: also require the `errors` array's shape/message to match a
+  genuine resolver-level rejection, not just "any 2xx GraphQL error."
+
+- [2026-10-22] (stage: Review (adversarial)) Exporting `flattenDateAxisRows`
+  from `SyncedDataTableHeader.tsx` (item 9, tech-debt-batch-2026-10) trips
+  the `react-refresh/only-export-components` ESLint warning (warning only,
+  0 errors) - follows the same already-tolerated pattern this codebase
+  already has at `MultiSeriesTrendChart.tsx:49` (`buildChartData`, flagged
+  2026-08-04 above). No action needed; noted for whoever eventually
+  extracts shared pure helpers into non-component modules.
+
+- [2026-10-22] (stage: Maintenance) `backend`'s RSpec run prints a Rack
+  deprecation warning on every `have_http_status(:unprocessable_entity)`
+  assertion ("Status code :unprocessable_entity is deprecated... use
+  :unprocessable_content instead") - pre-existing, not introduced by this
+  batch's own new test (`spec/requests/ingest_work_spec.rb`), which
+  deliberately matched the symbol already used throughout this codebase's
+  specs AND in `IngestController`'s own production `render ... status:
+  :unprocessable_entity` calls, rather than fixing only the new test and
+  leaving it inconsistent with everything else. A real future rename (spec
+  assertions + controller `status:` values together, in one pass) would
+  need to touch every `/ingest*` action and its specs at once.

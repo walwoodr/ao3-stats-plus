@@ -247,6 +247,36 @@ describe("SyncedDataTable: per-row delta chips via the backward-walk (C3a - the 
     expect(deltaChip.textContent).toBe("0");
   });
 
+  // Regression test (TECH_DEBT.md, 2026-09-24 adversarial entry): the
+  // carried-forward clarifier previously only covered the hovered (B)
+  // side. Pinning a date Work A has no OWN value for (2026-01-05, carried
+  // forward from 2026-01-01) while hovering a date it DOES have its own
+  // value for (2026-01-08, no carry-forward) exercises the gap directly -
+  // a screen-reader user previously got "+10" with no disclosure the
+  // pinned basis wasn't literally 2026-01-05.
+  it("discloses when the PINNED (A) basis was itself carried forward, independent of the hovered (B) side", () => {
+    render(
+      <SyncedDataTable
+        title="Hits"
+        rowHeaderLabel="Work"
+        model={MODEL}
+        activeDateKey="2026-01-08"
+        onActiveDateKeyChange={noop}
+        pinnedDateKey="2026-01-05"
+        onPinnedDateKeyChange={noop}
+      />,
+    );
+
+    // Work A: no own value at 2026-01-05 (pinned) - carries forward from
+    // 2026-01-01 (10); DOES have its own value at 2026-01-08 (hovered, 20).
+    const workARow = screen.getByRole("row", { name: /work a/i });
+    const deltaChip = within(workARow).getByTestId("delta-chip");
+    expect(deltaChip.textContent).toBe("+10");
+    expect(workARow.textContent).toMatch(/pinned basis as of 2026-01-01/i);
+    // The hovered side did NOT carry forward - no "as of 2026-01-08" text.
+    expect(workARow.textContent).not.toMatch(/as of 2026-01-08/i);
+  });
+
   it("colors an increase distinctly from a decrease (non-color sign is always present too)", () => {
     render(
       <SyncedDataTable
