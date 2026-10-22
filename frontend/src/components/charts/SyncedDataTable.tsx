@@ -7,7 +7,7 @@ import {
   type Orientation,
   type SeriesAxisEntry,
 } from "../../lib/tableOrientation";
-import { buildDateHierarchy } from "../../lib/dateHierarchy";
+import { buildDateHierarchy, dedupeDateAxisEntries } from "../../lib/dateHierarchy";
 import {
   animateScrollLeft,
   computeTargetScrollLeft,
@@ -181,24 +181,37 @@ export function SyncedDataTable({
 
   const normalized: NormalizedTableModel = normalizeTableModel(model);
   const isDatesAsColumns = orientation === "datesAsColumns";
+  // Maintenance fix (TECH_DEBT.md, 2026-09-27 entry: "duplicate-dateKey
+  // header/body misalignment"). The <tbody> below renders from
+  // columnSlots/rowSlots - previously built straight off
+  // normalized.dateAxis, undeduplicated - while the header
+  // (SyncedDataTableHeader) renders off dateHierarchy, which already
+  // dedupes via buildDateHierarchy's own first-occurrence-wins rule. If
+  // dateAxis ever carried a duplicate dateKey, the header would have fewer
+  // date columns/rows than the body, silently misaligning the two. Applying
+  // the SAME dedupeDateAxisEntries rule here closes that gap at the source,
+  // rather than each of this component's two consumers of dateAxis having
+  // to independently agree not to diverge.
+  const dedupedDateAxis = dedupeDateAxisEntries(normalized.dateAxis);
   const columnSlots: AxisSlot[] = isDatesAsColumns
-    ? dateSlots(normalized.dateAxis)
+    ? dateSlots(dedupedDateAxis)
     : seriesSlots(normalized.seriesAxis);
   const rowSlots: AxisSlot[] = isDatesAsColumns
     ? seriesSlots(normalized.seriesAxis)
-    : dateSlots(normalized.dateAxis);
+    : dateSlots(dedupedDateAxis);
   // The shared Year->Month->Day model (docs/plans/date-hierarchy-grouping.md
   // §3) drives BOTH the thead (SyncedDataTableHeader) and, in datesAsRows,
   // each tbody row's leading date-tier cells (DateAxisRowCells) - a single
   // source of truth for the grouping, not two divergent implementations.
   const dateHierarchy = buildDateHierarchy(normalized.dateAxis);
   // In datesAsRows, EVERY rowSlot is a date slot (rowSlots is built from
-  // dateSlots(...) above) - each one's position among just the date slots
-  // already equals the hierarchy's own flattened day-row index (barring the
-  // accepted duplicate-dateKey model-level edge case dateHierarchy.ts's
-  // dedup rule documents, §7). Computed functionally (no mutable counter,
-  // per this codebase's render-purity lint rule) rather than incremented
-  // inside the JSX .map() below.
+  // dateSlots(dedupedDateAxis) above) - each one's position among just the
+  // date slots now always equals the hierarchy's own flattened day-row
+  // index exactly, including under a duplicate dateKey (both rowSlots and
+  // dateHierarchy dedup via the same dedupeDateAxisEntries rule - see the
+  // Maintenance fix above). Computed functionally (no mutable counter, per
+  // this codebase's render-purity lint rule) rather than incremented inside
+  // the JSX .map() below.
   const rowSlotsWithDateIndex = rowSlots.reduce<{ rowSlot: AxisSlot; dateRowIndex: number }[]>(
     (acc, rowSlot) => {
       const previousDateIndex = acc.length > 0 ? acc[acc.length - 1].dateRowIndex : -1;

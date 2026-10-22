@@ -69,22 +69,38 @@ function parseDateKey(dateKey: string): ParsedDateKey {
   };
 }
 
-// Groups `entries` STRICTLY by adjacency in their given order (never
-// re-sorts - the date axis is already ascending, and the lead-in is
-// deliberately first) into a Year -> Month -> Day tree. Duplicate dateKeys
-// dedup to a single DayEntry, first occurrence wins (§7). The month tier is
-// NEVER collapsed/omitted, even for a single-point year (the plan's
-// explicitly corrected flaw) - every date decomposes to all three tiers.
-export function buildDateHierarchy(entries: DateAxisEntry[]): YearGroup[] {
-  const years: YearGroup[] = [];
+// Drops a duplicate dateKey, first occurrence wins (§7) - the same rule
+// buildDateHierarchy below applies when building the header's tree.
+// Exported (TECH_DEBT.md, 2026-09-27 entry: "duplicate-dateKey header/body
+// misalignment") so SyncedDataTable.tsx can apply this SAME rule to the
+// `columnSlots`/`rowSlots` its <tbody> renders from, rather than those two
+// consumers of `dateAxis` silently diverging on whether a duplicate is
+// possible - a single source of truth for the dedup rule, not two
+// independent (and so far accidentally-matching-by-luck) ones.
+export function dedupeDateAxisEntries(entries: DateAxisEntry[]): DateAxisEntry[] {
   const seenDateKeys = new Set<string>();
-  let currentYear: YearGroup | null = null;
-  let currentMonth: MonthGroup | null = null;
-
+  const deduped: DateAxisEntry[] = [];
   for (const entry of entries) {
     if (seenDateKeys.has(entry.dateKey)) continue;
     seenDateKeys.add(entry.dateKey);
+    deduped.push(entry);
+  }
+  return deduped;
+}
 
+// Groups `entries` STRICTLY by adjacency in their given order (never
+// re-sorts - the date axis is already ascending, and the lead-in is
+// deliberately first) into a Year -> Month -> Day tree. Duplicate dateKeys
+// dedup to a single DayEntry, first occurrence wins (§7, via
+// dedupeDateAxisEntries above). The month tier is NEVER collapsed/omitted,
+// even for a single-point year (the plan's explicitly corrected flaw) -
+// every date decomposes to all three tiers.
+export function buildDateHierarchy(entries: DateAxisEntry[]): YearGroup[] {
+  const years: YearGroup[] = [];
+  let currentYear: YearGroup | null = null;
+  let currentMonth: MonthGroup | null = null;
+
+  for (const entry of dedupeDateAxisEntries(entries)) {
     const parsed = parseDateKey(entry.dateKey);
     const dayEntry: DayEntry = { dateKey: entry.dateKey, day: parsed.day, entry };
 
