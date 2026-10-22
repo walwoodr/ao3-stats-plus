@@ -16,10 +16,19 @@ import { leafColumnHeaders } from "../components/charts/syncedDataTableTestSuppo
 // fetch/network failure (e.g. CORS) which has no `.response`. See
 // DashboardPage's error-message branching, which relies on this shape
 // distinction to avoid mislabeling a CORS/network failure as "bad token".
-function makeClientError(message: string): ClientError {
+//
+// Status defaults to 200, matching this app's real backend: query_type.rb's
+// `stats_for_user` only ever raises a typed `GraphQL::ExecutionError` for a
+// bad token/unknown username, and graphql_controller.rb renders that via a
+// bare `render json: result` (no explicit status), i.e. HTTP 200 with a
+// populated `errors` array. A non-2xx status (passable via the second arg)
+// instead models graphql-request's OTHER ClientError source - any non-ok
+// HTTP response, including a transient backend 5xx that says nothing about
+// the token (TECH_DEBT.md, 2026-07-31 entry).
+function makeClientError(message: string, status = 200): ClientError {
   return new ClientError(
     {
-      status: 401,
+      status,
       headers: new Headers(),
       body: JSON.stringify({ errors: [{ message }] }),
       errors: [new GraphQLError(message)],
@@ -146,6 +155,37 @@ describe("DashboardPage", () => {
       useTokenStore.getState().setToken("someauthor", "tok_valid");
       vi.mocked(useTokenFromUrl).mockReturnValue("tok_valid");
       mockStats({ error: new TypeError("Failed to fetch") });
+
+      renderDashboard();
+
+      expect(useTokenStore.getState().getToken("someauthor")).toBe("tok_valid");
+    });
+  });
+
+  // Regression test (TECH_DEBT.md, 2026-07-31 entry): a ClientError is also
+  // what graphql-request throws for ANY non-2xx HTTP response (e.g. a
+  // transient backend 500), not only a genuine backend-confirmed token
+  // rejection (which this app's backend always returns on HTTP 200 - see
+  // makeClientError's own comment above). Previously `instanceof ClientError`
+  // alone triggered the "doesn't match" copy and cleared a perfectly valid
+  // token over what could be a one-off server error.
+  describe("when the stats query fails with a ClientError from a non-2xx/5xx response (not a backend-confirmed rejection)", () => {
+    it("explains it may be a connectivity/server issue rather than blaming the token", () => {
+      vi.mocked(useTokenFromUrl).mockReturnValue("tok_valid");
+      mockStats({ error: makeClientError("internal server error", 500) });
+
+      renderDashboard();
+
+      expect(
+        screen.getAllByText(/couldn't reach the server|network or configuration/i).length,
+      ).toBeGreaterThan(0);
+      expect(screen.queryByText(/doesn't match this username/i)).not.toBeInTheDocument();
+    });
+
+    it("does not clear the stored token, since a 5xx failure doesn't mean the backend evaluated it", () => {
+      useTokenStore.getState().setToken("someauthor", "tok_valid");
+      vi.mocked(useTokenFromUrl).mockReturnValue("tok_valid");
+      mockStats({ error: makeClientError("internal server error", 500) });
 
       renderDashboard();
 

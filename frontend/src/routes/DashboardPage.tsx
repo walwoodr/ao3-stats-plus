@@ -21,22 +21,42 @@ const AGGREGATE_METRIC_TABS = [
 ];
 
 // graphql-request throws a ClientError (with a `.response` carrying the
-// GraphQL `errors` array) for a real, backend-confirmed rejection - e.g. an
-// invalid/expired token the server actually evaluated and rejected. A plain
-// fetch/network failure (a generic TypeError with no `.response` - what a
-// CORS rejection or connectivity problem surfaces as) means the request
-// never got a real answer from the server at all, so it says nothing about
-// whether the token itself is valid. Conflating the two previously showed
-// "your token is wrong" for CORS/network failures, sending users chasing
-// the wrong problem (see README.md's FRONTEND_ORIGINS/CORS note).
+// GraphQL `errors` array) both for a real, backend-confirmed rejection (an
+// invalid/expired token the server actually evaluated and rejected) AND for
+// any other non-2xx HTTP response (e.g. a transient backend 5xx) - see
+// graphql-request's runRequest.ts: it wraps every `!fetchResponse.ok`
+// response in a ClientError regardless of whether the body is a real,
+// well-formed GraphQL error. `instanceof ClientError` alone can't tell these
+// apart. A plain fetch/network failure (a generic TypeError with no
+// `.response` - what a CORS rejection or connectivity problem surfaces as)
+// is a third, distinct case that never reached the server at all.
+//
+// This backend (query_type.rb's `stats_for_user`) only ever raises a typed
+// `GraphQL::ExecutionError` for a bad token/unknown username, which
+// graphql_controller.rb renders via a bare `render json: result` - no
+// explicit status, i.e. HTTP 200. Any other failure (an unhandled
+// exception) takes graphql_controller.rb's rescue path or Rails' own default
+// error response, both non-200. So "ClientError whose response arrived on a
+// 2xx status" is the actual, accurate signal for "the backend evaluated the
+// token and rejected it" - a non-2xx ClientError is a real server/transport
+// failure that says nothing about the token, same as the network-error case.
+// Maintenance fix (TECH_DEBT.md, 2026-07-31 entry): previously any
+// `instanceof ClientError` cleared the token and showed "doesn't match",
+// which would incorrectly blame a valid token for a transient 500.
 const TOKEN_MISMATCH_MESSAGE =
   "That token doesn't match this username - it may be invalid, expired, or not authorized.";
 const NETWORK_ERROR_MESSAGE =
   "Couldn't reach the server - this may be a network or configuration issue, not necessarily " +
   "your token.";
 
+function isBackendConfirmedRejection(error: Error): boolean {
+  if (!(error instanceof ClientError)) return false;
+  const { status } = error.response;
+  return status >= 200 && status < 300;
+}
+
 function messageForStatsError(error: Error): string {
-  return error instanceof ClientError ? TOKEN_MISMATCH_MESSAGE : NETWORK_ERROR_MESSAGE;
+  return isBackendConfirmedRejection(error) ? TOKEN_MISMATCH_MESSAGE : NETWORK_ERROR_MESSAGE;
 }
 
 // Composes the token handoff (useTokenFromUrl) with the stats read
@@ -75,11 +95,13 @@ export function DashboardPage() {
   }
 
   // Only a backend-confirmed rejection means the token itself is actually
-  // wrong - a plain network/CORS failure (see messageForStatsError above)
-  // says nothing about the token, so clearing it there would silently log
-  // a user out over a transient connectivity blip.
+  // wrong - a plain network/CORS failure, OR a ClientError that merely
+  // wraps a non-2xx transport/server failure (see isBackendConfirmedRejection
+  // above), says nothing about the token, so clearing it there would
+  // silently log a user out over a transient connectivity blip or backend
+  // 5xx.
   useEffect(() => {
-    if (error instanceof ClientError) clearToken(username);
+    if (error && isBackendConfirmedRejection(error)) clearToken(username);
   }, [error, username, clearToken]);
 
   const handleManualToken = (enteredToken: string) => {
