@@ -628,3 +628,20 @@
     literally one shared context some other way, or sharding/serializing
     the whole job) starts to look like it needs a Planning-level call, not
     another ad hoc patch.
+
+- [2026-10-21] (stage: Review (adversarial)) The Vitest-hang fix above sets
+  `fileParallelism: false` inside `vite.config.ts`'s "storybook" project's
+  `browser` options - functional in vitest 4.1.10 (verified against the
+  real code path, not just the type: `getThreadsCount` reads it and an
+  explicit `false` is preserved), but that key is marked `@deprecated use
+  top-level fileParallelism instead` in vitest's own types, and emits no
+  runtime warning (unlike the sibling `browser.isolate` deprecation, which
+  does warn) - easy to miss. A future vitest major could drop the
+  browser-level key outright, silently reverting to `fileParallelism: true`
+  and reopening the hang. Low risk today (the `testTimeout`/`hookTimeout:
+  30_000` fallback would still fail the job loudly within 30s rather than
+  hang indefinitely if that happens) but worth moving to the non-deprecated
+  top-level `test.fileParallelism: false` (sibling of `browser`, not
+  inside it - confirmed the top-level value flows down into
+  `browser.fileParallelism` the same way) next time this file is touched,
+  or at latest on the next vitest major upgrade.
