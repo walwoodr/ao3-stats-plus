@@ -51,6 +51,15 @@ class WorkDetailIngestService
     end
 
     Result.new(ao3_user: ao3_user, work: work_stat.work, work_stat: work_stat)
+  rescue ActiveRecord::RecordInvalid => e
+    # A scraped payload that violates a WorkStat/Work/WorkBookmark
+    # validation (e.g. a negative count, or chaptersExpected below
+    # chapterCount) previously bubbled up as an unrescued exception ->
+    # HTTP 500 (TECH_DEBT.md, 2026-08-01 entry). The transaction above
+    # already rolls back on any raise, so this never leaves a partial
+    # write - converting to the same typed InvalidPayload -> 422 the
+    # controller already renders for every other validation failure here.
+    raise InvalidPayload, "scraped payload failed validation: #{e.record.errors.full_messages.join(", ")}"
   end
 
   private
