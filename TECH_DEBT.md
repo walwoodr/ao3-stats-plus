@@ -645,3 +645,25 @@
   inside it - confirmed the top-level value flows down into
   `browser.fileParallelism` the same way) next time this file is touched,
   or at latest on the next vitest major upgrade.
+
+- [2026-10-22] (stage: Retrospective) **Fourth CI failure mode, newly
+  surfaced, currently RED on `main`.** On the same 2026-10-21 push that
+  confirmed the Vitest-hang fix (run #39722579450: `Frontend (ESLint +
+  Vitest)` green in 3m26s, `Frontend (Playwright e2e)` green in 8m38s), the
+  `Backend (RuboCop + RSpec)` job now fails at the `Set up Ruby` step,
+  before RuboCop or RSpec even run:
+  `Error: Unavailable version 3.3.5 for ruby on ubuntu-26.04` /
+  `ruby-3.3.12 is available on ubuntu-26.04: use ruby-version: '3.3.12'`
+  (`ruby/setup-ruby@v1`, `Cause: Unexpected HTTP response: 404`). Root cause
+  confirmed from the run's own annotations: GitHub's `ubuntu-latest` label
+  began migrating to Ubuntu 26.04 on 2026-10-19
+  (actions/runner-images#14748), and only the latest patch of each Ruby
+  series is built for the new image - `backend/.ruby-version` pins the now
+  tooling-unavailable `ruby-3.3.5`. Independent of, and unrelated to, the
+  other three CI failure modes tracked above (Playwright/Vitest-hang/
+  CI-red-state entries) - this one is purely a runner-image/toolchain-
+  availability break, not an app or test defect. Not yet fixed. Candidate
+  fix: bump `backend/.ruby-version` to `3.3.12` (or `3.3` to float the
+  latest patch) and confirm `Gemfile.lock`/native extensions still build
+  under it - worth a quick Maintenance pass rather than leaving CI red on a
+  fourth, distinct front.
