@@ -228,7 +228,17 @@ export function DataCell({
   const valenceClass =
     valence === "up" ? "text-growth" : valence === "down" ? "text-destructive" : "text-ink-soft";
   const valenceWord = valence === "up" ? "increase" : valence === "down" ? "decrease" : "no change";
-  const carriedForward = result.resolvedDateKeyB !== activeDateKey;
+  // Maintenance fix (TECH_DEBT.md, 2026-09-24 adversarial entry): this used
+  // to only check the hovered (B) side's own carry-forward. A row whose
+  // PINNED (A) basis was itself carried forward (the pin date has no own
+  // value for this row either) got a signed delta with zero disclosure
+  // that side's basis wasn't literally the pinned date - a real a11y-
+  // transparency gap, not a wrong number. Both sides are now checked and
+  // clarified independently; either, neither, or both can carry forward,
+  // worded distinctly ("pinned basis" vs plain "as of") so a screen-reader
+  // user can tell which side an each clarifier is about.
+  const carriedForwardA = result.resolvedDateKeyA !== pinnedDateKey;
+  const carriedForwardB = result.resolvedDateKeyB !== activeDateKey;
 
   return (
     <td className={className}>
@@ -241,7 +251,10 @@ export function DataCell({
           ? " — no change"
           : ` — ${valenceWord} of ${formatNumber(Math.abs(result.delta))}`}
       </span>
-      {carriedForward && <span className="sr-only">{` — as of ${result.resolvedDateKeyB}`}</span>}
+      {carriedForwardA && (
+        <span className="sr-only">{` — pinned basis as of ${result.resolvedDateKeyA}`}</span>
+      )}
+      {carriedForwardB && <span className="sr-only">{` — as of ${result.resolvedDateKeyB}`}</span>}
     </td>
   );
 }

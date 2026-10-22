@@ -284,17 +284,26 @@
   visibly reorders, but the O(series x dates) work reruns each hover
   frame. A `useMemo` keyed on `series`/`seriesColors` would remove it.
 
-- [2026-09-24] (stage: Review (adversarial)) Delta chips aren't run
+- ~~[2026-09-24] (stage: Review (adversarial)) Delta chips aren't run
   through `formatNumber` - a large count delta can read e.g. `+10000` next
   to a cell reading `10,000` (same gap in the sr-only text; worse for the
-  ratio metric's raw float precision). Cosmetic, low severity.
+  ratio metric's raw float precision). Cosmetic, low severity.~~ —
+  **RESOLVED 2026-10-06** (chart-table-polish-batch.md §4/§8 T1,
+  `04e66b5`): `deltaLabel`/the sr-only increase-decrease text in
+  `SyncedDataTableCells.tsx` both now run the magnitude through the shared
+  `formatNumber`. Re-verified directly against the live code during the
+  2026-10-21/22 Maintenance batch rather than taken on faith.
 
-- [2026-09-24] (stage: Review (adversarial)) The carried-forward clarifier
+- ~~[2026-09-24] (stage: Review (adversarial)) The carried-forward clarifier
   only covers the hovered (B) side of a pin comparison, not the pinned (A)
   side - a row whose A basis was itself carried forward gives a
   screen-reader user a signed delta with no disclosure the A basis isn't
   literally the pinned date. Minor a11y-transparency gap, not a wrong
-  number.
+  number.~~ — **RESOLVED 2026-10-21/22** (Maintenance): `SyncedDataTableCells.tsx`'s
+  `DataCell` now checks `resolvedDateKeyA !== pinnedDateKey` independently
+  of the existing B-side check, rendering a distinctly-worded ("pinned
+  basis as of ...") sr-only clarifier when the pinned side itself carried
+  forward - either, neither, or both sides' clarifiers can now render.
 
 - [2026-09-24] (stage: Review (adversarial)) Theoretical, unconfirmed
   reachable: empty `points` + a present `leadIn` yields a `NaN` axis
